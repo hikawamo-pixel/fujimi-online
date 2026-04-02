@@ -1,326 +1,462 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>便秘オンライン｜ふじみクリニック</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --green: #2d6a4f;
-    --green-light: #52b788;
-    --green-pale: #d8f3dc;
-    --cream: #faf8f3;
-    --warm-gray: #6b6560;
-    --dark: #1a1a1a;
-    --border: #e0dbd2;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color: var(--dark); line-height: 1.8; }
-
-  /* Header */
-  header { background: white; border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
-  header img { height: 36px; }
-  header .clinic-name { font-family: 'Noto Serif JP', serif; font-size: 14px; color: var(--green); font-weight: 600; }
-
-  /* Hero */
-  .hero { background: linear-gradient(135deg, var(--green) 0%, #1b4332 100%); color: white; padding: 56px 24px 48px; text-align: center; }
-  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); border-radius: 20px; font-size: 12px; padding: 4px 14px; letter-spacing: 0.08em; margin-bottom: 20px; }
-  .hero h1 { font-family: 'Noto Serif JP', serif; font-size: clamp(26px, 6vw, 38px); font-weight: 700; line-height: 1.4; margin-bottom: 16px; }
-  .hero h1 span { display: block; font-size: 0.65em; font-weight: 400; opacity: 0.85; margin-bottom: 6px; font-family: 'Noto Sans JP', sans-serif; }
-  .hero p { font-size: 14px; opacity: 0.88; max-width: 480px; margin: 0 auto 28px; }
-  .hero-cta { display: inline-block; background: white; color: var(--green); font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 40px; text-decoration: none; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: transform 0.2s; }
-  .hero-cta:hover { transform: translateY(-2px); }
-
-  /* Fee banner */
-  .fee-banner { background: var(--green-pale); border-bottom: 1px solid #b7e4c7; padding: 14px 24px; text-align: center; font-size: 13px; color: var(--green); }
-  .fee-banner strong { font-weight: 700; font-size: 15px; }
-
-  /* Labels / headings */
-  .section-label { font-size: 11px; letter-spacing: 0.12em; color: var(--green-light); font-weight: 500; text-transform: uppercase; margin-bottom: 8px; }
-  h2 { font-family: 'Noto Serif JP', serif; font-size: 22px; font-weight: 700; margin-bottom: 24px; color: var(--dark); }
-
-  /* Steps */
-  .steps { display: flex; flex-direction: column; }
-  .step { display: flex; gap: 20px; padding-bottom: 32px; }
-  .step:last-child { padding-bottom: 0; }
-  .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 44px; }
-  .step-num { width: 44px; height: 44px; border-radius: 50%; background: var(--green); color: white; font-family: 'Noto Serif JP', serif; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-  .step-line { flex: 1; width: 2px; background: var(--border); margin-top: 6px; }
-  .step:last-child .step-line { display: none; }
-  .step-content { padding-top: 8px; }
-  .step-title { font-weight: 700; font-size: 16px; margin-bottom: 6px; color: var(--dark); }
-  .step-desc { font-size: 13.5px; color: var(--warm-gray); line-height: 1.75; }
-  .step-note { margin-top: 8px; background: white; border: 1px solid var(--border); border-left: 3px solid var(--green-light); border-radius: 4px; padding: 10px 14px; font-size: 12.5px; color: var(--warm-gray); line-height: 1.7; }
-  .step-note a { color: var(--green); text-decoration: underline; }
-
-  /* Divider */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
-
-  /* Fee box */
-  .fee-box { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 4px; }
-  .fee-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-  .fee-row:last-child { border-bottom: none; }
-  .fee-label { color: var(--warm-gray); }
-  .fee-amount { font-weight: 700; color: var(--dark); }
-  .fee-sub { font-size: 12px; color: var(--warm-gray); margin-top: 12px; line-height: 1.7; }
-
-  /* Hours */
-  .hours-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13.5px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-  .hours-day { color: var(--warm-gray); font-weight: 500; }
-  .hours-time { color: var(--dark); }
-
-  /* CTA block */
-  .cta-block { background: var(--green); color: white; border-radius: 16px; padding: 28px 24px; text-align: center; }
-  .cta-block h3 { font-family: 'Noto Serif JP', serif; font-size: 18px; margin-bottom: 8px; }
-  .cta-block p { font-size: 13px; opacity: 0.85; margin-bottom: 20px; }
-  .btn-primary { display: block; background: white; color: var(--green); font-weight: 700; font-size: 15px; padding: 14px; border-radius: 10px; text-decoration: none; margin-bottom: 10px; }
-  .btn-secondary { display: block; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; font-size: 14px; padding: 12px; border-radius: 10px; text-decoration: none; }
-
-  /* Footer */
-  footer { background: white; border-top: 1px solid var(--border); padding: 28px 24px; text-align: center; font-size: 12px; color: var(--warm-gray); line-height: 2; }
-
-  /* Collapse */
-  details { margin-top: 12px; }
-  summary { font-size: 13px; color: var(--green); cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
-  summary::before { content: '▶'; font-size: 10px; transition: transform 0.2s; }
-  details[open] summary::before { transform: rotate(90deg); }
-  .detail-body { font-size: 13px; color: var(--warm-gray); line-height: 1.8; margin-top: 10px; padding: 14px; background: white; border: 1px solid var(--border); border-radius: 8px; }
-
-  /* Nuance card */
-  .nuance-card { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 22px 20px; }
-  .nuance-card p { font-size: 14px; line-height: 1.85; color: var(--warm-gray); }
-
-  /* ── MOBILE (default, ~799px) ── */
-  .page-body { max-width: 540px; margin: 0 auto; }
-  .page-body section { padding: 40px 20px; }
-  .right-col { display: none; }
-  .mobile-only { display: block; }
-
-  /* ── PC (800px+) ── */
-  @media (min-width: 800px) {
-    .hero { padding: 72px 40px 60px; }
-    .hero h1 { font-size: 44px; }
-    .hero p { font-size: 15px; max-width: 580px; }
-    .fee-banner { font-size: 14px; }
-
-    .page-body {
-      max-width: 1100px;
-      display: grid;
-      grid-template-columns: 1fr 340px;
-      gap: 0 48px;
-      padding: 0 48px;
-      align-items: start;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>便秘オンライン｜ふじみクリニック</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green-deep: #2d6a4f;
+      --green: #52b788;
+      --green-soft: #b7e4c7;
+      --green-pale: #d8f3dc;
+      --green-accent: #40916c;
+      --cream: #faf8f3;
+      --white: #ffffff;
+      --text: #1a1a1a;
+      --text-soft: #6b6560;
+      --border: #e0dbd2;
+      --shadow: 0 10px 30px rgba(45, 106, 79, 0.10);
+      --shadow-soft: 0 8px 24px rgba(45, 106, 79, 0.08);
+      --max-mobile: 540px;
+      --max-desktop: 1120px;
     }
-    .left-col { grid-column: 1; }
-    .left-col section { padding: 40px 0; }
 
-    .right-col {
-      display: block;
-      grid-column: 2;
-      position: sticky;
-      top: 24px;
-      padding-top: 40px;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color: var(--text); line-height: 1.85; -webkit-text-size-adjust: 100%; }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; }
+
+    .container { width: 100%; max-width: var(--max-desktop); margin: 0 auto; }
+    .serif { font-family: 'Noto Serif JP', serif; }
+
+    .section-label { font-size: 11px; letter-spacing: 0.14em; color: var(--green); font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+
+    h2 { font-family: 'Noto Serif JP', serif; font-size: 24px; line-height: 1.5; margin-bottom: 22px; color: var(--text); font-weight: 700; }
+    p { font-size: 14px; }
+    .muted { color: var(--text-soft); }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* Header */
+    header { background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: var(--max-desktop); margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand img { height: 36px; width: auto; flex-shrink: 0; }
+    .brand-text .clinic-name { font-family: 'Noto Serif JP', serif; color: var(--green-deep); font-size: 14px; font-weight: 700; line-height: 1.4; }
+    .brand-text .clinic-sub { font-size: 11px; color: var(--text-soft); margin-top: 2px; line-height: 1.4; }
+    .header-cta { display: none; text-decoration: none; background: var(--green-deep); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; box-shadow: var(--shadow-soft); transition: transform 0.2s ease, opacity 0.2s ease; white-space: nowrap; }
+    .header-cta:hover { transform: translateY(-1px); opacity: 0.96; }
+
+    /* Hero */
+    .hero { position: relative; overflow: hidden; background: radial-gradient(circle at top right, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 32%), linear-gradient(135deg, #40916c 0%, #2d6a4f 52%, #1b4332 100%); color: #fff; }
+    .hero::before { content: ""; position: absolute; inset: auto -80px -100px auto; width: 280px; height: 280px; border-radius: 50%; background: rgba(255,255,255,0.08); filter: blur(8px); }
+    .hero-inner { position: relative; max-width: 900px; margin: 0 auto; padding: 56px 22px 50px; text-align: center; }
+    .hero-badge { display: inline-block; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.30); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; margin-bottom: 18px; }
+    .hero h1 { font-family: 'Noto Serif JP', serif; font-size: clamp(28px, 6vw, 44px); line-height: 1.45; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.01em; }
+    .hero h1 span { display: block; font-family: 'Noto Sans JP', sans-serif; font-size: 0.42em; font-weight: 500; opacity: 0.90; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .hero p { font-size: 14px; line-height: 1.95; max-width: 620px; margin: 0 auto 28px; opacity: 0.94; }
+    .hero-actions { display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; }
+    .hero-cta, .hero-subcta { text-decoration: none; transition: transform 0.2s ease, opacity 0.2s ease; }
+    .hero-cta { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 220px; background: #fff; color: var(--green-deep); font-weight: 700; font-size: 15px; padding: 14px 28px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,0.16); }
+    .hero-subcta { display: inline-flex; align-items: center; justify-content: center; min-width: 220px; color: #fff; border: 1px solid rgba(255,255,255,0.38); background: rgba(255,255,255,0.08); font-size: 14px; padding: 13px 24px; border-radius: 999px; }
+    .hero-cta:hover, .hero-subcta:hover { transform: translateY(-1px); opacity: 0.97; }
+    .hero-note { margin-top: 16px; font-size: 12px; opacity: 0.85; line-height: 1.8; }
+
+    /* Fee banner */
+    .fee-banner { background: var(--green-pale); border-bottom: 1px solid var(--green-soft); color: var(--green-deep); text-align: center; padding: 14px 20px; font-size: 13px; line-height: 1.8; }
+    .fee-banner strong { font-weight: 700; font-size: 15px; }
+
+    /* Layout */
+    .page-body { max-width: var(--max-desktop); margin: 0 auto; }
+    .left-col section, .right-col section { padding: 38px 20px; }
+    .right-col { display: none; }
+
+    /* Cards */
+    .card, .nuance-card, .fee-box, .hours-box, .faq-item, .cta-block, .quick-points, .audience-card {
+      background: var(--white); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-soft);
     }
-    .right-col section { padding: 0 0 28px 0; }
 
-    .mobile-only { display: none; }
-  }
-</style>
+    .nuance-card { padding: 24px 20px; }
+    .nuance-card p { font-size: 14px; color: var(--text-soft); line-height: 1.95; }
+    .nuance-card strong { color: var(--text); font-weight: 700; }
+
+    .quick-points { padding: 18px 18px 8px; }
+    .quick-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .quick-item { padding: 14px; border-radius: 14px; background: linear-gradient(180deg, #fff 0%, #f2faf5 100%); border: 1px solid #d0eedd; }
+    .quick-item .label { display: block; font-size: 11px; color: var(--green); letter-spacing: 0.08em; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; }
+    .quick-item .value { display: block; font-size: 14px; color: var(--text); font-weight: 700; line-height: 1.7; }
+
+    .audience-card { padding: 22px 20px; }
+    .audience-list { list-style: none; display: grid; gap: 10px; }
+    .audience-list li { position: relative; padding-left: 22px; color: var(--text-soft); font-size: 14px; line-height: 1.85; }
+    .audience-list li::before { content: "—"; position: absolute; left: 0; top: 0; color: var(--green-accent); font-weight: 700; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; }
+    .step { display: flex; gap: 18px; padding-bottom: 32px; }
+    .step:last-child { padding-bottom: 0; }
+    .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 44px; }
+    .step-num { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--green) 0%, var(--green-deep) 100%); color: #fff; font-family: 'Noto Serif JP', serif; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(45, 106, 79, 0.20); }
+    .step-line { flex: 1; width: 2px; background: linear-gradient(180deg, #b7e4c7 0%, #95d5b2 100%); margin-top: 8px; }
+    .step:last-child .step-line { display: none; }
+    .step-content { padding-top: 4px; min-width: 0; }
+    .step-title { font-weight: 700; font-size: 17px; color: var(--text); margin-bottom: 6px; line-height: 1.6; }
+    .step-desc { font-size: 14px; color: var(--text-soft); line-height: 1.9; }
+    .step-note { margin-top: 10px; background: #f2faf5; border: 1px solid #d0eedd; border-left: 4px solid var(--green); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: var(--text-soft); line-height: 1.85; }
+    .step-note a { color: var(--green-deep); text-decoration: underline; }
+    .step-note strong { color: var(--text); }
+    .mini-emphasis { display: inline-block; background: var(--green-pale); color: var(--green-deep); border: 1px solid var(--green-soft); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; margin-bottom: 10px; }
+
+    /* Fee / Hours */
+    .fee-box, .hours-box { padding: 20px; }
+    .fee-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .fee-row:last-child { border-bottom: none; }
+    .fee-label { color: var(--text-soft); }
+    .fee-amount { color: var(--text); font-weight: 700; white-space: nowrap; }
+    .fee-sub { margin-top: 12px; font-size: 12px; color: var(--text-soft); line-height: 1.8; }
+    .hours-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 14px; }
+    .hours-day { color: var(--text-soft); font-weight: 700; white-space: nowrap; }
+    .hours-time { color: var(--text); }
+
+    /* CTA */
+    .cta-block { padding: 28px 22px; background: linear-gradient(145deg, #40916c 0%, #2d6a4f 100%); color: #fff; border: none; box-shadow: var(--shadow); }
+    .cta-block h3 { font-family: 'Noto Serif JP', serif; font-size: 20px; line-height: 1.6; margin-bottom: 8px; font-weight: 700; }
+    .cta-block p { font-size: 13px; opacity: 0.90; margin-bottom: 18px; line-height: 1.85; }
+    .btn-primary, .btn-secondary { display: block; text-decoration: none; border-radius: 12px; text-align: center; transition: transform 0.2s ease, opacity 0.2s ease; }
+    .btn-primary { background: #fff; color: var(--green-deep); font-weight: 700; font-size: 15px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.10); }
+    .btn-secondary { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.34); color: #fff; font-size: 14px; padding: 13px 16px; }
+    .btn-primary:hover, .btn-secondary:hover { transform: translateY(-1px); opacity: 0.97; }
+
+    /* FAQ */
+    .faq-list { display: grid; gap: 14px; }
+    .faq-item { padding: 0; overflow: hidden; }
+    details { width: 100%; }
+    summary { list-style: none; cursor: pointer; padding: 16px 18px; font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; line-height: 1.7; }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "▶"; font-size: 10px; color: var(--green-deep); transition: transform 0.2s ease; flex-shrink: 0; }
+    details[open] summary::before { transform: rotate(90deg); }
+    .detail-body { border-top: 1px solid var(--border); padding: 0 18px 16px 38px; color: var(--text-soft); font-size: 13px; line-height: 1.9; }
+    .detail-body a { color: var(--green-deep); text-decoration: underline; }
+
+    .pdf-link-wrap { text-align: center; margin-top: 20px; }
+    .pdf-link { font-size: 13px; color: var(--green-deep); text-decoration: underline; }
+    .mobile-only { display: block; }
+
+    footer { background: #fff; border-top: 1px solid var(--border); padding: 30px 20px 36px; text-align: center; font-size: 12px; color: var(--text-soft); line-height: 2.0; margin-top: 28px; }
+
+    /* PC */
+    @media (min-width: 800px) {
+      .header-inner { padding: 16px 32px; }
+      .header-cta { display: inline-flex; align-items: center; }
+      .hero-inner { padding: 82px 36px 70px; }
+      .hero p { font-size: 15px; }
+      .hero-actions { flex-direction: row; }
+      .fee-banner { font-size: 14px; }
+      .page-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0 44px; padding: 0 36px; align-items: start; }
+      .left-col section { padding: 42px 0; }
+      .right-col { display: block; position: sticky; top: 88px; align-self: start; padding-top: 42px; }
+      .right-col section { padding: 0 0 24px 0; }
+      .mobile-only { display: none; }
+      .quick-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    /* Mobile */
+    @media (max-width: 799px) {
+      .page-body { max-width: var(--max-mobile); }
+      .brand-text .clinic-sub { display: none; }
+      .fee-row { align-items: flex-start; }
+      .hours-grid { grid-template-columns: 1fr; gap: 6px; }
+      .hours-day { margin-top: 8px; }
+      .hours-day:first-child { margin-top: 0; }
+    }
+  </style>
 </head>
 <body>
-
-<header>
-  <img src="https://fujimi-ped.jp/images/logo.png" alt="ふじみクリニック">
-  <div class="clinic-name">ふじみクリニック｜便秘オンライン</div>
-</header>
-
-<div class="hero">
-  <div class="hero-badge">保険診療 ・ Zoom ・ 全国対応</div>
-  <h1>
-    <span>お子さんの便秘も大人の便秘も</span>
-    スマホで相談できます
-  </h1>
-  <p>来院での診察が一番ですが、排便日誌があればオンラインでもかなり近い治療ができます。遠方の方・来院が難しい方にぜひ。</p>
-  <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="hero-cta">予約する →</a>
-</div>
-
-<div class="fee-banner">
-  初診 <strong>約1,000円</strong>（保険3割） ＋ システム料1,000円 ／ 再診 <strong>約500円</strong> ＋ システム料1,000円
-</div>
-
-<div class="page-body">
-
-  <!-- 左カラム -->
-  <div class="left-col">
-
-    <section style="padding-bottom:0;">
-      <div class="nuance-card">
-        <div class="section-label" style="margin-bottom:10px;">ONLINE ABOUT</div>
-        <p>
-          便秘の診察では、お腹を直接触ることで「よく出ているようでも実は溜まっている」といった状態まで把握でき、より的確な治療につながります。<br><br>
-          一方で、<strong style="color:var(--dark);">排便日誌の情報があればオンラインでもかなり近い治療が可能です。</strong>来院が難しい方・遠方の方・「病院に行くほどでもないかも」と迷っている方は、ぜひオンラインをご活用ください。
-        </p>
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="https://fujimi-ped.jp/images/logo.png" alt="ふじみクリニック" />
+        <div class="brand-text">
+          <div class="clinic-name">ふじみクリニック｜便秘オンライン</div>
+          <div class="clinic-sub">遠方の方・来院が難しい方へ</div>
+        </div>
       </div>
-    </section>
+      <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="header-cta">Web予約はこちら</a>
+    </div>
+  </header>
 
-    <section>
-      <div class="section-label">FLOW</div>
-      <h2>受診の流れ</h2>
-      <div class="steps">
-
-        <div class="step">
-          <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
-          <div class="step-content">
-            <div class="step-title">Web予約する</div>
-            <div class="step-desc">下のボタンからオンライン診療の予約を取ります。簡単な問診に答えてください。</div>
-            <div class="step-note">
-              📱 <strong>Zoomアプリ</strong>を事前にインストールしておくとスムーズです。<br>
-              <a href="https://zoom.us/ja/download" target="_blank">Zoomをインストール（無料）</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
-          <div class="step-content">
-            <div class="step-title">マイナンバーカードで受付</div>
-            <div class="step-desc">予約後に送られるURLを開き、マイナンバーカードで保険証の確認をします。オンライン保険診療では必須となっています。</div>
-            <div class="step-note">
-              所要時間は2〜3分です。完了するとクリニックからZoom招待メールが届きます。
-              <details>
-                <summary>手順を確認する</summary>
-                <div class="detail-body">
-                  ①スマートフォンでURLを開く<br>
-                  ②マイナンバーカードをスマホにかざす<br>
-                  ③暗証番号（4桁）を入力する<br>
-                  ④完了 → 数分後にZoom招待メールが届きます
-                </div>
-              </details>
-            </div>
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
-          <div class="step-content">
-            <div class="step-title">Zoomで診察を受ける</div>
-            <div class="step-desc">招待メールのURLをタップしてZoomに参加。待機室でお待ちいただき、順番が来たら医師が呼び込みます。</div>
-            <div class="step-note">排便日誌があれば写真に撮っておくと、チャットで送れてスムーズです。</div>
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
-          <div class="step-content">
-            <div class="step-title">お支払い（Zoom内）</div>
-            <div class="step-desc">診察後にZoom内で会計します。PayPayまたはクレジットカードで支払えます。</div>
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="step-left"><div class="step-num">5</div></div>
-          <div class="step-content">
-            <div class="step-title">薬局でお薬を受け取る</div>
-            <div class="step-desc">電子処方箋が発行されます。薬局でマイナンバーカードを提示するだけで受け取れます。紙の処方箋は不要です。</div>
-            <div class="step-note">
-              💊 薬局が電子処方箋に対応していない場合はお申し出ください。別途ご相談します。<br>
-              <a href="https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/denshishohousen_taioushisetsu.html" target="_blank">対応薬局を調べる →</a>
-            </div>
-          </div>
-        </div>
-
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">保険診療 ・ Zoom ・ 全国対応</div>
+      <h1>
+        <span>お子さんも大人も</span>
+        便秘のことを<br>スマホで相談できます
+      </h1>
+      <p>
+        来院での診察が最も確実ですが、排便日誌などの情報があれば、オンラインでも治療の相談や調整はかなり可能です。<br>
+        遠方の方、継続治療をご希望の方、まず相談したい方にご利用いただけます。
+      </p>
+      <div class="hero-actions">
+        <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="hero-cta">予約する →</a>
+        <a href="#flow" class="hero-subcta">受診の流れを見る</a>
       </div>
-    </section>
+      <div class="hero-note">初診は最長7日分まで処方可能です</div>
+    </div>
+  </section>
 
-    <!-- モバイルのみ表示 -->
-    <div class="mobile-only">
-      <hr class="divider">
+  <div class="fee-banner">
+    初診 <strong>約1,000円</strong>（保険3割） ＋ システム利用料 <strong>1,000円</strong>
+    ／ 再診 <strong>約500円</strong>（保険3割） ＋ システム利用料 <strong>1,000円</strong>
+  </div>
+
+  <div class="page-body">
+    <div class="left-col">
+
       <section>
-        <div class="section-label">FEE</div>
+        <div class="quick-points">
+          <div class="section-label">Quick Guide</div>
+          <div class="quick-grid">
+            <div class="quick-item">
+              <span class="label">対象</span>
+              <span class="value">お子さんも大人も対応</span>
+            </div>
+            <div class="quick-item">
+              <span class="label">必要なもの</span>
+              <span class="value">スマホ・マイナンバーカード</span>
+            </div>
+            <div class="quick-item">
+              <span class="label">診療方法</span>
+              <span class="value">Zoomでのオンライン診療</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style="padding-top: 0;">
+        <div class="nuance-card">
+          <div class="section-label">About Online Care</div>
+          <p>
+            便秘の診察では、お腹を直接触ることで「見た目より便がたまっている」状態まで把握でき、より的確な治療につながることがあります。<br><br>
+            そのため、<strong>本来は来院での診察が最も確実</strong>です。ただ、排便日誌やこれまでの経過が分かれば、オンラインでも相談や治療調整がかなり可能です。<br><br>
+            遠方の方、通院が難しい方、継続的に相談したい方は、まずオンラインをご利用ください。
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="audience-card">
+          <div class="section-label">Recommended For</div>
+          <h2>このような方に向いています</h2>
+          <ul class="audience-list">
+            <li>便秘について一度しっかり相談したい方</li>
+            <li>遠方で、当院への来院がむずかしい方</li>
+            <li>すでに治療中で、お薬の調整や継続相談をしたい方</li>
+            <li>お子さんだけでなく、大人の便秘についても相談したい方</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="flow">
+        <div class="section-label">Flow</div>
+        <h2>受診の流れ</h2>
+        <div class="steps">
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+            <div class="step-content">
+              <div class="mini-emphasis">まずはここから</div>
+              <div class="step-title">Web予約をする</div>
+              <div class="step-desc">下のボタンからオンライン診療の予約をお取りください。予約時に簡単な問診があります。</div>
+              <div class="step-note">
+                <strong>Zoomアプリ</strong>を事前に入れておくとスムーズです。<br>
+                <a href="https://zoom.us/ja/download" target="_blank" rel="noopener noreferrer">Zoomをインストール（無料）</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+            <div class="step-content">
+              <div class="mini-emphasis">予約後に必要です</div>
+              <div class="step-title">マイナンバーカードで受付をする</div>
+              <div class="step-desc">予約後に送られるURLを開き、スマートフォンで保険確認を行ってください。オンライン保険診療では必要な手続きです。</div>
+              <div class="step-note">
+                所要時間は2〜3分です。完了すると、クリニックから診療用の案内をお送りします。
+                <details>
+                  <summary>手順を確認する</summary>
+                  <div class="detail-body">
+                    ① スマートフォンでURLを開く<br>
+                    ② マイナンバーカードをスマホにかざす<br>
+                    ③ 暗証番号（4桁）を入力する<br>
+                    ④ 完了後、診療案内をご確認ください
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+            <div class="step-content">
+              <div class="mini-emphasis">当日</div>
+              <div class="step-title">Zoomで診察を受ける</div>
+              <div class="step-desc">ご案内したURLからZoomに入り、待機室でお待ちください。順番が来たら診察を始めます。</div>
+              <div class="step-note">排便日誌があれば、写真に撮っておくとスムーズです。Zoomのチャットで送っていただくこともできます。</div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+            <div class="step-content">
+              <div class="mini-emphasis">診察後</div>
+              <div class="step-title">オンラインでお支払い</div>
+              <div class="step-desc">診察後に会計をご案内します。PayPayまたはクレジットカードのリンク決済でお支払いいただけます。</div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">5</div></div>
+            <div class="step-content">
+              <div class="mini-emphasis">お薬の受け取り</div>
+              <div class="step-title">薬局でお薬を受け取る</div>
+              <div class="step-desc">電子処方箋を発行します。薬局でマイナンバーカードを提示してお薬をお受け取りください。</div>
+              <div class="step-note">
+                電子処方箋に対応していない薬局もあります。不安な場合はご相談ください。<br>
+                <a href="https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/denshishohousen_taioushisetsu.html" target="_blank" rel="noopener noreferrer">対応薬局を調べる →</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">FAQ</div>
+        <h2>よくある質問</h2>
+        <div class="faq-list">
+          <div class="faq-item">
+            <details>
+              <summary>初診でも処方できますか？</summary>
+              <div class="detail-body">はい。初診でも診療は可能です。なお、初診での処方は最長7日分までとなります。</div>
+            </details>
+          </div>
+          <div class="faq-item">
+            <details>
+              <summary>子どもだけですか？ 大人も受けられますか？</summary>
+              <div class="detail-body">お子さんだけでなく、大人の便秘についてもご相談いただけます。</div>
+            </details>
+          </div>
+          <div class="faq-item">
+            <details>
+              <summary>排便日誌がなくても受けられますか？</summary>
+              <div class="detail-body">受診は可能ですが、排便日誌があると状態が分かりやすく、より相談しやすくなります。簡単なメモでもかまいません。</div>
+            </details>
+          </div>
+          <div class="faq-item">
+            <details>
+              <summary>薬局はどうすればよいですか？</summary>
+              <div class="detail-body">電子処方箋対応の薬局で受け取れます。対応状況が不明な場合は、事前にご相談ください。</div>
+            </details>
+          </div>
+          <div class="faq-item">
+            <details>
+              <summary>対面受診の方がよい場合はありますか？</summary>
+              <div class="detail-body">あります。腹痛が強い、嘔吐がある、血便がある、便秘以外の病気が疑われる場合などは、対面受診の方が適していることがあります。</div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- モバイルのみ -->
+      <div class="mobile-only">
+        <hr class="divider" />
+        <section>
+          <div class="section-label">Fee</div>
+          <h2>料金</h2>
+          <div class="fee-box">
+            <div class="fee-row"><span class="fee-label">初診（保険3割）</span><span class="fee-amount">約 1,000 円</span></div>
+            <div class="fee-row"><span class="fee-label">再診（保険3割）</span><span class="fee-amount">約 500 円</span></div>
+            <div class="fee-row"><span class="fee-label">システム利用料</span><span class="fee-amount">1,000 円</span></div>
+            <div class="fee-sub">
+              ※ システム利用料は保険適用外です。<br>
+              ※ お子さんの医療証をお持ちでも、システム利用料は別途かかります。
+            </div>
+          </div>
+        </section>
+        <hr class="divider" />
+        <section>
+          <div class="section-label">Hours</div>
+          <h2>受付時間</h2>
+          <div class="hours-box">
+            <div class="hours-grid">
+              <div class="hours-day">月・火</div><div class="hours-time">9:30〜12:00 ／ 15:00〜17:00</div>
+              <div class="hours-day">水</div><div class="hours-time">15:00〜17:00</div>
+              <div class="hours-day">木</div><div class="hours-time">9:30〜12:00</div>
+            </div>
+          </div>
+          <div class="cta-block" style="margin-top: 26px;">
+            <h3>まずは予約から</h3>
+            <p>オンライン便秘診療のご予約はこちらからどうぞ</p>
+            <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary">Web予約はこちら →</a>
+            <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
+          </div>
+          <div class="pdf-link-wrap">
+            <a href="https://fujimi-ped.jp/pdf/benpi.pdf" class="pdf-link">便秘についてのQ&amp;A（PDF）→</a>
+          </div>
+        </section>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <aside class="right-col">
+      <section>
+        <div class="cta-block">
+          <h3>まずは予約から</h3>
+          <p>オンライン便秘診療のご予約はこちらからどうぞ</p>
+          <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary">Web予約はこちら →</a>
+          <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
+        </div>
+      </section>
+      <section>
+        <div class="section-label">Fee</div>
         <h2>料金</h2>
         <div class="fee-box">
           <div class="fee-row"><span class="fee-label">初診（保険3割）</span><span class="fee-amount">約 1,000 円</span></div>
           <div class="fee-row"><span class="fee-label">再診（保険3割）</span><span class="fee-amount">約 500 円</span></div>
           <div class="fee-row"><span class="fee-label">システム利用料</span><span class="fee-amount">1,000 円</span></div>
           <div class="fee-sub">
-            ※ システム利用料は保険適用外のため、お子さんの医療証をお持ちの方も別途費用がかかります。<br>
-            ※ 2025年秋以降、お子さんの医療証もマイナンバーで確認できるようになる予定です。
+            ※ システム利用料は保険適用外です。<br>
+            ※ お子さんの医療証をお持ちでも、システム利用料は別途かかります。
           </div>
         </div>
       </section>
-      <hr class="divider">
       <section>
-        <div class="section-label">HOURS</div>
+        <div class="section-label">Hours</div>
         <h2>受付時間</h2>
-        <div class="hours-grid">
-          <div class="hours-day">月・火</div><div class="hours-time">9:30〜12:00 ／ 15:00〜17:00</div>
-          <div class="hours-day">水</div><div class="hours-time">15:00〜17:00</div>
-          <div class="hours-day">木</div><div class="hours-time">9:30〜12:00</div>
+        <div class="hours-box">
+          <div class="hours-grid">
+            <div class="hours-day">月・火</div><div class="hours-time">9:30〜12:00 ／ 15:00〜17:00</div>
+            <div class="hours-day">水</div><div class="hours-time">15:00〜17:00</div>
+            <div class="hours-day">木</div><div class="hours-time">9:30〜12:00</div>
+          </div>
         </div>
-        <div class="cta-block" style="margin-top:28px;">
-          <h3>まずは予約から</h3>
-          <p>お電話でのご相談もお気軽に</p>
-          <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary">Web予約はこちら →</a>
-          <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
-        </div>
-        <div style="text-align:center;margin-top:24px;">
-          <a href="https://fujimi-ped.jp/pdf/benpi.pdf" style="font-size:13px;color:var(--green);text-decoration:underline;">便秘についてのQ&amp;A（PDF）→</a>
+        <div class="pdf-link-wrap">
+          <a href="https://fujimi-ped.jp/pdf/benpi.pdf" class="pdf-link">便秘についてのQ&amp;A（PDF）→</a>
         </div>
       </section>
-    </div>
+    </aside>
 
-  </div><!-- /left-col -->
+  </div><!-- /page-body -->
 
-  <!-- 右カラム（PCのみ） -->
-  <div class="right-col">
-
-    <section>
-      <div class="cta-block">
-        <h3>まずは予約から</h3>
-        <p>お電話でのご相談もお気軽に</p>
-        <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary">Web予約はこちら →</a>
-        <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
-      </div>
-    </section>
-
-    <section>
-      <div class="section-label">FEE</div>
-      <h2>料金</h2>
-      <div class="fee-box">
-        <div class="fee-row"><span class="fee-label">初診（保険3割）</span><span class="fee-amount">約 1,000 円</span></div>
-        <div class="fee-row"><span class="fee-label">再診（保険3割）</span><span class="fee-amount">約 500 円</span></div>
-        <div class="fee-row"><span class="fee-label">システム利用料</span><span class="fee-amount">1,000 円</span></div>
-        <div class="fee-sub">
-          ※ システム利用料は保険適用外のため、お子さんの医療証をお持ちの方も別途費用がかかります。<br>
-          ※ 2025年秋以降、お子さんの医療証もマイナンバーで確認できるようになる予定です。
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <div class="section-label">HOURS</div>
-      <h2>受付時間</h2>
-      <div class="hours-grid">
-        <div class="hours-day">月・火</div><div class="hours-time">9:30〜12:00 ／ 15:00〜17:00</div>
-        <div class="hours-day">水</div><div class="hours-time">15:00〜17:00</div>
-        <div class="hours-day">木</div><div class="hours-time">9:30〜12:00</div>
-      </div>
-      <div style="text-align:center;margin-top:20px;">
-        <a href="https://fujimi-ped.jp/pdf/benpi.pdf" style="font-size:13px;color:var(--green);text-decoration:underline;">便秘についてのQ&amp;A（PDF）→</a>
-      </div>
-    </section>
-
-  </div><!-- /right-col -->
-
-</div><!-- /page-body -->
-
-<footer>
-  ふじみクリニック<br>
-  東京都大田区大森西3-1-38 マチノマ大森内3F<br>
-  Tel: 03-5493-5252<br><br>
-  © ふじみクリニック
-</footer>
-
+  <footer>
+    ふじみクリニック<br />
+    東京都大田区大森西3-1-38 マチノマ大森内3F<br />
+    Tel: 03-5493-5252<br /><br />
+    © ふじみクリニック
+  </footer>
 </body>
 </html>
