@@ -33,15 +33,12 @@
 
     .container { width: 100%; max-width: var(--max-desktop); margin: 0 auto; }
     .serif { font-family: 'Noto Serif JP', serif; }
-
     .section-label { font-size: 11px; letter-spacing: 0.14em; color: var(--green); font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
-
     h2 { font-family: 'Noto Serif JP', serif; font-size: 24px; line-height: 1.5; margin-bottom: 22px; color: var(--text); font-weight: 700; }
     p { font-size: 14px; }
     .muted { color: var(--text-soft); }
     .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
 
-    /* Header */
     header { background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
     .header-inner { max-width: var(--max-desktop); margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -51,7 +48,6 @@
     .header-cta { display: none; text-decoration: none; background: var(--green-deep); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; box-shadow: var(--shadow-soft); transition: transform 0.2s ease, opacity 0.2s ease; white-space: nowrap; }
     .header-cta:hover { transform: translateY(-1px); opacity: 0.96; }
 
-    /* Hero */
     .hero { position: relative; overflow: hidden; background: radial-gradient(circle at top right, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 32%), linear-gradient(135deg, #40916c 0%, #2d6a4f 52%, #1b4332 100%); color: #fff; }
     .hero::before { content: ""; position: absolute; inset: auto -80px -100px auto; width: 280px; height: 280px; border-radius: 50%; background: rgba(255,255,255,0.08); filter: blur(8px); }
     .hero-inner { position: relative; max-width: 900px; margin: 0 auto; padding: 56px 22px 50px; text-align: center; }
@@ -66,19 +62,14 @@
     .hero-cta:hover, .hero-subcta:hover { transform: translateY(-1px); opacity: 0.97; }
     .hero-note { margin-top: 16px; font-size: 12px; opacity: 0.85; line-height: 1.8; }
 
-    /* Fee banner */
     .fee-banner { background: var(--green-pale); border-bottom: 1px solid var(--green-soft); color: var(--green-deep); text-align: center; padding: 14px 20px; font-size: 13px; line-height: 1.8; }
     .fee-banner strong { font-weight: 700; font-size: 15px; }
 
-    /* Layout */
     .page-body { max-width: var(--max-desktop); margin: 0 auto; }
     .left-col section, .right-col section { padding: 38px 20px; }
     .right-col { display: none; }
 
-    /* Cards */
-    .card, .nuance-card, .fee-box, .hours-box, .faq-item, .cta-block, .quick-points, .audience-card {
-      background: var(--white); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-soft);
-    }
+    .card, .nuance-card, .fee-box, .hours-box, .faq-item, .cta-block, .quick-points, .audience-card { background: var(--white); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-soft); }
 
     .nuance-card { padding: 24px 20px; }
     .nuance-card p { font-size: 14px; color: var(--text-soft); line-height: 1.95; }
@@ -95,7 +86,6 @@
     .audience-list li { position: relative; padding-left: 22px; color: var(--text-soft); font-size: 14px; line-height: 1.85; }
     .audience-list li::before { content: "—"; position: absolute; left: 0; top: 0; color: var(--green-accent); font-weight: 700; }
 
-    /* Steps */
     .steps { display: flex; flex-direction: column; }
     .step { display: flex; gap: 18px; padding-bottom: 32px; }
     .step:last-child { padding-bottom: 0; }
@@ -111,7 +101,6 @@
     .step-note strong { color: var(--text); }
     .mini-emphasis { display: inline-block; background: var(--green-pale); color: var(--green-deep); border: 1px solid var(--green-soft); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; margin-bottom: 10px; }
 
-    /* Fee / Hours */
     .fee-box, .hours-box { padding: 20px; }
     .fee-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
     .fee-row:last-child { border-bottom: none; }
@@ -122,7 +111,6 @@
     .hours-day { color: var(--text-soft); font-weight: 700; white-space: nowrap; }
     .hours-time { color: var(--text); }
 
-    /* CTA */
     .cta-block { padding: 28px 22px; background: linear-gradient(145deg, #40916c 0%, #2d6a4f 100%); color: #fff; border: none; box-shadow: var(--shadow); }
     .cta-block h3 { font-family: 'Noto Serif JP', serif; font-size: 20px; line-height: 1.6; margin-bottom: 8px; font-weight: 700; }
     .cta-block p { font-size: 13px; opacity: 0.90; margin-bottom: 18px; line-height: 1.85; }
@@ -131,7 +119,6 @@
     .btn-secondary { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.34); color: #fff; font-size: 14px; padding: 13px 16px; }
     .btn-primary:hover, .btn-secondary:hover { transform: translateY(-1px); opacity: 0.97; }
 
-    /* FAQ */
     .faq-list { display: grid; gap: 14px; }
     .faq-item { padding: 0; overflow: hidden; }
     details { width: 100%; }
@@ -148,7 +135,6 @@
 
     footer { background: #fff; border-top: 1px solid var(--border); padding: 30px 20px 36px; text-align: center; font-size: 12px; color: var(--text-soft); line-height: 2.0; margin-top: 28px; }
 
-    /* PC */
     @media (min-width: 800px) {
       .header-inner { padding: 16px 32px; }
       .header-cta { display: inline-flex; align-items: center; }
@@ -164,7 +150,6 @@
       .quick-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
-    /* Mobile */
     @media (max-width: 799px) {
       .page-body { max-width: var(--max-mobile); }
       .brand-text .clinic-sub { display: none; }
@@ -185,7 +170,7 @@
           <div class="clinic-sub">遠方の方・来院が難しい方へ</div>
         </div>
       </a>
-      <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="header-cta">Web予約はこちら</a>
+      <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="header-cta" target="_blank" rel="noopener noreferrer">Web予約はこちら</a>
     </div>
   </header>
 
@@ -201,7 +186,7 @@
         遠方の方、継続治療をご希望の方、まず相談したい方にご利用いただけます。
       </p>
       <div class="hero-actions">
-        <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="hero-cta">予約する →</a>
+        <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="hero-cta" target="_blank" rel="noopener noreferrer">予約する →</a>
         <a href="#flow" class="hero-subcta">受診の流れを見る</a>
       </div>
       <div class="hero-note">初診は最長7日分まで処方可能です</div>
@@ -270,7 +255,7 @@
             <div class="step-content">
               <div class="mini-emphasis">まずはここから</div>
               <div class="step-title">Web予約をする</div>
-              <div class="step-desc">右のボタンからオンライン診療の予約をお取りください。予約時に簡単な問診があります。</div>
+              <div class="step-desc">「Web予約はこちら」ボタンからオンライン診療の予約をお取りください。予約時に簡単な問診があります。</div>
               <div class="step-note">
                 <strong>Zoomアプリ</strong>を事前に入れておくとスムーズです。<br>
                 <a href="https://zoom.us/ja/download" target="_blank" rel="noopener noreferrer">Zoomをインストール（無料）</a>
@@ -371,7 +356,6 @@
         </div>
       </section>
 
-      <!-- モバイルのみ -->
       <div class="mobile-only">
         <hr class="divider" />
         <section>
@@ -401,23 +385,23 @@
           <div class="cta-block" style="margin-top: 26px;">
             <h3>まずは予約から</h3>
             <p>オンライン便秘診療のご予約はこちらからどうぞ</p>
-            <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary">Web予約はこちら →</a>
+            <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary" target="_blank" rel="noopener noreferrer">Web予約はこちら →</a>
             <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
           </div>
           <div class="pdf-link-wrap">
-            <a href="https://fujimi-ped.jp/pdf/benpi.pdf" class="pdf-link">便秘についてのQ&amp;A（PDF）→</a>
+            <a href="https://fujimi-ped.jp/pdf/benpi.pdf" class="pdf-link" target="_blank" rel="noopener noreferrer">便秘についてのQ&amp;A（PDF）→</a>
           </div>
         </section>
       </div>
 
-    </div><!-- /left-col -->
+    </div>
 
     <aside class="right-col">
       <section>
         <div class="cta-block">
           <h3>まずは予約から</h3>
           <p>オンライン便秘診療のご予約はこちらからどうぞ</p>
-          <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary">Web予約はこちら →</a>
+          <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary" target="_blank" rel="noopener noreferrer">Web予約はこちら →</a>
           <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
         </div>
       </section>
@@ -445,12 +429,12 @@
           </div>
         </div>
         <div class="pdf-link-wrap">
-          <a href="https://fujimi-ped.jp/pdf/benpi.pdf" class="pdf-link">便秘についてのQ&amp;A（PDF）→</a>
+          <a href="https://fujimi-ped.jp/pdf/benpi.pdf" class="pdf-link" target="_blank" rel="noopener noreferrer">便秘についてのQ&amp;A（PDF）→</a>
         </div>
       </section>
     </aside>
 
-  </div><!-- /page-body -->
+  </div>
 
   <footer>
     ふじみクリニック<br />
