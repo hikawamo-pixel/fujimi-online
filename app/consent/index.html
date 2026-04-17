@@ -315,15 +315,18 @@ consentBox.addEventListener('scroll', function(){
   }
 });
 
-// 初期チェック（短い画面でスクロール不要な場合）
-window.addEventListener('load', function(){
+// 初期チェック（PCの大画面など全文が見えている場合）
+function checkIfScrollable(){
+  if(scrolledToBottom) return;
   const remaining = consentBox.scrollHeight - consentBox.clientHeight;
-  if(remaining < 10){
+  if(remaining < 30){
     scrolledToBottom = true;
     scrollHint.classList.add('hidden');
     agreeCheck.disabled = false;
   }
-});
+}
+window.addEventListener('load', checkIfScrollable);
+window.addEventListener('resize', checkIfScrollable);
 
 function toggleCheck(){
   if(agreeCheck.disabled) return;
