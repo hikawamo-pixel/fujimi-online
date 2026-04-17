@@ -1,1 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ログイン処理中 — 排便日誌アプリ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:#f5f5f2;
+  font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.wrap{
+  max-width:360px;
+  width:100%;
+  margin:0 auto;
+  padding:40px 24px;
+  text-align:center;
+}
 
+/* スピナー */
+.spinner-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:20px;
+}
+.spinner{
+  width:52px;
+  height:52px;
+  border:3px solid #E1F5EE;
+  border-top-color:#0F6E56;
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner-title{
+  font-size:15px;
+  font-weight:600;
+  color:#1a1a18;
+}
+.spinner-sub{
+  font-size:12px;
+  color:#888780;
+  line-height:1.6;
+  margin-top:-8px;
+}
+
+/* 成功表示 */
+.success-wrap{
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  gap:16px;
+}
+.success-icon{
+  width:60px;
+  height:60px;
+  background:#E1F5EE;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.success-title{
+  font-size:16px;
+  font-weight:600;
+  color:#0F6E56;
+}
+.success-sub{
+  font-size:12px;
+  color:#5f5e5a;
+  line-height:1.7;
+  margin-top:-4px;
+}
+.redirect-note{
+  font-size:11px;
+  color:#b4b2a9;
+  margin-top:4px;
+}
+
+/* エラー表示 */
+.error-wrap{
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  gap:16px;
+}
+.error-icon{
+  width:60px;
+  height:60px;
+  background:#FAEEDA;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+}
+.error-title{
+  font-size:15px;
+  font-weight:600;
+  color:#633806;
+}
+.error-detail{
+  font-size:12px;
+  color:#5f5e5a;
+  line-height:1.7;
+  background:#fff;
+  border-radius:10px;
+  padding:12px 16px;
+  border:0.5px solid #e4e3df;
+  text-align:left;
+  width:100%;
+}
+.error-code{
+  font-size:11px;
+  color:#b4b2a9;
+  font-family:monospace;
+  margin-top:6px;
+  word-break:break-all;
+}
+.retry-btn{
+  display:block;
+  width:100%;
+  padding:13px;
+  background:#0F6E56;
+  color:#fff;
+  border:none;
+  border-radius:10px;
+  font-size:14px;
+  font-weight:600;
+  font-family:inherit;
+  cursor:pointer;
+  text-decoration:none;
+  margin-top:4px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ローディング -->
+  <div class="spinner-wrap" id="loadingView">
+    <div class="spinner"></div>
+    <div class="spinner-title">ログイン処理中…</div>
+    <div class="spinner-sub">少々お待ちください</div>
+  </div>
+
+  <!-- 成功 -->
+  <div class="success-wrap" id="successView">
+    <div class="success-icon">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <path d="M6 15l6 6 12-12" stroke="#0F6E56" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="success-title">ログイン完了</div>
+    <div class="success-sub" id="successMsg">認証が完了しました。</div>
+    <div class="redirect-note">アプリに移動します…</div>
+  </div>
+
+  <!-- エラー -->
+  <div class="error-wrap" id="errorView">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title">ログインに失敗しました</div>
+    <div class="error-detail" id="errorDetail">
+      認証処理中にエラーが発生しました。
+      <div class="error-code" id="errorCode"></div>
+    </div>
+    <a class="retry-btn" href="/app/consent">最初からやり直す</a>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   設定
+   ============================================================ */
+const SUPABASE_URL = 'https://fdaveqbwobuivgqpvxer.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_pufxdEASRapuNxMk3HH8lg_8KRcveRn';
+const PATIENT_APP  = '/app/patient';      // 患者アプリのパス
+const CONSENT_VERSION = 'v1.0';
+
+/* ============================================================
+   UI ヘルパー
+   ============================================================ */
+function showLoading(){ show('loadingView'); hide('successView'); hide('errorView'); }
+function showSuccess(msg){ hide('loadingView'); showFlex('successView'); hide('errorView');
+  document.getElementById('successMsg').textContent = msg || '認証が完了しました。'; }
+function showError(msg, code){ hide('loadingView'); hide('successView'); showFlex('errorView');
+  document.getElementById('errorDetail').childNodes[0].textContent = msg || 'エラーが発生しました。';
+  document.getElementById('errorCode').textContent = code || ''; }
+function show(id){ document.getElementById(id).style.display = 'block'; }
+function hide(id){ document.getElementById(id).style.display = 'none'; }
+function showFlex(id){ document.getElementById(id).style.display = 'flex'; }
+
+/* ============================================================
+   Supabase 汎用 fetch
+   ============================================================ */
+async function sbFetch(path, options = {}){
+  const res = await fetch(SUPABASE_URL + path, {
+    ...options,
+    headers:{
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      ...(options.headers || {})
+    }
+  });
+  const json = res.status === 204 ? null : await res.json();
+  return { ok: res.ok, status: res.status, data: json };
+}
+
+/* ============================================================
+   診察券番号を URL パラメータから取得
+   ============================================================
+   ヨヤクルは patient_id パラメータで診察券番号を返す（確定）
+   例: /auth/yoyakuru/callback?patient_id=00001
+   ============================================================ */
+function extractPatientId(){
+  const params = new URLSearchParams(window.location.search);
+  const val = params.get('patient_id');
+  if(val && /^\d{1,5}$/.test(val.trim())){
+    return val.trim().padStart(5,'0');
+  }
+  return null;
+}
+
+/* ============================================================
+   同意ログを consent_logs テーブルに保存
+   ============================================================ */
+async function saveConsentLog(patientId){
+  // localStorageから同意情報を取得
+  let consentVersion = CONSENT_VERSION;
+  let localTimestamp = null;
+  try{
+    consentVersion = localStorage.getItem('consentVersion') || CONSENT_VERSION;
+    localTimestamp  = localStorage.getItem('consentTimestamp') || null;
+  }catch(e){}
+
+  const payload = {
+    patient_id:       patientId,
+    consent_version:  consentVersion,
+    agreed_at:        new Date().toISOString(), // サーバー時刻ベース（DB側でも now() 可）
+    local_timestamp:  localTimestamp,           // 参考値として保存
+    user_agent:       navigator.userAgent.slice(0, 500)
+  };
+
+  const result = await sbFetch('/rest/v1/consent_logs', {
+    method: 'POST',
+    headers:{ 'Prefer': 'return=minimal' },
+    body: JSON.stringify(payload)
+  });
+
+  return result;
+}
+
+/* ============================================================
+   patients テーブルへの upsert
+   ============================================================ */
+async function upsertPatient(patientId){
+  const payload = {
+    patient_id:  patientId,
+    created_at:  new Date().toISOString()
+    // registered_at は DB の default now() に任せる
+    // age / sex は保持しない設計
+  };
+  const result = await sbFetch('/rest/v1/patients', {
+    method: 'POST',
+    headers:{ 'Prefer': 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify(payload)
+  });
+  return result;
+}
+
+/* ============================================================
+   localStorageに patient_id を保存してアプリへ遷移
+   ============================================================ */
+function redirectToApp(patientId){
+  try{
+    localStorage.setItem('patientId', patientId);
+    localStorage.removeItem('consentGiven');    // 使用済みフラグ削除
+    localStorage.removeItem('consentTimestamp');
+  }catch(e){}
+  setTimeout(()=>{ window.location.href = PATIENT_APP; }, 1200);
+}
+
+/* ============================================================
+   メイン処理
+   ============================================================ */
+async function handleCallback(){
+  showLoading();
+
+  // 1. 診察券番号を取得
+  const patientId = extractPatientId();
+
+  if(!patientId){
+    // --- デバッグ用: パラメータ一覧を表示 ---
+    const params = new URLSearchParams(window.location.search);
+    const paramStr = [...params.entries()].map(([k,v])=>`${k}=${v}`).join(', ') || '（パラメータなし）';
+    showError(
+      'ヨヤクルから診察券番号を受け取れませんでした。\nクリニックにお問い合わせください。',
+      'params: ' + paramStr
+    );
+    return;
+  }
+
+  try{
+    // 2. patients テーブルに upsert（既存ならスキップ）
+    const upsertResult = await upsertPatient(patientId);
+    if(!upsertResult.ok && upsertResult.status !== 409){
+      throw new Error('patients upsert failed: ' + JSON.stringify(upsertResult.data));
+    }
+
+    // 3. 同意ログを保存（同意フローを通ってきた場合のみ）
+    const consentGiven = (() => {
+      try{ return localStorage.getItem('consentGiven') === 'true'; }catch(e){ return false; }
+    })();
+
+    if(consentGiven){
+      const consentResult = await saveConsentLog(patientId);
+      // 同意ログ保存失敗は警告にとどめ、フローは続行
+      if(!consentResult.ok){
+        console.warn('consent_log save failed:', consentResult);
+      }
+    }
+
+    // 4. 成功 → アプリへ
+    showSuccess('ようこそ。アプリに移動します。');
+    redirectToApp(patientId);
+
+  }catch(err){
+    console.error('Callback error:', err);
+    showError(
+      '処理中にエラーが発生しました。しばらくしてから再度お試しください。',
+      err.message
+    );
+  }
+}
+
+// 実行
+handleCallback();
+</script>
+</body>
+</html>
