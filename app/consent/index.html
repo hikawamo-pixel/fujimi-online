@@ -1,1 +1,349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>利用同意 — 排便日誌アプリ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:#f5f5f2;
+  font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
+  min-height:100vh;
+}
+.app{max-width:480px;margin:0 auto;padding-bottom:120px;}
 
+/* ヘッダー */
+.hdr{
+  background:#fff;
+  border-bottom:0.5px solid rgba(0,0,0,0.12);
+  padding:16px 18px 14px;
+  position:sticky;
+  top:0;
+  z-index:10;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.hdr-back{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  border:none;
+  background:none;
+  cursor:pointer;
+  color:#5f5e5a;
+  font-size:18px;
+  padding:0;
+  text-decoration:none;
+}
+.hdr-info{}
+.hdr-title{font-size:16px;font-weight:600;color:#1a1a18;}
+.hdr-sub{font-size:11px;color:#888780;margin-top:1px;}
+
+/* ステップインジケーター */
+.steps{
+  display:flex;
+  align-items:center;
+  padding:16px 18px 12px;
+  gap:0;
+}
+.step{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  color:#b4b2a9;
+  font-weight:500;
+}
+.step.active{color:#0F6E56;}
+.step.done{color:#5DCAA5;}
+.step-num{
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  background:#e4e3df;
+  color:#888780;
+  font-size:10px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+.step.active .step-num{background:#0F6E56;color:#fff;}
+.step.done .step-num{background:#5DCAA5;color:#fff;}
+.step-line{flex:1;height:1px;background:#e4e3df;margin:0 6px;}
+
+/* 案内文 */
+.intro{
+  padding:14px 18px 0;
+  font-size:13px;
+  color:#5f5e5a;
+  line-height:1.7;
+}
+
+/* 同意文ボックス */
+.consent-scroll-wrap{
+  margin:14px 18px 0;
+  border-radius:12px;
+  overflow:hidden;
+  border:0.5px solid #b4b2a9;
+  position:relative;
+}
+.consent-box{
+  background:#fff;
+  padding:18px 16px;
+  max-height:380px;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  font-size:12.5px;
+  color:#3d3d38;
+  line-height:1.8;
+}
+.consent-box p{
+  margin-bottom:12px;
+}
+.consent-box p:last-child{margin-bottom:0;}
+.consent-box ol{
+  padding-left:20px;
+  margin:8px 0 12px;
+}
+.consent-box ol li{
+  margin-bottom:6px;
+}
+.consent-version{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding:6px 12px;
+  background:#f5f5f2;
+  font-size:10px;
+  color:#b4b2a9;
+}
+/* スクロールヒント */
+.scroll-hint{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px;
+  background:linear-gradient(to bottom, rgba(255,255,255,0), #f5f5f2);
+  font-size:11px;
+  color:#888780;
+  pointer-events:none;
+  position:absolute;
+  bottom:28px;
+  left:0;
+  right:0;
+  transition:opacity .3s;
+}
+.scroll-hint.hidden{opacity:0;}
+
+/* チェックボックスエリア */
+.check-area{
+  margin:14px 18px 0;
+  padding:14px 16px;
+  background:#fff;
+  border-radius:12px;
+  border:0.5px solid #b4b2a9;
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  cursor:pointer;
+  transition:border-color .15s, background .15s;
+}
+.check-area.checked{
+  background:#f0faf6;
+  border-color:#5DCAA5;
+}
+.check-area input[type="checkbox"]{
+  width:20px;
+  height:20px;
+  accent-color:#0F6E56;
+  flex-shrink:0;
+  margin-top:1px;
+  cursor:pointer;
+}
+.check-area label{
+  font-size:13px;
+  color:#1a1a18;
+  line-height:1.6;
+  cursor:pointer;
+}
+
+/* 固定フッターボタン */
+.footer{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:rgba(245,245,242,0.95);
+  backdrop-filter:blur(6px);
+  border-top:0.5px solid rgba(0,0,0,0.10);
+  padding:16px 18px max(16px, env(safe-area-inset-bottom));
+  max-width:480px;
+  margin:0 auto;
+  width:100%;
+}
+@media(min-width:480px){
+  .footer{left:50%;transform:translateX(-50%);}
+}
+
+.cta-btn{
+  display:block;
+  width:100%;
+  padding:15px;
+  background:#b4b2a9;
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:600;
+  font-family:inherit;
+  text-align:center;
+  cursor:not-allowed;
+  transition:background .2s, transform .1s;
+  letter-spacing:.01em;
+}
+.cta-btn.active{
+  background:#0F6E56;
+  cursor:pointer;
+}
+.cta-btn.active:active{
+  background:#085041;
+  transform:scale(0.99);
+}
+.footer-note{
+  text-align:center;
+  font-size:10px;
+  color:#b4b2a9;
+  margin-top:8px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hdr">
+    <a class="hdr-back" href="/app">&#8249;</a>
+    <div class="hdr-info">
+      <div class="hdr-title">利用規約と同意</div>
+      <div class="hdr-sub">ふじみ小児科クリニック 排便日誌アプリ</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step done">
+      <span class="step-num">✓</span>
+      アプリ説明
+    </div>
+    <div class="step-line"></div>
+    <div class="step active">
+      <span class="step-num">2</span>
+      同意
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+      <span class="step-num">3</span>
+      ログイン
+    </div>
+  </div>
+
+  <p class="intro">
+    ご利用前に以下の内容をお読みいただき、内容に同意いただける場合は下部のチェックボックスにチェックを入れてください。
+  </p>
+
+  <div class="consent-scroll-wrap">
+    <div class="consent-box" id="consentBox" aria-label="利用同意文">
+      <p>本アプリは、排便・内服状況の記録を行うためのツールです。記録を通じて、ご自身の生活習慣や排便状況を振り返ることを支援します。</p>
+      <p>本アプリに入力された情報は、以下の目的で利用します。</p>
+      <ol>
+        <li>利用者ご本人が排便状況や内服状況を把握し、日々の状態を振り返るため</li>
+        <li>診療時に、利用者ご本人の判断により、医師への共有を行うため</li>
+        <li>アプリの機能改善および品質向上のため</li>
+        <li>個人を特定できない形に加工したうえで、便秘に関する傾向の分析、知見の整理・発信、ならびにアプリにおける支援ロジックの改善に利用するため</li>
+      </ol>
+      <p>本アプリにおけるデータの利用は、主としてサービス改善および利用者支援を目的とするものであり、特定の仮説を検証することを目的とした臨床研究として実施するものではありません。</p>
+      <p>ただし、個人を特定できない形に加工したデータを用いて、便秘に関する傾向の分析、知見の整理、およびアプリの機能改善や支援ロジックの向上に利用することがあります。</p>
+      <p>本アプリにおけるデータの利用にあたっては、個人を特定できない形に加工した情報を用いることとし、個人が識別される形での解析・第三者提供は行いません。<br>なお、診療のために利用者ご本人が共有操作を行った場合には、その情報は当院に送信され、診療目的で利用されます。</p>
+      <p>本アプリおよびその内容（デザイン、機能、文章、画像、情報等）について、当院の許可なく複製、転載、改変、販売その他の商用利用を行うことを禁止します。</p>
+      <p>上記内容をご確認いただき、同意いただける場合は「同意して利用を開始する」を選択してください。</p>
+    </div>
+    <div class="scroll-hint" id="scrollHint">▼ 続きをスクロールしてください</div>
+    <div class="consent-version">同意文バージョン: v1.0 (2025-07)</div>
+  </div>
+
+  <div class="check-area" id="checkArea" onclick="toggleCheck()">
+    <input type="checkbox" id="agreeCheck" disabled>
+    <label for="agreeCheck">
+      上記の利用規約および個人情報の取り扱いについて確認し、同意します。
+    </label>
+  </div>
+
+</div>
+
+<!-- 固定フッター -->
+<div class="footer">
+  <button class="cta-btn" id="ctaBtn" disabled onclick="proceed()">同意してログインへ</button>
+  <p class="footer-note">ログインにはヨヤクルのアカウントが必要です</p>
+</div>
+
+<script>
+const CONSENT_VERSION = 'v1.0';
+const YOYAKURU_LOGIN = 'https://ver2.yoyakuru.net/rs/fujimi-ped/WebLogin/FmService.aspx';
+
+const consentBox = document.getElementById('consentBox');
+const scrollHint = document.getElementById('scrollHint');
+const checkArea  = document.getElementById('checkArea');
+const agreeCheck = document.getElementById('agreeCheck');
+const ctaBtn     = document.getElementById('ctaBtn');
+
+let scrolledToBottom = false;
+
+// スクロール検知
+consentBox.addEventListener('scroll', function(){
+  const remaining = this.scrollHeight - this.scrollTop - this.clientHeight;
+  if(remaining < 30 && !scrolledToBottom){
+    scrolledToBottom = true;
+    scrollHint.classList.add('hidden');
+    agreeCheck.disabled = false;
+    checkArea.style.cursor = 'pointer';
+  }
+});
+
+// 初期チェック（短い画面でスクロール不要な場合）
+window.addEventListener('load', function(){
+  const remaining = consentBox.scrollHeight - consentBox.clientHeight;
+  if(remaining < 10){
+    scrolledToBottom = true;
+    scrollHint.classList.add('hidden');
+    agreeCheck.disabled = false;
+  }
+});
+
+function toggleCheck(){
+  if(agreeCheck.disabled) return;
+  agreeCheck.checked = !agreeCheck.checked;
+  checkArea.classList.toggle('checked', agreeCheck.checked);
+  ctaBtn.classList.toggle('active', agreeCheck.checked);
+  ctaBtn.disabled = !agreeCheck.checked;
+}
+
+function proceed(){
+  if(!agreeCheck.checked) return;
+  // localStorageに同意情報を一時保存（DB保存はcallbackで行う）
+  try{
+    localStorage.setItem('consentGiven', 'true');
+    localStorage.setItem('consentVersion', CONSENT_VERSION);
+    localStorage.setItem('consentTimestamp', new Date().toISOString());
+  }catch(e){}
+  // ヨヤクルログインページへ遷移
+  window.location.href = YOYAKURU_LOGIN;
+}
+</script>
+</body>
+</html>
