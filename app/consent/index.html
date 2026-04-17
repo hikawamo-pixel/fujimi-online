@@ -273,12 +273,12 @@ body{
       <p>本アプリおよびその内容（デザイン、機能、文章、画像、情報等）について、当院の許可なく複製、転載、改変、販売その他の商用利用を行うことを禁止します。</p>
       <p>上記内容をご確認いただき、同意いただける場合は「同意して利用を開始する」を選択してください。</p>
     </div>
-    <div class="scroll-hint" id="scrollHint">▼ 続きをスクロールしてください</div>
+    <div class="scroll-hint hidden" id="scrollHint">▼ 続きをスクロールしてください</div>
     <div class="consent-version">同意文バージョン: v1.0 (2025-07)</div>
   </div>
 
   <div class="check-area" id="checkArea" onclick="toggleCheck()">
-    <input type="checkbox" id="agreeCheck" disabled>
+    <input type="checkbox" id="agreeCheck">
     <label for="agreeCheck">
       上記の利用規約および個人情報の取り扱いについて確認し、同意します。
     </label>
@@ -302,34 +302,8 @@ const checkArea  = document.getElementById('checkArea');
 const agreeCheck = document.getElementById('agreeCheck');
 const ctaBtn     = document.getElementById('ctaBtn');
 
-let scrolledToBottom = false;
-
-// スクロール検知
-consentBox.addEventListener('scroll', function(){
-  const remaining = this.scrollHeight - this.scrollTop - this.clientHeight;
-  if(remaining < 30 && !scrolledToBottom){
-    scrolledToBottom = true;
-    scrollHint.classList.add('hidden');
-    agreeCheck.disabled = false;
-    checkArea.style.cursor = 'pointer';
-  }
-});
-
-// 初期チェック（PCの大画面など全文が見えている場合）
-function checkIfScrollable(){
-  if(scrolledToBottom) return;
-  const remaining = consentBox.scrollHeight - consentBox.clientHeight;
-  if(remaining < 30){
-    scrolledToBottom = true;
-    scrollHint.classList.add('hidden');
-    agreeCheck.disabled = false;
-  }
-}
-window.addEventListener('load', checkIfScrollable);
-window.addEventListener('resize', checkIfScrollable);
 
 function toggleCheck(){
-  if(agreeCheck.disabled) return;
   agreeCheck.checked = !agreeCheck.checked;
   checkArea.classList.toggle('checked', agreeCheck.checked);
   ctaBtn.classList.toggle('active', agreeCheck.checked);
@@ -338,13 +312,11 @@ function toggleCheck(){
 
 function proceed(){
   if(!agreeCheck.checked) return;
-  // localStorageに同意情報を一時保存（DB保存はcallbackで行う）
   try{
     localStorage.setItem('consentGiven', 'true');
     localStorage.setItem('consentVersion', CONSENT_VERSION);
     localStorage.setItem('consentTimestamp', new Date().toISOString());
   }catch(e){}
-  // ヨヤクルログインページへ遷移
   window.location.href = YOYAKURU_LOGIN;
 }
 </script>
