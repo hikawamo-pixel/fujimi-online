@@ -277,8 +277,8 @@ body{
     <div class="consent-version">同意文バージョン: v1.0 (2025-07)</div>
   </div>
 
-  <div class="check-area" id="checkArea" onclick="toggleCheck()">
-    <input type="checkbox" id="agreeCheck">
+  <div class="check-area" id="checkArea">
+    <input type="checkbox" id="agreeCheck" onchange="onCheckChange(this)">
     <label for="agreeCheck">
       上記の利用規約および個人情報の取り扱いについて確認し、同意します。
     </label>
@@ -303,11 +303,10 @@ const agreeCheck = document.getElementById('agreeCheck');
 const ctaBtn     = document.getElementById('ctaBtn');
 
 
-function toggleCheck(){
-  agreeCheck.checked = !agreeCheck.checked;
-  checkArea.classList.toggle('checked', agreeCheck.checked);
-  ctaBtn.classList.toggle('active', agreeCheck.checked);
-  ctaBtn.disabled = !agreeCheck.checked;
+function onCheckChange(cb){
+  checkArea.classList.toggle('checked', cb.checked);
+  ctaBtn.classList.toggle('active', cb.checked);
+  ctaBtn.disabled = !cb.checked;
 }
 
 function proceed(){
