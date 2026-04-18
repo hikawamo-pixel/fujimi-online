@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>医師ログイン — 排便日誌ダッシュボード</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#F7F6F2;font-family:'Hiragino Sans','Noto Sans JP','DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.card{background:#fff;border-radius:14px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 2px 16px rgba(0,0,0,0.08);}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+.logo-icon{width:40px;height:40px;border-radius:10px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.logo-text{font-size:15px;font-weight:500;color:#1a1916;line-height:1.3;}
+.logo-sub{font-size:11px;color:#6B6860;}
+h1{font-size:18px;font-weight:500;color:#1a1916;margin-bottom:6px;}
+.sub{font-size:13px;color:#6B6860;margin-bottom:24px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;color:#6B6860;margin-bottom:5px;font-weight:500;}
+.field input{width:100%;padding:10px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;color:#1a1916;outline:none;transition:border-color .15s;font-family:inherit;}
+.field input:focus{border-color:#0F6E56;}
+.btn{width:100%;padding:11px;border-radius:8px;border:none;background:#0F6E56;color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s;margin-top:4px;font-family:inherit;}
+.btn:hover{background:#085041;}
+.btn:disabled{background:#b4b2a9;cursor:not-allowed;}
+.err{margin-top:14px;padding:10px 12px;background:#FCEBEB;border-radius:8px;font-size:13px;color:#A32D2D;display:none;}
+.err.show{display:block;}
+.notice{margin-top:20px;padding:10px 12px;background:#F0EEE8;border-radius:8px;font-size:11px;color:#6B6860;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">🩺</div>
+    <div>
+      <div class="logo-text">排便日誌ダッシュボード</div>
+      <div class="logo-sub">ふじみクリニック</div>
+    </div>
+  </div>
+  <h1>医師ログイン</h1>
+  <p class="sub">メールアドレスとパスワードを入力してください</p>
+
+  <div class="field">
+    <label>メールアドレス</label>
+    <input type="email" id="email" placeholder="doctor@example.com" autocomplete="email">
+  </div>
+  <div class="field">
+    <label>パスワード</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+  </div>
+  <button class="btn" id="loginBtn" onclick="doLogin()">ログイン</button>
+  <div class="err" id="errMsg"></div>
+  <div class="notice">
+    このページは医療従事者専用です。患者様はこちらからはログインできません。
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fdaveqbwobuivgqpvxer.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXZlcWJ3b2J1aXZncXB2eGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjE4OTIsImV4cCI6MjA5MTM5Nzg5Mn0.5y_M-VuGPPGcQI7g9ZyX8DUxu2I480BfQZQbgQJxTxE';
+
+// すでにログイン済みなら即リダイレクト
+(function checkSession() {
+  try {
+    const sess = localStorage.getItem('doctorSession');
+    if (sess) {
+      const s = JSON.parse(sess);
+      if (s.access_token && s.expires_at > Date.now() / 1000) {
+        location.href = '/doctor';
+      }
+    }
+  } catch(e) {}
+})();
+
+// Enterキーでログイン
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function doLogin() {
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn      = document.getElementById('loginBtn');
+  const err      = document.getElementById('errMsg');
+
+  err.classList.remove('show');
+
+  if (!email || !password) {
+    err.textContent = 'メールアドレスとパスワードを入力してください。';
+    err.classList.add('show');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'ログイン中…';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      throw new Error(data.error_description || data.error || 'ログインに失敗しました');
+    }
+
+    // セッションをlocalStorageに保存
+    localStorage.setItem('doctorSession', JSON.stringify({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Math.floor(Date.now() / 1000) + data.expires_in,
+      user_email: data.user?.email || email,
+    }));
+
+    location.href = '/doctor';
+
+  } catch(e) {
+    err.textContent = e.message || 'ログインに失敗しました。もう一度お試しください。';
+    err.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'ログイン';
+  }
+}
+</script>
+</body>
+</html>
