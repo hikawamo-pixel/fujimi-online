@@ -803,7 +803,85 @@ function resetMed(){
   });
 }
 
-function persist(){try{localStorage.setItem('bj14',JSON.stringify(S.recs));}catch(e){}}
+function persist(){
+  try{localStorage.setItem('bj14',JSON.stringify(S.recs));}catch(e){}
+  // Supabaseにも非同期保存（エラーはサイレント）
+  syncToSupabase().catch(e=>console.warn('Supabase sync error:', e));
+}
+
+// 最後にSupabaseへ同期した記録IDセット
+const _syncedIds = new Set(
+  JSON.parse(localStorage.getItem('bj14_synced') || '[]')
+);
+
+async function syncToSupabase() {
+  if (!PATIENT_ID) return;
+  // 未同期の記録だけ抽出
+  const unsynced = S.recs.filter(r => !_syncedIds.has(String(r.id)));
+  if (unsynced.length === 0) return;
+
+  const now = new Date();
+  const rows = unsynced.map(r => ({
+    patient_id:   PATIENT_ID,
+    date:         r.date || r.guDate || now.toISOString().slice(0,10),
+    record_type:  r.type === 'rec' && r.bowelMovement ? 'bowel'
+                : r.type === 'rec' && r.recMode === 'absent' ? 'skip'
+                : r.type === 'rec' && r.recMode === 'disim'  ? 'supp'
+                : r.type === 'med' ? 'med'
+                : r.type === 'gu'  ? 'gu'
+                : 'skip',
+    payload_json: r,
+    recorded_at:  r.recordedAt || now.toISOString(),
+    shared:       false,
+  }));
+
+  await supabaseInsert('shared_bowel_records', rows);
+
+  // 同期済みとしてマーク
+  unsynced.forEach(r => _syncedIds.add(String(r.id)));
+  try { localStorage.setItem('bj14_synced', JSON.stringify([..._syncedIds])); } catch(e) {}
+}
+
+// 起動時にSupabaseから自分の記録を取得してlocalStorageと同期
+async function loadFromSupabase() {
+  if (!PATIENT_ID || PATIENT_ID === '00001') return; // デモ時はスキップ
+  try {
+    const records = await supabaseFetch(
+      'shared_bowel_records',
+      `patient_id=eq.${PATIENT_ID}&order=recorded_at.desc&limit=500`
+    );
+    if (!records || records.length === 0) return;
+
+    // Supabaseのデータをローカルにマージ（IDベースで重複排除）
+    const localIds = new Set(S.recs.map(r => String(r.id)));
+    let added = 0;
+    records.forEach(row => {
+      const payload = row.payload_json || {};
+      const id = String(payload.id || row.record_id);
+      if (!localIds.has(id)) {
+        S.recs.push(payload);
+        localIds.add(id);
+        _syncedIds.add(id);
+        added++;
+      }
+    });
+
+    if (added > 0) {
+      // 日付降順に並び替え
+      S.recs.sort((a, b) => {
+        const da = a.date || a.guDate || '';
+        const db = b.date || b.guDate || '';
+        return db.localeCompare(da);
+      });
+      try { localStorage.setItem('bj14', JSON.stringify(S.recs)); } catch(e) {}
+      try { localStorage.setItem('bj14_synced', JSON.stringify([..._syncedIds])); } catch(e) {}
+      renderCard();
+      if (S.histView === 'tl') renderTL();
+    }
+  } catch(e) {
+    console.warn('Supabase load error:', e);
+  }
+}
 
 function updateAvatar(){
   const now=new Date();
@@ -1057,7 +1135,7 @@ function renderHist(){renderCard();if(S.histView==='tl')renderTL();}
 // Supabase接続設定
 // ============================================================
 const SUPABASE_URL = 'https://fdaveqbwobuivgqpvxer.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_pufxdEASRapuNxMk3HH8lg_8KRcveRn';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXZlcWJ3b2J1aXZncXB2eGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjE4OTIsImV4cCI6MjA5MTM5Nzg5Mn0.5y_M-VuGPPGcQI7g9ZyX8DUxu2I480BfQZQbgQJxTxE';
 
 // 患者ID（callbackでlocalStorageに保存済みのものを取得。なければ暫定値）
 const PATIENT_ID = localStorage.getItem('patientId') || '00001';
@@ -1181,6 +1259,7 @@ async function shareToDoctor() {
 
 init();
 loadPrescription();
+loadFromSupabase();
 </script>
 </body>
 </html>
