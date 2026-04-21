@@ -770,6 +770,8 @@ function deleteRec(id){
   if(!confirm('この記録を削除しますか？'))return;
   const target = S.recs.find(x=>x.id===id);
   // DBのis_deletedをtrueに更新（論理削除）
+  // TODO: RLS本適用後はdelete-bowel-record Edge Function経由に切り替え（次段階）
+  // 現段階: REST直接（RLS未適用時のみ動作）
   if(target?.clientId && PATIENT_KEY){
     fetch(`${SUPABASE_URL}/rest/v1/bowel_records?patient_key=eq.${PATIENT_KEY}&client_id=eq.${target.clientId}`, {
       method: 'PATCH',
@@ -908,40 +910,30 @@ async function syncToSupabase() {
   if (targets.length === 0) return;
 
   const rows = targets.map(recToBowelRow);
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/bowel_records`, {
+
+  // save-bowel-record Edge Function 経由で保存（Service Roleで実行）
+  const res = await fetch(FN_SAVE, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      // client_id UNIQUE制約でupsert（冪等性保証）
-      'Prefer': 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify(rows),
+    headers: edgeFnHeaders(),
+    body: JSON.stringify({ patient_key: PATIENT_KEY, records: rows }),
   });
   if (!res.ok) throw new Error(await res.text());
+  const result = await res.json();
+  if (!result.ok) throw new Error(result.reason || 'save failed');
 
-  // upsert後にサーバのrecord_id・updated_atを取得してローカルに保存
-  // → shareToDoctor()でsource_record_idを照会なしで参照できる
-  try {
-    const res2 = await fetch(
-      `${SUPABASE_URL}/rest/v1/bowel_records` +
-      `?patient_key=eq.${PATIENT_KEY}&client_id=in.(${targets.map(r=>r.clientId).join(',')})&select=record_id,client_id,updated_at`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    if (res2.ok) {
-      const saved = await res2.json();
-      saved.forEach(row => {
-        const local = S.recs.find(r => r.clientId === row.client_id);
-        if (local) {
-          local._serverRecordId  = row.record_id;
-          local._serverUpdatedAt = row.updated_at;
-          local._synced = true;
-        }
-      });
-    }
-  } catch(e) { console.warn('record_id fetch error:', e); }
-  // フォールバック: 照会失敗でも_syncedをセット
+  // サーバのrecord_id・updated_atをローカルに保存
+  // → share-to-doctor でsource_record_idを照会なしで参照できる
+  if (result.rows) {
+    result.rows.forEach(row => {
+      const local = S.recs.find(r => r.clientId === row.client_id);
+      if (local) {
+        local._serverRecordId  = row.record_id;
+        local._serverUpdatedAt = row.updated_at;
+        local._synced = true;
+      }
+    });
+  }
+  // フォールバック: rows取得失敗でも_syncedをセット
   targets.forEach(r => { if (!r._synced) r._synced = true; });
   try { localStorage.setItem('bj14', JSON.stringify(S.recs)); } catch(e) {}
 }
@@ -974,14 +966,17 @@ async function syncToSupabase() {
 async function loadFromSupabase() {
   if (!PATIENT_KEY) return;
   try {
+    // get-bowel-records Edge Function 経由で取得（Service Roleで実行）
     // is_deletedを問わず全件取得（削除済みをローカルからも除去するため）
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/bowel_records` +
-      `?patient_key=eq.${PATIENT_KEY}&order=recorded_at.desc&limit=500`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
+    const res = await fetch(FN_GET, {
+      method: 'POST',
+      headers: edgeFnHeaders(),
+      body: JSON.stringify({ patient_key: PATIENT_KEY }),
+    });
     if (!res.ok) return;
-    const records = await res.json();
+    const result = await res.json();
+    if (!result.ok) return;
+    const records = result.records;
     if (!records || records.length === 0) return;
 
     // client_id → サーバ行 のマップ
@@ -1320,6 +1315,22 @@ function renderHist(){renderCard();if(S.histView==='tl')renderTL();}
 // ============================================================
 const SUPABASE_URL = 'https://fdaveqbwobuivgqpvxer.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXZlcWJ3b2J1aXZncXB2eGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjE4OTIsImV4cCI6MjA5MTM5Nzg5Mn0.5y_M-VuGPPGcQI7g9ZyX8DUxu2I480BfQZQbgQJxTxE';
+
+// Edge Function エンドポイント
+const FN_SAVE    = SUPABASE_URL + '/functions/v1/save-bowel-record';
+const FN_GET     = SUPABASE_URL + '/functions/v1/get-bowel-records';
+const FN_SHARE   = SUPABASE_URL + '/functions/v1/share-to-doctor';    // 次段階
+const FN_DELETE  = SUPABASE_URL + '/functions/v1/delete-bowel-record'; // 次段階
+const FN_RX      = SUPABASE_URL + '/functions/v1/get-prescription';    // 次段階
+
+// Edge Function 共通ヘッダー
+function edgeFnHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+  };
+}
 
 // patient_key（callbackでHMAC済みキーをlocalStorageに保存済み）
 // patientId（旧キー）が残存している場合も考慮して除去
