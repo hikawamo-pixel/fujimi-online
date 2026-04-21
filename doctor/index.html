@@ -212,6 +212,7 @@ const PATIENTS = [
   {
     // ⑦ 診察券番号ベース
     id: '00001',
+    patientKey: null, // TODO: Edge Function経由で取得したHMAC patient_keyを設定
     diag: '慢性便秘症',
     diaryStart: '2024-12-10',
     lastVisit:  '2025-06-15',
@@ -292,6 +293,7 @@ const PATIENTS = [
   },
   {
     id: '87654',
+    patientKey: null, // TODO: Edge Function経由で取得したHMAC patient_keyを設定
     diag: 'IBS-C',
     diaryStart: '2025-01-15',
     lastVisit:  '2025-06-20',
@@ -327,6 +329,19 @@ const PATIENTS = [
 
 let currentPt  = PATIENTS[0];
 let currentTab = 'summary';
+
+function selectPatient(id) {
+  const p = PATIENTS.find(pt => pt.id === id);
+  if (!p) return;
+  currentPt = p;
+  CURRENT_PATIENT_ID  = id;
+  CURRENT_PATIENT_KEY = p.patientKey || null;
+  document.querySelectorAll('.pt-item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+  currentTab = 'summary';
+  renderAll();
+  loadPatientRecords(id);
+  loadPrescriptions(id);
+}
 
 // ── ヘルパー ─────────────────────────────────────────────────
 const DOW = ['日','月','火','水','木','金','土'];
@@ -474,7 +489,7 @@ function renderPtList(list){
     if(p.control==='poor') badges.push('<span class="badge badge-red">要注意</span>');
     if(p.skipCount>0) badges.push(`<span class="badge badge-amber">スキップ${p.skipCount}日</span>`);
     if(rx && !rx.pushed) badges.push('<span class="badge badge-green">Push待ち</span>');
-    return `<div class="pt-item${p.id===currentPt.id?' active':''}" onclick="selectPt('${p.id}')">
+    return `<div class="pt-item${p.id===currentPt.id?' active':''}" onclick="selectPatient('${p.id}')">
       <div class="pt-id">${p.id}</div>
       <div class="pt-diag">${p.currentVisit}</div>
       ${badges.length?`<div class="pt-badges">${badges.join('')}</div>`:''}
@@ -482,12 +497,7 @@ function renderPtList(list){
   }).join('');
 }
 
-function selectPt(id){
-  currentPt=PATIENTS.find(p=>p.id===id);
-  currentTab='summary';
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
-  renderAll();
-}
+function selectPt(id){ selectPatient(id); } // 後方互換ラッパー
 
 function switchTab(tab,el){
   currentTab=tab;
@@ -1042,21 +1052,28 @@ async function saveRx(mode){
 
   const status = mode === 'push' ? 'pushed' : mode === 'confirm' ? 'confirmed' : 'draft';
 
+  // patient_keyを現在の患者から取得
+  const currentPtObj = PATIENTS.find(pt => pt.id === CURRENT_PATIENT_ID);
+  const patientKey = currentPtObj?.patientKey;
+  if (!patientKey) {
+    alert('patient_keyが未設定です。患者データを確認してください。');
+    return;
+  }
+
+  // 新スキーマ: dose_morning/noon/evening に分解（簡易パース）
+  // 用量フィールド（dose）は "朝0.5g 夕0.5g" のような文字列を想定
+  // 現段階では dose_morning にそのまま入れる（将来的にフォームを分割）
   const payload = {
-    patient_id:     CURRENT_PATIENT_ID,
-    drug_name:      drug,
-    dose_text:      dose,
-    frequency_text: freq,
-    start_date:     start,
-    end_date:       end || null,
-    days:           days,
-    change_type:    change,
-    timing:         timing,
-    note:           note,
-    status:         status,
-    pushed_at:      mode === 'push' ? new Date().toISOString() : null,
-    created_by:     'doctor',
-    updated_at:     new Date().toISOString(),
+    patient_key:  patientKey,
+    drug_name:    drug,
+    dose_morning: dose || null,   // TODO: フォームをam/noon/pm分割後に対応
+    dose_noon:    null,
+    dose_evening: null,
+    dose_unit:    null,
+    notes:        [freq, note].filter(Boolean).join('　') || null,
+    is_active:    mode === 'push',
+    prescribed_at: new Date().toISOString(),
+    prescribed_by: DOCTOR_EMAIL || 'doctor',
   };
 
   try {
@@ -1200,8 +1217,9 @@ function doctorLogout() {
   location.href = '/doctor_login';
 }
 
-// 現在選択中の患者ID
-let CURRENT_PATIENT_ID = '00001';
+// 現在選択中の患者（idは診察券番号、patientKeyはHMAC済みキー）
+let CURRENT_PATIENT_ID  = '00001';
+let CURRENT_PATIENT_KEY = null; // 患者選択時にpatientKeyをセット
 
 // Supabase REST API ヘルパー（医師トークンを使用）
 async function supabaseFetch(table, params='') {
@@ -1218,110 +1236,84 @@ async function supabaseFetch(table, params='') {
 
 // shared_bowel_records から実データを取得して患者データに反映
 async function loadPatientRecords(patientId) {
+  const p = PATIENTS.find(pt => pt.id === patientId);
+  if (!p) return;
+
+  const patientKey = p.patientKey;
+  if (!patientKey) {
+    showLoadStatus('patient_key未設定（モックデータを表示中）', 'warn');
+    return;
+  }
+
   try {
-    // 共有記録を取得（最新100件・日付降順）
+    // 共有記録を取得（新スキーマ: patient_key、直カラム参照）
     const records = await supabaseFetch(
       'shared_bowel_records',
-      `patient_id=eq.${patientId}&order=date.desc&limit=100`
+      `patient_key=eq.${patientKey}&share_status=eq.shared&order=recorded_at.desc&limit=200`
     );
 
     if (!records || records.length === 0) {
-      showLoadStatus('記録がありません（モックデータを表示中）', 'warn');
+      showLoadStatus('共有記録がありません（モックデータを表示中）', 'warn');
       return;
     }
 
     // 最終共有日時・共有期間を更新
-    const latestRecord = records[0];
-    const oldestRecord = records[records.length - 1];
+    const latestRecord  = records[0];
+    const oldestRecord  = records[records.length - 1];
+    const latestDate    = latestRecord.recorded_at?.slice(0, 10) || '';
+    const oldestDate    = oldestRecord.recorded_at?.slice(0, 10) || '';
 
-    const p = PATIENTS.find(pt => pt.id === patientId);
-    if (!p) return;
-
-    // 共有状態を実データで上書き
     p.shareInfo = {
       lastSharedAt: latestRecord.shared_at,
-      periodStart:  oldestRecord.date,
-      periodEnd:    latestRecord.date,
+      periodStart:  oldestDate,
+      periodEnd:    latestDate,
     };
 
-    // ── データ変換ヘルパー ──
-    // stoolLabel: "④ふつう" → 4
-    function parseStool(label) {
-      if (!label) return null;
-      // 「⑤」単体または「④ふつう」のような形式に対応
-      const m = label.match(/[①②③④⑤⑥⑦]/);
-      if (m) return '①②③④⑤⑥⑦'.indexOf(m[0]) + 1;
-      // 数字のみの場合（例: "5"）
-      const n = parseInt(label);
-      if (!isNaN(n) && n >= 1 && n <= 7) return n;
-      return null;
-    }
-    // amt: 日本語 → S/M/L
-    function parseAmt(amt) {
-      if (!amt) return null;
-      if (amt === '少ない' || amt === 'S') return 'S';
-      if (amt === '多い'   || amt === 'L') return 'L';
-      if (amt === 'ふつう' || amt === 'M') return 'M';
-      return null;
-    }
-    // 内服コンプライアンス: comp文字列 → ok/skip/分数
-    function parseComp(comp) {
-      if (!comp) return '';
-      if (comp.includes('全量') || comp.includes('すべて')) return 'ok';
-      if (comp.includes('飲まな') || comp.includes('スキップ')) return 'skip';
-      if (comp.includes('2/3')) return '2/3';
-      if (comp.includes('1/2')) return '1/2';
-      if (comp.includes('1/3')) return '1/3';
-      return 'ok';
-    }
-    function parseTimeSlot(slot) {
-      if (!slot) return null;
-      if (slot === '朝' || slot === '昼' || slot === '夜' || slot === '夕') return slot;
-      const h = parseInt(slot.split(':')[0]);
-      if (isNaN(h)) return null;
-      if (h < 10) return '朝';
-      if (h < 15) return '昼';
-      return '夜';
+    // ── 新スキーマから医師UI行形式に変換 ──
+    // 服薬コンプライアンス: 'taken'/'missed'/null → ok/skip/''
+    function compFromSlot(val) {
+      if (val === 'taken')  return 'ok';
+      if (val === 'missed') return 'skip';
+      return '';
     }
 
     // 日付ごとにレコードをグループ化
     const byDate = {};
     records.forEach(r => {
-      const d = r.date;
+      const d = r.recorded_at?.slice(0, 10) || '';
       if (!byDate[d]) byDate[d] = [];
       byDate[d].push(r);
     });
 
-    // 日付ごとに1行にまとめる（医師UIの bowelRecords 形式）
+    // 日付ごとに1行にまとめる
     const bowelRows = Object.keys(byDate).sort((a,b) => b.localeCompare(a)).map(date => {
-      const dayRecs = byDate[date];
-      const bowelRec = dayRecs.find(r => r.record_type === 'bowel');
-      const skipRec  = dayRecs.find(r => r.record_type === 'skip');
-      const suppRec  = dayRecs.find(r => r.record_type === 'supp');
-      const medRec   = dayRecs.find(r => r.record_type === 'med');
+      const dayRecs  = byDate[date];
+      const bowelRec = dayRecs.find(r => r.record_type === 'bowel' || (!r.is_no_stool && r.bristol_scale));
+      const absentRec= dayRecs.find(r => r.is_no_stool);
+      const suppRec  = dayRecs.find(r => r.used_suppository);
+      const medRec   = dayRecs.find(r => r.med_morning || r.med_noon || r.med_evening);
+      const primary  = bowelRec || absentRec || suppRec || medRec || dayRecs[0];
 
-      const bp = bowelRec ? (bowelRec.payload_json || {}) : {};
-      const sp = suppRec  ? (suppRec.payload_json  || {}) : {};
-      const mp = medRec   ? (medRec.payload_json   || {}) : {};
-
-      // 内服情報：med レコードまたは bowel レコードから取得
-      const medPayload = Object.keys(mp).length > 0 ? mp : bp;
-      const compVal = parseComp(medPayload.comp || '');
+      // 服薬は全レコードから統合（同日に複数記録がある場合を考慮）
+      const medAm   = compFromSlot(dayRecs.map(r=>r.med_morning).find(v=>v) || null);
+      const medNoon = compFromSlot(dayRecs.map(r=>r.med_noon).find(v=>v)    || null);
+      const medPm   = compFromSlot(dayRecs.map(r=>r.med_evening).find(v=>v) || null);
 
       return {
         date:     date,
-        stool:    bowelRec ? parseStool(bp.stoolLabel) : null,
-        strain:   bp.strain  || false,
-        pain:     bp.pain    || false,
-        blood:    bp.blood   || false,
-        amt:      parseAmt(bp.amt),
-        supp:     suppRec ? (sp.disimType === 'supp' ? '坐' : '浣') : null,
-        suppTime: sp.disimTime || null,
-        medAm:    parseTimeSlot(medPayload.timeSlot || bp.timeSlot) === '朝' ? compVal : '',
-        medNoon:  parseTimeSlot(medPayload.timeSlot || bp.timeSlot) === '昼' ? compVal : '',
-        medPm:    parseTimeSlot(medPayload.timeSlot || bp.timeSlot) === '夜' ? compVal : '',
-        note:     skipRec ? 'なし' : (!bowelRec && !suppRec ? 'なし' : null),
-        skip:     !!(skipRec || (!bowelRec && !suppRec && medRec && compVal === 'skip')),
+        stool:    bowelRec?.bristol_scale || null,
+        strain:   dayRecs.some(r => r.symptom_strain),
+        pain:     dayRecs.some(r => r.symptom_pain),
+        blood:    dayRecs.some(r => r.symptom_blood),
+        amt:      bowelRec?.amount || null,
+        supp:     suppRec ? (suppRec.used_suppository ? '坐' : null) : null,
+        suppTime: null, // 新スキーマではdefec_timeを流用
+        medAm,
+        medNoon,
+        medPm,
+        note:     absentRec ? 'なし' : null,
+        skip:     !!(absentRec && medAm === 'skip'),
+        picoDrops: dayRecs.find(r=>r.pico_drops)?.pico_drops || null,
         src:      'patient',
       };
     });
@@ -1386,7 +1378,7 @@ async function loadPatientRecords(patientId) {
     p.bristolDist = bDist;
 
     renderAll();
-    showLoadStatus(`✓ ${records.length}件の共有記録を読み込みました（${oldestRecord.date} 〜 ${latestRecord.date}）`, 'ok');
+    showLoadStatus(`✓ ${records.length}件の共有記録を読み込みました（${oldestDate} 〜 ${latestDate}）`, 'ok');
 
   } catch(e) {
     console.error('Supabase load error:', e);
@@ -1396,50 +1388,51 @@ async function loadPatientRecords(patientId) {
   }
 }
 
-// prescriptionsテーブルから処方履歴を取得してrxHistoryに反映
+// prescriptionsテーブルから処方履歴を取得してrxHistoryに反映（新スキーマ対応）
 async function loadPrescriptions(patientId) {
+  const p = PATIENTS.find(pt => pt.id === patientId);
+  if (!p?.patientKey) return;
+
   try {
     const rxs = await supabaseFetch(
       'prescriptions',
-      `patient_id=eq.${patientId}&order=start_date.asc&limit=50`
+      `patient_key=eq.${p.patientKey}&order=prescribed_at.asc&limit=50`
     );
 
     if (!rxs || rxs.length === 0) return;
-
-    const p = PATIENTS.find(pt => pt.id === patientId);
-    if (!p) return;
 
     // 薬剤名でグループ化
     const drugMap = {};
     rxs.forEach(rx => {
       const key = rx.drug_name;
       if (!drugMap[key]) drugMap[key] = [];
+
+      // 用量文字列を組み立て（新スキーマ: dose_morning/noon/evening + dose_unit）
+      const doseParts = [];
+      if (rx.dose_morning != null) doseParts.push(`朝${rx.dose_morning}`);
+      if (rx.dose_noon    != null) doseParts.push(`昼${rx.dose_noon}`);
+      if (rx.dose_evening != null) doseParts.push(`夕${rx.dose_evening}`);
+      const doseStr = doseParts.join('／') + (rx.dose_unit ? rx.dose_unit : '');
+
       drugMap[key].push({
-        dose:       rx.dose_text,
-        freq:       rx.frequency_text,
-        start:      rx.start_date,
-        end:        rx.end_date || '',
-        days:       rx.days || 30,
-        pushed:     rx.status === 'pushed',
-        changeType: rx.change_type || 'same',
-        current:    rx.status === 'pushed' || rx.status === 'confirmed',
-        note:       rx.note || '',
+        dose:       doseStr,
+        freq:       rx.notes || '',
+        start:      rx.prescribed_at?.slice(0, 10) || '',
+        end:        '',
+        days:       30,
+        pushed:     rx.is_active,
+        changeType: 'same',
+        current:    false, // 後で最後の1件をtrueに
+        note:       rx.notes || '',
       });
     });
 
-    // currentは最後の1件だけにする
+    // currentは薬剤ごとに最後の1件だけ
     Object.values(drugMap).forEach(entries => {
-      entries.forEach((e, i) => {
-        e.current = (i === entries.length - 1);
-      });
+      entries.forEach((e, i) => { e.current = (i === entries.length - 1); });
     });
 
-    // rxHistoryを実データで上書き
-    p.rxHistory = Object.entries(drugMap).map(([drug, entries]) => ({
-      drug,
-      entries,
-    }));
-
+    p.rxHistory = Object.entries(drugMap).map(([drug, entries]) => ({ drug, entries }));
     renderAll();
 
   } catch(e) {
@@ -1459,6 +1452,8 @@ function showLoadStatus(msg, type) {
 
 // 初期化：モックデータで描画後、Supabaseからデータ取得
 // 初期描画はSupabaseデータ取得後に実行
+// 初期表示: まずモックデータで即時描画し、その後DBデータで上書き
+renderAll();
 loadPatientRecords(CURRENT_PATIENT_ID);
 loadPrescriptions(CURRENT_PATIENT_ID);
 </script>
