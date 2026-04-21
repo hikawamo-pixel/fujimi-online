@@ -173,15 +173,27 @@ body{
     <a class="retry-btn" href="/app/consent">最初からやり直す</a>
   </div>
 
+  <!-- 受診期限切れ -->
+  <div class="error-wrap" id="expiredView" style="display:none;">
+    <div class="error-icon">🏥</div>
+    <div class="error-title">受診後にご利用ください</div>
+    <div class="error-detail">
+      このアプリをご利用いただくには、<br>
+      直近3ヶ月以内の受診が必要です。<br><br>
+      次回ご来院の際に、スタッフまでお申し付けください。
+    </div>
+  </div>
+
 </div>
 
 <script>
 /* ============================================================
    設定
    ============================================================ */
-const SUPABASE_URL = 'https://fdaveqbwobuivgqpvxer.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXZlcWJ3b2J1aXZncXB2eGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjE4OTIsImV4cCI6MjA5MTM5Nzg5Mn0.5y_M-VuGPPGcQI7g9ZyX8DUxu2I480BfQZQbgQJxTxE';
-const PATIENT_APP  = '/app/patient';      // 患者アプリのパス
+const SUPABASE_URL    = 'https://fdaveqbwobuivgqpvxer.supabase.co';
+const SUPABASE_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXZlcWJ3b2J1aXZncXB2eGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjE4OTIsImV4cCI6MjA5MTM5Nzg5Mn0.5y_M-VuGPPGcQI7g9ZyX8DUxu2I480BfQZQbgQJxTxE';
+const EDGE_FN_URL     = SUPABASE_URL + '/functions/v1/authenticate-patient';
+const PATIENT_APP     = '/app/patient';
 const CONSENT_VERSION = 'v1.0';
 
 /* ============================================================
@@ -193,101 +205,83 @@ function showSuccess(msg){ hide('loadingView'); showFlex('successView'); hide('e
 function showError(msg, code){ hide('loadingView'); hide('successView'); showFlex('errorView');
   document.getElementById('errorDetail').childNodes[0].textContent = msg || 'エラーが発生しました。';
   document.getElementById('errorCode').textContent = code || ''; }
-function show(id){ document.getElementById(id).style.display = 'block'; }
-function hide(id){ document.getElementById(id).style.display = 'none'; }
-function showFlex(id){ document.getElementById(id).style.display = 'flex'; }
+function showExpired(){ hide('loadingView'); hide('successView'); hide('errorView');
+  show('expiredView'); }
+function show(id){ const el = document.getElementById(id); if(el) el.style.display = 'block'; }
+function hide(id){ const el = document.getElementById(id); if(el) el.style.display = 'none'; }
+function showFlex(id){ const el = document.getElementById(id); if(el) el.style.display = 'flex'; }
 
 /* ============================================================
-   Supabase 汎用 fetch
+   URLパラメータ取得
+   ヨヤクルから: ?patient_id=00001&last_visit=2025-03-15
    ============================================================ */
-async function sbFetch(path, options = {}){
-  const res = await fetch(SUPABASE_URL + path, {
-    ...options,
+function extractParams(){
+  const p = new URLSearchParams(window.location.search);
+  const chartRaw  = p.get('patient_id');
+  const lastVisit = p.get('last_visit') || null;
+
+  const chartNumber = (chartRaw && /^\d{1,5}$/.test(chartRaw.trim()))
+    ? chartRaw.trim().padStart(5, '0')
+    : null;
+
+  return { chartNumber, lastVisit };
+}
+
+/* ============================================================
+   localStorageから同意情報を読み取る
+   ============================================================ */
+function getConsentInfo(){
+  try{
+    return {
+      consentGiven:   localStorage.getItem('consentGiven') === 'true',
+      consentVersion: localStorage.getItem('consentVersion') || CONSENT_VERSION,
+      localTimestamp: localStorage.getItem('consentTimestamp') || null,
+    };
+  }catch(e){
+    return { consentGiven: false, consentVersion: CONSENT_VERSION, localTimestamp: null };
+  }
+}
+
+/* ============================================================
+   Edge Function 呼び出し
+   ============================================================
+   フロントから chart_number を渡す。
+   HMAC生成・受診日チェック・DB保存はすべてサーバー側で行う。
+   フロントは patient_key のみ受け取る（chart_number は往復しない）。
+   ============================================================ */
+async function callAuthenticatePatient({ chartNumber, lastVisit, consentGiven, consentVersion, localTimestamp }){
+  const res = await fetch(EDGE_FN_URL, {
+    method: 'POST',
     headers:{
       'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      ...(options.headers || {})
-    }
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+    },
+    body: JSON.stringify({
+      chart_number:    chartNumber,
+      last_visit:      lastVisit,
+      consent_given:   consentGiven,
+      consent_version: consentVersion,
+      local_timestamp: localTimestamp,
+    })
   });
+
   let json = null;
-  const text = await res.text();
-  if(text && text.length > 0){
-    try{ json = JSON.parse(text); }catch(e){}
-  }
-  return { ok: res.ok, status: res.status, data: json };
+  try{ json = await res.json(); }catch(e){}
+  return { httpOk: res.ok, status: res.status, data: json };
 }
 
 /* ============================================================
-   診察券番号を URL パラメータから取得
-   ============================================================
-   ヨヤクルは patient_id パラメータで診察券番号を返す（確定）
-   例: /auth/yoyakuru/callback?patient_id=00001
+   patient_key をlocalStorageに保存してアプリへ遷移
+   chart_number はここで破棄し、保存しない
    ============================================================ */
-function extractPatientId(){
-  const params = new URLSearchParams(window.location.search);
-  const val = params.get('patient_id');
-  if(val && /^\d{1,5}$/.test(val.trim())){
-    return val.trim().padStart(5,'0');
-  }
-  return null;
-}
-
-/* ============================================================
-   同意ログを consent_logs テーブルに保存
-   ============================================================ */
-async function saveConsentLog(patientId){
-  // localStorageから同意情報を取得
-  let consentVersion = CONSENT_VERSION;
-  let localTimestamp = null;
+function redirectToApp(patientKey){
   try{
-    consentVersion = localStorage.getItem('consentVersion') || CONSENT_VERSION;
-    localTimestamp  = localStorage.getItem('consentTimestamp') || null;
-  }catch(e){}
-
-  const payload = {
-    patient_id:       patientId,
-    consent_version:  consentVersion,
-    agreed_at:        new Date().toISOString(), // サーバー時刻ベース（DB側でも now() 可）
-    local_timestamp:  localTimestamp,           // 参考値として保存
-    user_agent:       navigator.userAgent.slice(0, 500)
-  };
-
-  const result = await sbFetch('/rest/v1/consent_logs', {
-    method: 'POST',
-    headers:{ 'Prefer': 'return=minimal' },
-    body: JSON.stringify(payload)
-  });
-
-  return result;
-}
-
-/* ============================================================
-   patients テーブルへの upsert
-   ============================================================ */
-async function upsertPatient(patientId){
-  const payload = {
-    patient_id:  patientId,
-    created_at:  new Date().toISOString()
-    // registered_at は DB の default now() に任せる
-    // age / sex は保持しない設計
-  };
-  const result = await sbFetch('/rest/v1/patients', {
-    method: 'POST',
-    headers:{ 'Prefer': 'resolution=ignore-duplicates,return=minimal' },
-    body: JSON.stringify(payload)
-  });
-  return result;
-}
-
-/* ============================================================
-   localStorageに patient_id を保存してアプリへ遷移
-   ============================================================ */
-function redirectToApp(patientId){
-  try{
-    localStorage.setItem('patientId', patientId);
-    localStorage.removeItem('consentGiven');    // 使用済みフラグ削除
+    localStorage.setItem('patientKey', patientKey);   // HMAC済みキーのみ保存
+    localStorage.removeItem('consentGiven');
     localStorage.removeItem('consentTimestamp');
+    localStorage.removeItem('consentVersion');
+    localStorage.removeItem('patientId');             // 旧キー（残存していれば削除）
   }catch(e){}
   setTimeout(()=>{ window.location.href = PATIENT_APP; }, 1200);
 }
@@ -298,11 +292,10 @@ function redirectToApp(patientId){
 async function handleCallback(){
   showLoading();
 
-  // 1. 診察券番号を取得
-  const patientId = extractPatientId();
+  // 1. URLパラメータ取得
+  const { chartNumber, lastVisit } = extractParams();
 
-  if(!patientId){
-    // --- デバッグ用: パラメータ一覧を表示 ---
+  if(!chartNumber){
     const params = new URLSearchParams(window.location.search);
     const paramStr = [...params.entries()].map(([k,v])=>`${k}=${v}`).join(', ') || '（パラメータなし）';
     showError(
@@ -312,29 +305,34 @@ async function handleCallback(){
     return;
   }
 
+  // 2. 同意情報取得
+  const { consentGiven, consentVersion, localTimestamp } = getConsentInfo();
+
   try{
-    // 2. patients テーブルに upsert（既存ならスキップ）
-    const upsertResult = await upsertPatient(patientId);
-    if(!upsertResult.ok && upsertResult.status !== 409){
-      throw new Error('patients upsert failed: ' + JSON.stringify(upsertResult.data));
+    // 3. Edge Function 呼び出し
+    //    - HMAC生成、受診日チェック、DB保存はすべてサーバー側
+    //    - フロントは patient_key のみ受け取る
+    const result = await callAuthenticatePatient({
+      chartNumber, lastVisit, consentGiven, consentVersion, localTimestamp
+    });
+
+    // 4. 受診期限切れ
+    if(result.data?.reason === 'visit_expired'){
+      showExpired();
+      return;
     }
 
-    // 3. 同意ログを保存（同意フローを通ってきた場合のみ）
-    const consentGiven = (() => {
-      try{ return localStorage.getItem('consentGiven') === 'true'; }catch(e){ return false; }
-    })();
-
-    if(consentGiven){
-      const consentResult = await saveConsentLog(patientId);
-      // 同意ログ保存失敗は警告にとどめ、フローは続行
-      if(!consentResult.ok){
-        console.warn('consent_log save failed:', consentResult);
-      }
+    // 5. その他エラー
+    if(!result.httpOk || !result.data?.ok){
+      const reason = result.data?.reason || 'unknown';
+      const detail = result.data?.detail || '';
+      throw new Error(`Edge Function error: ${reason} ${detail}`);
     }
 
-    // 4. 成功 → アプリへ
+    // 6. 成功 → patient_key を保存してアプリへ
+    const patientKey = result.data.patient_key;
     showSuccess('ようこそ。アプリに移動します。');
-    redirectToApp(patientId);
+    redirectToApp(patientKey);
 
   }catch(err){
     console.error('Callback error:', err);
