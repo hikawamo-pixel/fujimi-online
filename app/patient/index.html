@@ -769,19 +769,12 @@ function editRec(id){
 function deleteRec(id){
   if(!confirm('この記録を削除しますか？'))return;
   const target = S.recs.find(x=>x.id===id);
-  // DBのis_deletedをtrueに更新（論理削除）
-  // TODO: RLS本適用後はdelete-bowel-record Edge Function経由に切り替え（次段階）
-  // 現段階: REST直接（RLS未適用時のみ動作）
+  // delete-bowel-record Edge Function 経由で論理削除
   if(target?.clientId && PATIENT_KEY){
-    fetch(`${SUPABASE_URL}/rest/v1/bowel_records?patient_key=eq.${PATIENT_KEY}&client_id=eq.${target.clientId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Prefer': 'return=minimal',
-      },
-      body: JSON.stringify({ is_deleted: true, deleted_at: new Date().toISOString() }),
+    fetch(FN_DELETE, {
+      method: 'POST',
+      headers: edgeFnHeaders(),
+      body: JSON.stringify({ patient_key: PATIENT_KEY, client_id: target.clientId }),
     }).catch(e => console.warn('delete sync error:', e));
   }
   S.recs=S.recs.filter(x=>x.id!==id);
@@ -1455,12 +1448,17 @@ function recToRow(r, now) {
 async function loadPrescription() {
   if (!PATIENT_KEY) return;
   try {
-    const rxs = await supabaseFetch(
-      'prescriptions',
-      `patient_key=eq.${PATIENT_KEY}&is_active=eq.true&order=prescribed_at.desc&limit=1`
-    );
-    if (!rxs || rxs.length === 0) return;
-    const rx = rxs[0];
+    // get-prescription Edge Function 経由で取得
+    const res = await fetch(FN_RX, {
+      method: 'POST',
+      headers: edgeFnHeaders(),
+      body: JSON.stringify({ patient_key: PATIENT_KEY }),
+    });
+    if (!res.ok) return;
+    const result = await res.json();
+    if (!result.ok || !result.prescription) return;
+
+    const rx  = result.prescription;
     const bar     = document.getElementById('rx-info-bar');
     const content = document.getElementById('rx-info-content');
     const sub     = document.getElementById('rx-info-sub');
@@ -1523,7 +1521,16 @@ async function shareToDoctor() {
       ...recToRow(r, now),
       source_record_id: r._serverRecordId || null,
     }));
-    await supabaseInsert('shared_bowel_records', rows);
+
+    // share-to-doctor Edge Function 経由で送信（Service Roleで実行）
+    const shareRes = await fetch(FN_SHARE, {
+      method: 'POST',
+      headers: edgeFnHeaders(),
+      body: JSON.stringify({ patient_key: PATIENT_KEY, records: rows }),
+    });
+    if (!shareRes.ok) throw new Error(await shareRes.text());
+    const shareResult = await shareRes.json();
+    if (!shareResult.ok) throw new Error(shareResult.reason || 'share failed');
 
     const shareStart = cutoff ? cutoff.toISOString().slice(0,10) : (S.recs[S.recs.length-1]?.date || '');
     const shareEnd   = now.toISOString().slice(0,10);
