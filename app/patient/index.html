@@ -1417,12 +1417,28 @@ function recToRow(r, now) {
     return null;
   };
 
+  // recorded_at: 排便日(r.date) + 排便時刻(r.timeSlot) を組み合わせる
+  // r.recordedAt は「記録した時刻」であり「排便日時」ではないため使わない
+  const sharedRecordedAt = (() => {
+    const dateStr = r.date || r.guDate || now.toISOString().slice(0, 10);
+    const timeStr = r.timeSlot || r.disimTime || r.guTime || '00:00';
+    return `${dateStr}T${timeStr}:00+09:00`;
+  })();
+
+  // Bristol連続記録（例: "4→5"）を全て保存するため、
+  // 代表値（最初）はbristol_scaleに、全ラベルはstool_labelカラムに保存
+  // ※ shared_bowel_recordsにstool_labelがない場合は bristol_scale のみ
+  const bristolAll = (() => {
+    if (r.stoolMode !== 'bristol' || !r.stoolLabel) return null;
+    return r.stoolLabel; // "4→5" のような文字列をそのまま保持
+  })();
+
   return {
     patient_key:     PATIENT_KEY,
-    recorded_at:     r.recordedAt || r.date || now.toISOString(),
+    recorded_at:     sharedRecordedAt,
     // shared_at は DB の DEFAULT now() に任せる
     source:          'patient',
-    bristol_scale:   bristolNum,
+    bristol_scale:   bristolNum, // 代表値（最初の値）
     simplified_type: simplifiedType,
     amount:          amountCode,
     duration_min:    durationMin,
