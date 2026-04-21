@@ -1438,7 +1438,8 @@ function recToRow(r, now) {
     recorded_at:     sharedRecordedAt,
     // shared_at は DB の DEFAULT now() に任せる
     source:          'patient',
-    bristol_scale:   bristolNum, // 代表値（最初の値）
+    bristol_scale:   bristolNum,   // 代表値（最初の値）
+    stool_label:     r.stoolLabel || null, // 連続記録ラベル（例: "4→5"）
     simplified_type: simplifiedType,
     amount:          amountCode,
     duration_min:    durationMin,
@@ -1518,7 +1519,10 @@ async function shareToDoctor() {
     const now    = new Date();
     const cutoff = days === 0 ? null : new Date(now - days * 86400000);
 
+    // 期間内のレコードを対象とする
+    // _shared フラグで送信済みのものは除外（重複INSERT対策）
     const targets = S.recs.filter(r => {
+      if (r._shared) return false; // 送信済みはスキップ
       if (!cutoff) return true;
       const d = new Date(r.date || r.guDate || 0);
       return d >= cutoff;
@@ -1550,6 +1554,10 @@ async function shareToDoctor() {
 
     const shareStart = cutoff ? cutoff.toISOString().slice(0,10) : (S.recs[S.recs.length-1]?.date || '');
     const shareEnd   = now.toISOString().slice(0,10);
+
+    // 送信済みフラグをセット（再送防止）
+    targets.forEach(r => { r._shared = true; });
+    try { localStorage.setItem('bj14', JSON.stringify(S.recs)); } catch(e) {}
 
     status.style.color = '#0F6E56';
     status.textContent = `✓ ${rows.length}件の記録を医師に共有しました（${shareStart} 〜 ${shareEnd}）`;
