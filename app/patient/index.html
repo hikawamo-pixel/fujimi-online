@@ -1034,7 +1034,7 @@ function serverRowToLocal(row) {
     type:             row.record_type === 'med' ? 'med' : row.record_type === 'gu' ? 'gu' : 'rec',
     date:             row.recorded_at?.slice(0, 10) || '',
     recMode:          row.record_type === 'absent' ? 'absent' : row.record_type === 'disim' ? 'disim' : 'present',
-    bowelMovement:    row.record_type === 'bowel' || (row.record_type === 'disim' && !row.is_no_stool),
+    bowelMovement:    !row.is_no_stool && row.record_type !== 'absent' && row.record_type !== 'gu' && row.record_type !== 'med',
     stoolLabel:       row.bristol_scale ? String(row.bristol_scale) : row.simplified_type || null,
     stoolMode:        row.bristol_scale ? 'bristol' : row.simplified_type ? 'simple' : null,
     amt:              ({ S: 'S（小）', M: 'ふつう', L: 'L（大）' })[row.amount] || null,
