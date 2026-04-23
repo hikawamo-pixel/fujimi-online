@@ -221,7 +221,29 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 </div>
 <script>
 // ── データ ──────────────────────────────────────────────────
-const PATIENTS = [
+// PATIENTS永続化ヘルパー
+// patientKeyはセキュリティ上localStorageに保存しない（リロード後は再取得）
+const PATIENTS_STORAGE_KEY = 'doctorPatients_v1';
+function savePatientsToStorage() {
+  try {
+    const toSave = PATIENTS.map(p => {
+      const { patientKey, ...rest } = p; // patientKeyは除外
+      return rest;
+    });
+    localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(toSave));
+  } catch(e) { console.warn('PATIENTS save error:', e); }
+}
+function loadPatientsFromStorage() {
+  try {
+    const raw = localStorage.getItem(PATIENTS_STORAGE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!Array.isArray(saved) || saved.length === 0) return null;
+    return saved.map(p => ({ ...p, patientKey: null })); // patientKeyはnullで復元
+  } catch(e) { return null; }
+}
+
+const PATIENTS_DEFAULT = [
   {
     // ⑦ 診察券番号ベース
     id: '00001',
@@ -340,6 +362,10 @@ const PATIENTS = [
   }
 ];
 
+// localStorageに保存済みがあれば復元、なければデフォルトを使用
+const _savedPatients = loadPatientsFromStorage();
+const PATIENTS = _savedPatients || PATIENTS_DEFAULT;
+
 let currentPt  = PATIENTS[0];
 let currentTab = 'summary';
 
@@ -354,6 +380,8 @@ function selectPatient(id) {
   renderAll();
   loadPatientRecords(id);
   loadPrescriptions(id);
+  savePatientsToStorage();
+  try { localStorage.setItem('doctorLastPatientId', id); } catch(e) {}
 }
 
 // ── ヘルパー ─────────────────────────────────────────────────
@@ -588,9 +616,10 @@ async function loadByChartNumber() {
 
     if (statusEl) { statusEl.textContent = `診察券 ${chartNumber} を読み込みました`; statusEl.style.color = 'var(--green)'; }
 
-    // サイドバー更新して患者を選択
+    // サイドバー更新して患者を選択（selectPatient内でsaveも呼ばれる）
     renderPtList(PATIENTS);
     selectPatient(chartNumber);
+    savePatientsToStorage(); // 新規患者追加時は明示的にも保存
 
   } catch(e) {
     console.error('loadByChartNumber error:', e);
@@ -1556,6 +1585,18 @@ function showLoadStatus(msg, type) {
 // 初期化：モックデータで描画後、Supabaseからデータ取得
 // 初期描画はSupabaseデータ取得後に実行
 // 初期表示: まずモックデータで即時描画し、その後DBデータで上書き
+
+// リロード後の選択患者を復元
+(function restoreLastPatient() {
+  try {
+    const lastId = localStorage.getItem('doctorLastPatientId');
+    if (lastId && PATIENTS.find(p => p.id === lastId)) {
+      currentPt = PATIENTS.find(p => p.id === lastId);
+      CURRENT_PATIENT_ID = lastId;
+    }
+  } catch(e) {}
+})();
+
 renderAll();
 loadPatientRecords(CURRENT_PATIENT_ID);
 loadPrescriptions(CURRENT_PATIENT_ID);
