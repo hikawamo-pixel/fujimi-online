@@ -1,4 +1,19 @@
 <!DOCTYPE html>
+<!--
+  ================================================================
+  ⚠️  本番リリース前チェックリスト（必ず確認すること）
+  ================================================================
+  □ 1. Supabase Edge Function "authenticate-patient" の
+        VISIT_VALID_DAYS を 36500 → 90 に戻す
+        場所: Supabase Dashboard > Edge Functions > authenticate-patient
+        変更箇所: const VISIT_VALID_DAYS = 36500;
+                  →  const VISIT_VALID_DAYS = 90;
+
+  □ 2. PATIENTS_DEFAULT配列のモックデータ（00001・87654）を削除する
+
+  □ 3. RLSポリシーの最終確認
+  ================================================================
+-->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -180,6 +195,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 </style>
 </head>
 <body>
+<!-- ⚠️ テストモード警告バナー：本番前に削除すること -->
+<div id="test-mode-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#854F0B;color:#fff;padding:8px 16px;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:space-between;font-family:'DM Sans',sans-serif;">
+  <span>⚠️ テストモード：受診日チェック無効中（VISIT_VALID_DAYS=36500）— 本番リリース前に90日に戻すこと</span>
+  <button onclick="document.getElementById('test-mode-banner').style.display='none'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;">閉じる</button>
+</div>
 <div class="layout">
 
 <div class="sidebar">
