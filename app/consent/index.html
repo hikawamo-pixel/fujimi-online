@@ -185,12 +185,13 @@ body{
   backdrop-filter:blur(6px);
   border-top:0.5px solid rgba(0,0,0,0.10);
   padding:16px 18px max(16px, env(safe-area-inset-bottom));
-  max-width:480px;
-  margin:0 auto;
-  width:100%;
 }
 @media(min-width:480px){
-  .footer{left:50%;transform:translateX(-50%);}
+  .footer{
+    left:50%;
+    transform:translateX(-50%);
+    width:480px;
+  }
 }
 
 .cta-btn{
