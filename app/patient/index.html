@@ -3,39 +3,71 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>排便日誌 v14</title>
+<title>排便日誌 v15</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f5f2;font-family:'Hiragino Sans','Noto Sans JP',sans-serif;}
 .app{max-width:480px;margin:0 auto;padding-bottom:80px;}
-.hdr{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.12);padding:13px 18px 0;position:sticky;top:0;z-index:10;}
+
+/* ===== ヘッダー + ナビバー（sticky wrapper） ===== */
+.sticky-top{position:sticky;top:0;z-index:20;}
+.hdr{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.12);padding:13px 18px 10px;}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .hdr-title{font-size:17px;font-weight:500;color:#1a1a18;}
 .hdr-date{font-size:12px;color:#888780;}
-.av-bar{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f5f5f2;border-radius:10px 10px 0 0;margin-top:2px;}
+.av-bar{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f5f5f2;border-radius:10px;}
 .av{width:36px;height:36px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
 .av-msg{font-size:12px;color:#5f5e5a;line-height:1.5;}
 .av-msg b{color:#1a1a18;font-weight:500;}
-.rec-date-bar{display:flex;align-items:center;gap:6px;padding:7px 12px 10px;background:#f5f5f2;flex-wrap:wrap;}
-.rec-date-bar select{font-size:12px;padding:3px 6px;border:0.5px solid #b4b2a9;border-radius:6px;background:#fff;color:#1a1a18;}
-.rec-date-bar span{font-size:12px;color:#5f5e5a;}
-.rec-mode-btn{padding:4px 9px;border-radius:6px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;transition:all .15s;}
-.rec-mode-btn.on-present{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
-.rec-mode-btn.on-absent{background:#FAEEDA;border-color:#BA7517;color:#633806;font-weight:500;}
-.rec-mode-btn.on-disim{background:#E6F1FB;border-color:#185FA5;color:#0C447C;font-weight:500;}
-.tabs{display:flex;background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.12);position:sticky;top:0;z-index:9;}
-.tab{flex:1;padding:9px 4px;font-size:12px;font-weight:500;text-align:center;cursor:pointer;color:#888780;border-bottom:2px solid transparent;transition:all .15s;}
-.tab.on{color:#0F6E56;border-bottom-color:#0F6E56;}
+/* ナビバー */
+.nav-bar{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.12);display:flex;}
+.nav-btn{flex:1;padding:10px 4px 9px;font-size:12px;font-weight:500;text-align:center;cursor:pointer;color:#888780;border-bottom:2px solid transparent;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.nav-btn .nav-icon{font-size:16px;line-height:1;}
+.nav-btn.on{color:#0F6E56;border-bottom-color:#0F6E56;}
+
+/* ===== 編集バナー ===== */
+.edit-banner{display:none;background:#FFF8EF;border-bottom:2px solid #BA7517;padding:8px 18px;font-size:12px;color:#633806;align-items:center;justify-content:space-between;}
+.edit-banner.show{display:flex;}
+.edit-cancel-btn{padding:4px 10px;border-radius:6px;border:0.5px solid #BA7517;background:#fff;cursor:pointer;font-size:11px;color:#633806;}
+
+/* ===== セクション共通 ===== */
 .sec{padding:13px 18px;border-bottom:0.5px solid rgba(0,0,0,0.12);}
 .sec-lbl{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#888780;margin-bottom:9px;}
-/* 保存後メッセージ */
-.post-save-msg{display:none;margin:10px 18px 0;padding:10px 13px;background:#f0faf6;border:0.5px solid #5DCAA5;border-radius:9px;font-size:11px;color:#085041;line-height:1.7;}
-.post-save-msg.show{display:block;}
-.post-save-msg .med-remind{color:#BA7517;font-weight:500;}
-/* 編集バナー */
-.edit-banner{display:none;background:#FFF8EF;border-bottom:2px solid #BA7517;padding:8px 18px;font-size:12px;color:#633806;}
-.edit-banner.show{display:flex;align-items:center;justify-content:space-between;}
-.edit-cancel-btn{padding:4px 10px;border-radius:6px;border:0.5px solid #BA7517;background:#fff;cursor:pointer;font-size:11px;color:#633806;}
+.fld label{font-size:12px;color:#5f5e5a;display:block;margin-bottom:4px;}
+.fld select{width:100%;padding:8px 10px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;}
+
+/* ===== トイレ記録フロー ===== */
+/* 日付セレクタ */
+.rec-date-row{padding:10px 18px;background:#f5f5f2;border-bottom:0.5px solid rgba(0,0,0,0.12);display:flex;align-items:center;gap:8px;}
+.rec-date-row select{font-size:13px;padding:6px 10px;border:0.5px solid #b4b2a9;border-radius:8px;background:#fff;color:#1a1a18;}
+.rec-date-row span{font-size:13px;color:#5f5e5a;}
+
+/* 行った／行かなかった */
+.went-row{padding:14px 18px 12px;border-bottom:0.5px solid rgba(0,0,0,0.12);}
+.went-lbl{font-size:11px;color:#888780;margin-bottom:8px;}
+.went-btns{display:flex;gap:10px;}
+.went-btn{flex:1;padding:12px 8px;border-radius:10px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:13px;font-weight:500;color:#5f5e5a;text-align:center;transition:all .15s;}
+.went-btn.on-yes{background:#E1F5EE;border-color:#1D9E75;color:#085041;}
+.went-btn.on-no{background:#FAEEDA;border-color:#BA7517;color:#633806;}
+
+/* 行かなかった理由 */
+.no-toilet-sec{display:none;}
+.reason-sel{width:100%;padding:9px 10px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;}
+textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;resize:vertical;min-height:64px;}
+
+/* 排便あり・なし */
+.stool-row{padding:14px 18px 12px;border-bottom:0.5px solid rgba(0,0,0,0.12);}
+.stool-lbl{font-size:11px;color:#888780;margin-bottom:8px;}
+.stool-btns{display:flex;gap:10px;}
+.stool-btn{flex:1;padding:12px 8px;border-radius:10px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:13px;font-weight:500;color:#5f5e5a;text-align:center;transition:all .15s;}
+.stool-btn.on-yes{background:#E1F5EE;border-color:#1D9E75;color:#085041;}
+.stool-btn.on-no{background:#f5f5f2;border-color:#5f5e5a;color:#1a1a18;}
+
+/* 排便なし（トイレ行った） */
+.tns-sec{display:none;}
+/* 排便あり */
+.stool-sec{display:none;}
+
 /* Bristol/簡易切り替え */
 .input-mode-tabs{display:flex;gap:6px;margin-bottom:10px;}
 .imt-btn{flex:1;padding:5px 4px;border-radius:7px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;font-weight:500;color:#5f5e5a;text-align:center;transition:all .15s;}
@@ -58,16 +90,16 @@ body{background:#f5f5f2;font-family:'Hiragino Sans','Noto Sans JP',sans-serif;}
 .b-info{margin-top:8px;padding:7px 10px;background:#f5f5f2;border-radius:8px;font-size:12px;color:#5f5e5a;min-height:30px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .chain-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#E1F5EE;border-radius:12px;font-size:13px;font-weight:500;color:#085041;}
 .chain-x{cursor:pointer;color:#1D9E75;margin-left:2px;}
-.time-dur-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;}
-.fld label{font-size:12px;color:#5f5e5a;display:block;margin-bottom:4px;}
-.fld select{width:100%;padding:8px 10px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;}
-.dur-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
-.dur-chip{padding:7px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;text-align:center;line-height:1.35;transition:all .15s;}
-.dur-chip.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
-/* 食事との関係 */
-.meal-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px;}
-.meal-btn{padding:7px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;text-align:center;transition:all .15s;}
-.meal-btn.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
+
+/* タイムバー */
+.timebar-wrap{margin-top:4px;}
+.timebar-track{position:relative;height:28px;background:#f5f5f2;border-radius:8px;border:0.5px solid #b4b2a9;cursor:pointer;user-select:none;}
+.timebar-fill{position:absolute;left:0;top:0;bottom:0;background:#E1F5EE;border-radius:8px;pointer-events:none;}
+.timebar-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;background:#1D9E75;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);pointer-events:none;}
+.timebar-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:500;color:#1a1a18;pointer-events:none;white-space:nowrap;}
+.timebar-ticks{display:flex;justify-content:space-between;font-size:9px;color:#b4b2a9;margin-top:2px;padding:0 2px;}
+
+/* 排便量 */
 .amt-row{display:flex;gap:8px;}
 .amt-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:12px;color:#5f5e5a;transition:all .15s;text-align:center;line-height:1.3;}
 .amt-btn.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
@@ -75,26 +107,68 @@ body{background:#f5f5f2;font-family:'Hiragino Sans','Noto Sans JP',sans-serif;}
 .amt-sub.show{display:flex;}
 .amt-sub-btn{flex:1;padding:8px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;text-align:center;transition:all .15s;}
 .amt-sub-btn.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
+
+/* 食事との関係 */
+.meal-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.meal-btn{padding:7px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;text-align:center;transition:all .15s;}
+.meal-btn.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
+
+/* 所要時間 */
+.dur-grid{display:grid;gap:5px;}
+.dur-chip{padding:7px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;text-align:center;line-height:1.35;transition:all .15s;}
+.dur-chip.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
+
+/* すっきり感 */
 .res-row{display:flex;gap:8px;}
 .res-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:12px;color:#5f5e5a;text-align:center;line-height:1.3;transition:all .15s;}
 .res-btn.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
 .res-btn-small{padding:6px 12px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#888780;transition:all .15s;margin-top:6px;}
 .res-btn-small.on{background:#f5f5f2;border-color:#5f5e5a;color:#5f5e5a;font-weight:500;}
+
+/* 症状 */
 .sym-row{display:flex;gap:7px;flex-wrap:wrap;}
 .sym-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 10px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;min-width:72px;transition:all .15s;text-align:center;}
 .sym-btn.on-a{background:#FAEEDA;border-color:#BA7517;color:#633806;font-weight:500;}
 .sym-btn.on-r{background:#FCEBEB;border-color:#A32D2D;color:#501313;font-weight:500;}
-.disim-block{background:#EEF4FB;border-radius:10px;padding:12px 14px;}
-.disim-title{font-size:12px;font-weight:500;color:#0C447C;margin-bottom:10px;}
-.disim-type{display:flex;gap:8px;margin-bottom:10px;}
-.disim-btn{flex:1;padding:9px 4px;border-radius:8px;border:0.5px solid #85B7EB;background:#fff;cursor:pointer;font-size:12px;color:#185FA5;text-align:center;transition:all .15s;}
-.disim-btn.on{background:#E6F1FB;border-color:#185FA5;color:#0C447C;font-weight:500;}
-.disim-result{margin-top:10px;padding-top:10px;border-top:0.5px solid #85B7EB;}
-.disim-result-lbl{font-size:11px;color:#185FA5;margin-bottom:8px;}
-.sw{width:38px;height:22px;border-radius:11px;background:#b4b2a9;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
-.sw.on{background:#1D9E75;}
-.sw::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:white;top:3px;left:3px;transition:left .2s;}
-.sw.on::after{left:19px;}
+
+/* 坐薬・浣腸ブロック */
+.disim-toggle-row{display:flex;gap:8px;margin-bottom:10px;}
+.disim-tog{flex:1;padding:9px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:12px;color:#5f5e5a;text-align:center;transition:all .15s;}
+.disim-tog.on-yes{background:#E6F1FB;border-color:#185FA5;color:#0C447C;font-weight:500;}
+.disim-tog.on-no{background:#f5f5f2;border-color:#5f5e5a;color:#1a1a18;font-weight:500;}
+.disim-detail{display:none;background:#EEF4FB;border-radius:10px;padding:12px 14px;margin-top:4px;}
+.disim-detail.show{display:block;}
+.disim-detail-title{font-size:12px;font-weight:500;color:#0C447C;margin-bottom:10px;}
+.disim-type-row{display:flex;gap:8px;margin-bottom:10px;}
+.disim-type-btn{flex:1;padding:9px 4px;border-radius:8px;border:0.5px solid #85B7EB;background:#fff;cursor:pointer;font-size:12px;color:#185FA5;text-align:center;transition:all .15s;}
+.disim-type-btn.on{background:#E6F1FB;border-color:#185FA5;color:#0C447C;font-weight:500;}
+.disim-count-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.disim-count-row label{font-size:12px;color:#5f5e5a;}
+.disim-count-row input[type=number]{width:64px;padding:7px 8px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:14px;text-align:center;background:#fff;color:#1a1a18;}
+.disim-count-row span{font-size:12px;color:#5f5e5a;}
+
+/* 保存ボタン */
+.save-btn{display:block;width:calc(100% - 36px);margin:14px 18px 4px;padding:13px;background:#1D9E75;color:white;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s;}
+.save-btn:hover{background:#0F6E56;}
+.save-btn.done{background:#085041;}
+.save-btn.edit-mode{background:#BA7517;}
+.save-btn.edit-mode:hover{background:#8a5410;}
+
+/* ===== 保存後POPUP ===== */
+.popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:flex-end;justify-content:center;}
+.popup-overlay.show{display:flex;}
+.popup-card{background:#fff;border-radius:16px 16px 0 0;padding:20px 18px 30px;width:100%;max-width:480px;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.popup-title{font-size:13px;font-weight:500;color:#1a1a18;margin-bottom:6px;}
+.popup-summary{font-size:12px;color:#5f5e5a;line-height:1.7;padding:10px 12px;background:#f5f5f2;border-radius:9px;margin-bottom:14px;}
+.popup-actions{display:flex;flex-direction:column;gap:8px;}
+.popup-btn{width:100%;padding:12px 14px;border-radius:10px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:13px;color:#1a1a18;text-align:left;transition:all .15s;display:flex;align-items:center;gap:10px;}
+.popup-btn:hover{background:#f5f5f2;}
+.popup-btn.primary{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
+.popup-btn.primary:hover{background:#C8EEE1;}
+.popup-btn-icon{font-size:16px;width:24px;text-align:center;flex-shrink:0;}
+
+/* ===== 内服記録タブ ===== */
 .med-block{background:#f5f5f2;border-radius:10px;padding:12px 14px;margin-bottom:10px;}
 .med-block-title{font-size:12px;font-weight:500;color:#1a1a18;margin-bottom:10px;}
 .comp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
@@ -106,6 +180,10 @@ body{background:#f5f5f2;font-family:'Hiragino Sans','Noto Sans JP',sans-serif;}
 .pico-input.show{display:flex;}
 .pico-input input{width:56px;padding:6px 8px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:14px;text-align:center;background:#fff;color:#1a1a18;}
 .pico-input span{font-size:12px;color:#5f5e5a;}
+.sw{width:38px;height:22px;border-radius:11px;background:#b4b2a9;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
+.sw.on{background:#1D9E75;}
+.sw::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:white;top:3px;left:3px;transition:left .2s;}
+.sw.on::after{left:19px;}
 .em-type-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
 .etog{padding:7px 12px;border-radius:7px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:12px;color:#5f5e5a;transition:all .15s;}
 .etog.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
@@ -113,17 +191,8 @@ body{background:#f5f5f2;font-family:'Hiragino Sans','Noto Sans JP',sans-serif;}
 .em-detail label{font-size:12px;color:#5f5e5a;}
 .em-detail input[type=time]{padding:6px 8px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;}
 .em-detail input[type=text]{flex:1;min-width:100px;padding:6px 8px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;}
-.save-btn{display:block;width:calc(100% - 36px);margin:14px 18px 4px;padding:13px;background:#1D9E75;color:white;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s;}
-.save-btn:hover{background:#0F6E56;}
-.save-btn.done{background:#085041;}
-.save-btn.edit-mode{background:#BA7517;}
-.save-btn.edit-mode:hover{background:#8a5410;}
-.tog{padding:8px 12px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:12px;color:#5f5e5a;transition:all .15s;white-space:nowrap;}
-.tog.on-a{background:#FAEEDA;border-color:#BA7517;color:#633806;font-weight:500;}
-.btn-row{display:flex;gap:7px;flex-wrap:wrap;}
-textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;resize:vertical;min-height:68px;}
 
-/* 履歴 カード式 */
+/* ===== 履歴タブ ===== */
 .hist-wrap{padding:10px 12px;}
 .hist-view-toggle{display:flex;gap:8px;margin-bottom:12px;}
 .hvt-btn{flex:1;padding:8px 4px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:12px;font-weight:500;color:#5f5e5a;text-align:center;transition:all .15s;}
@@ -142,24 +211,21 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .h-bristol{font-size:13px;font-weight:500;color:#1a1a18;margin:1px 0;}
 .hchips{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
 .hchip{font-size:10px;padding:1px 6px;border-radius:6px;background:#f5f5f2;color:#5f5e5a;}
-.hchip-w{background:#FAEEDA;color:#633806;}
-.hchip-r{background:#FCEBEB;color:#501313;}
-.hchip-b{background:#E6F1FB;color:#0C447C;}
 .h-entry-btns{display:flex;gap:4px;margin-top:5px;}
 .h-edit-btn{padding:2px 8px;border-radius:5px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:10px;color:#5f5e5a;}
 .h-edit-btn:hover{background:#f5f5f2;}
 .h-del-btn{padding:2px 8px;border-radius:5px;border:0.5px solid #e8b4b4;background:#fff;cursor:pointer;font-size:10px;color:#A32D2D;}
 .h-del-btn:hover{background:#FCEBEB;}
-.h-med-entry{margin-bottom:8px;padding-bottom:8px;border-bottom:0.5px solid rgba(0,0,0,0.12);position:relative;}
+.h-med-entry{margin-bottom:8px;padding-bottom:8px;border-bottom:0.5px solid rgba(0,0,0,0.12);}
 .h-med-entry:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
 .h-med-time{font-size:11px;font-weight:500;color:#1a1a18;}
 .h-med-detail{font-size:11px;color:#5f5e5a;margin-top:1px;}
-.gu-bar{background:#FFF8EF;border-top:0.5px solid rgba(0,0,0,0.12);padding:6px 10px;}
-.gu-item{font-size:11px;color:#633806;padding:2px 0;}
-.absent-card{padding:8px 12px;font-size:12px;color:#888780;font-style:italic;border-bottom:0.5px solid rgba(0,0,0,0.12);}
+.absent-card{padding:8px 12px;font-size:12px;color:#888780;border-bottom:0.5px solid rgba(0,0,0,0.12);display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:space-between;}
 .empty-hist{text-align:center;padding:36px 0;color:#888780;font-size:13px;}
+.gu-bar{background:#FFF8EF;border-top:0.5px solid rgba(0,0,0,0.12);padding:6px 10px;}
+.gu-item{font-size:11px;color:#633806;padding:2px 0;display:flex;align-items:center;gap:6px;}
 
-/* タイムライン式 */
+/* タイムライン */
 .tl-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:10px;color:#5f5e5a;align-items:center;}
 .tl-legend-item{display:flex;align-items:center;gap:4px;}
 .leg-c{border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:500;flex-shrink:0;}
@@ -203,248 +269,280 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .td-gu-tl{padding:0;height:14px;background:#FFF8EF;position:relative;}
 .gu-tl-inner{position:relative;height:14px;width:100%;}
 .gu-mark{position:absolute;transform:translateX(-50%);font-size:10px;color:#BA7517;top:50%;margin-top:-7px;}
+/* 排便なし（トイレ）マーカー */
+.tns-mark{position:absolute;transform:translateX(-50%);top:50%;margin-top:-9px;width:18px;height:18px;border-radius:3px;border:1.5px solid #888780;background:#f5f5f2;display:flex;align-items:center;justify-content:center;font-size:9px;color:#5f5e5a;}
 </style>
 </head>
 <body>
 <div class="app">
 
-<!-- ヘッダー -->
-<div class="hdr">
-  <div class="hdr-top">
-    <span class="hdr-title">排便日誌</span>
-    <span class="hdr-date" id="hdr-date"></span>
+<!-- sticky wrapper -->
+<div class="sticky-top">
+  <!-- ヘッダー -->
+  <div class="hdr">
+    <div class="hdr-top">
+      <span class="hdr-title">排便日誌</span>
+      <span class="hdr-date" id="hdr-date"></span>
+    </div>
+    <div class="av-bar">
+      <div class="av">🌿</div>
+      <div class="av-msg" id="av-msg"><b>今日の記録</b>をつけましょう。</div>
+    </div>
   </div>
-  <div class="av-bar">
-    <div class="av">🌿</div>
-    <div class="av-msg" id="av-msg"><b>今日の記録</b>をつけましょう。</div>
-  </div>
-  <div class="rec-date-bar">
-    <select id="rec-date-sel"></select>
-    <span>の記録</span>
-    <button class="rec-mode-btn on-present" id="mode-present" onclick="setMode('present')">排便あり</button>
-    <button class="rec-mode-btn" id="mode-absent" onclick="setMode('absent')">排便なし</button>
-    <button class="rec-mode-btn" id="mode-disim" onclick="setMode('disim')">浣腸・坐薬を使った</button>
+  <!-- ナビバー -->
+  <div class="nav-bar">
+    <div class="nav-btn on" id="nav-toilet" onclick="goTab('toilet',this)"><span class="nav-icon">🚽</span>トイレ記録</div>
+    <div class="nav-btn" id="nav-med" onclick="goTab('med',this)"><span class="nav-icon">💊</span>内服記録</div>
+    <div class="nav-btn" id="nav-hist" onclick="goTab('hist',this)"><span class="nav-icon">📋</span>履歴をみる</div>
   </div>
 </div>
 
-<!-- 編集中バナー -->
+<!-- 編集バナー -->
 <div class="edit-banner" id="edit-banner">
   <span>📝 記録を編集中</span>
   <button class="edit-cancel-btn" onclick="cancelEdit()">キャンセル</button>
 </div>
 
-<div class="tabs">
-  <div class="tab on" onclick="goTab('rec',this)">排便を記録</div>
-  <div class="tab" onclick="goTab('gu',this)">我慢・あきらめ</div>
-  <div class="tab" onclick="goTab('med',this)">内服を記録</div>
-  <div class="tab" onclick="goTab('hist',this)">履歴</div>
-</div>
+<!-- ============================================================
+     トイレ記録タブ
+     ============================================================ -->
+<div id="tab-toilet">
 
-<!-- 排便記録タブ -->
-<div id="tab-rec">
-  <div class="sec">
-    <div class="input-mode-tabs">
-      <div class="imt-btn on" id="imt-bristol" onclick="setInputMode('bristol')">Bristol scale</div>
-      <div class="imt-btn" id="imt-simple" onclick="setInputMode('simple')">簡易入力</div>
-    </div>
-    <!-- Bristol scale（静的SVG） -->
-    <div id="bristol-panel">
-      <div class="bscale" id="bg">
-        <div class="bi" id="bi-1" onclick="pickBristol(1)"><span class="bi-num">1</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
-          <!-- 1型：バラバラの硬い塊（ナッツ状）-->
-          <circle cx="6"  cy="22" r="4.5" fill="#5C3317"/>
-          <circle cx="14" cy="19" r="4.5" fill="#5C3317"/>
-          <circle cx="22" cy="22" r="4"   fill="#5C3317"/>
-          <circle cx="30" cy="20" r="4"   fill="#5C3317"/>
-          <circle cx="10" cy="13" r="3.5" fill="#5C3317"/>
-          <circle cx="18" cy="11" r="3"   fill="#5C3317"/>
-          <circle cx="26" cy="14" r="3.5" fill="#5C3317"/>
-          <circle cx="5"  cy="21" r="1.2" fill="white" opacity=".22"/>
-          <circle cx="13" cy="17" r="1.2" fill="white" opacity=".22"/>
-          <circle cx="9"  cy="11" r="1"   fill="white" opacity=".22"/>
-        </svg></div><span class="bi-word">①コロコロ</span></div>
-        <div class="bi" id="bi-2" onclick="pickBristol(2)"><span class="bi-num">2</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
-          <!-- 2型：ゴツゴツしたソーセージ状（塊が連なる）-->
-          <path d="M4 22 Q4 14 9 14 Q12 10 16 14 Q20 10 24 14 Q28 10 32 14 Q32 22 28 23 Q24 26 18 24 Q12 26 8 23 Z" fill="#6B3D1E"/>
-          <!-- ゴツゴツ感の突起 -->
-          <ellipse cx="9"  cy="14" rx="4" ry="3.5" fill="#6B3D1E"/>
-          <ellipse cx="16" cy="12" rx="4" ry="3.5" fill="#6B3D1E"/>
-          <ellipse cx="24" cy="12" rx="4" ry="3.5" fill="#6B3D1E"/>
-          <ellipse cx="31" cy="14" rx="3" ry="3"   fill="#6B3D1E"/>
-          <circle cx="8"  cy="13" r="1.3" fill="white" opacity=".18"/>
-          <circle cx="15" cy="11" r="1.2" fill="white" opacity=".18"/>
-        </svg></div><span class="bi-word">②ゴツゴツ</span></div>
-        <div class="bi" id="bi-3" onclick="pickBristol(3)"><span class="bi-num">3</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
-          <!-- 3型：表面にひび割れのあるソーセージ状 -->
-          <path d="M4 12 Q4 9 8 9 L28 9 Q32 9 32 12 L32 21 Q32 24 28 24 L8 24 Q4 24 4 21 Z" fill="#7A4828"/>
-          <!-- ひび割れ -->
-          <path d="M11 9  Q10 14 12 24" stroke="white" stroke-width="1"   opacity=".55" fill="none" stroke-linecap="round"/>
-          <path d="M18 9  Q17 14 19 24" stroke="white" stroke-width="1"   opacity=".55" fill="none" stroke-linecap="round"/>
-          <path d="M25 9  Q24 14 26 24" stroke="white" stroke-width="1"   opacity=".55" fill="none" stroke-linecap="round"/>
-          <ellipse cx="8" cy="13" rx="2.5" ry="1.5" fill="white" opacity=".15"/>
-        </svg></div><span class="bi-word">③ひび割れ</span></div>
-        <div class="bi" id="bi-4" onclick="pickBristol(4)"><span class="bi-num">4</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
-          <!-- 4型：なめらかなソーセージ/ヘビ状（理想） -->
-          <path d="M4 12 Q4 9 8 9 L28 9 Q32 9 32 12 L32 21 Q32 24 28 24 L8 24 Q4 24 4 21 Z" fill="#8B5E3C"/>
-          <!-- なめらかなハイライト -->
-          <ellipse cx="9" cy="13" rx="4" ry="2.2" fill="white" opacity=".2"/>
-        </svg></div><span class="bi-word">④ふつう</span></div>
-        <div class="bi" id="bi-5" onclick="pickBristol(5)"><span class="bi-num">5</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
-          <!-- 5型：縁のはっきりした柔らかい塊（複数）-->
-          <ellipse cx="9"  cy="21" rx="7"   ry="6"   fill="#9E7040"/>
-          <ellipse cx="22" cy="21" rx="7"   ry="6"   fill="#9E7040"/>
-          <ellipse cx="16" cy="13" rx="6"   ry="5"   fill="#9E7040"/>
-          <ellipse cx="30" cy="17" rx="5"   ry="4.5" fill="#9E7040"/>
-          <circle  cx="7"  cy="18" r="1.8" fill="white" opacity=".18"/>
-          <circle  cx="14" cy="11" r="1.5" fill="white" opacity=".18"/>
-        </svg></div><span class="bi-word">⑤やわらかい</span></div>
-        <div class="bi" id="bi-6" onclick="pickBristol(6)"><span class="bi-num">6</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
-          <!-- 6型：ふわふわした不定形・辺縁不整（泥状）-->
-          <path d="M2 22 Q3 13 8 14 Q10 9 15 13 Q17 8 22 12 Q26 7 30 12 Q34 15 32 21 Q30 27 22 26 Q14 28 7 25 Q2 24 2 22Z" fill="#B08040"/>
-          <!-- 不整な突起で泥状感 -->
-          <path d="M6 14 Q5 10 9 12"  fill="#B08040" stroke="#B08040" stroke-width="2" stroke-linecap="round"/>
-          <path d="M15 11 Q14 7 18 10" fill="#B08040" stroke="#B08040" stroke-width="2" stroke-linecap="round"/>
-          <path d="M24 10 Q25 6 28 10" fill="#B08040" stroke="#B08040" stroke-width="2" stroke-linecap="round"/>
-          <ellipse cx="8" cy="17" rx="3" ry="1.8" fill="white" opacity=".15"/>
-        </svg></div><span class="bi-word">⑥泥状</span></div>
-        <div class="bi" id="bi-7" onclick="pickBristol(7)"><span class="bi-num">7</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
-          <!-- 7型：水様便（固形物なし）-->
-          <!-- 水たまり状の背景 -->
-          <ellipse cx="18" cy="23" rx="15" ry="5" fill="#C4A055" opacity=".35"/>
-          <!-- 波線2本 -->
-          <path d="M3 14 Q7 10 11 14 Q15 18 19 14 Q23 10 27 14 Q31 18 34 14" stroke="#C4A055" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-          <path d="M4 20 Q8 16 12 20 Q16 24 20 20 Q24 16 28 20 Q31 23 33 20" stroke="#C4A055" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".7"/>
-          <!-- 水滴 -->
-          <path d="M18 4 Q20 8 18 11 Q16 8 18 4Z" fill="#C4A055" opacity=".8"/>
-        </svg></div><span class="bi-word">⑦水様</span></div>
-      </div>
-    </div>
-    <!-- 簡易入力 -->
-    <div id="simple-panel" style="display:none">
-      <div class="simple-scale">
-        <div class="si" id="si-R" onclick="pickSimple('R',this)"><span class="si-word">コロコロ</span><span class="si-code">R</span></div>
-        <div class="si" id="si-H" onclick="pickSimple('H',this)"><span class="si-word">かたい</span><span class="si-code">H</span></div>
-        <div class="si" id="si-N" onclick="pickSimple('N',this)"><span class="si-word">ふつう</span><span class="si-code">N</span></div>
-        <div class="si" id="si-S" onclick="pickSimple('S',this)"><span class="si-word">やわらかい</span><span class="si-code">S</span></div>
-        <div class="si" id="si-D" onclick="pickSimple('D',this)"><span class="si-word">下痢</span><span class="si-code">D</span></div>
-      </div>
-    </div>
-    <div class="b-info" id="b-info"><span style="color:#888780;font-size:12px;">便の性状を選んでください　続けて選ぶと連続記録も可能</span></div>
+  <!-- 日付セレクタ -->
+  <div class="rec-date-row">
+    <select id="rec-date-sel"></select>
+    <span>の記録</span>
   </div>
 
-  <!-- Disimpaction -->
-  <div class="sec" id="disim-sec" style="display:none">
-    <div class="disim-block">
-      <div class="disim-title">使用した処置</div>
-      <div class="disim-type">
-        <div class="disim-btn" id="disim-supp" onclick="pickDisimType('supp',this)">坐薬</div>
-        <div class="disim-btn" id="disim-kan" onclick="pickDisimType('kan',this)">浣腸</div>
-      </div>
-      <div class="fld" style="max-width:160px;margin-bottom:10px;">
-        <label style="font-size:12px;color:#5f5e5a;display:block;margin-bottom:4px;">使用時刻</label>
-        <select id="disim-time" style="width:100%;padding:7px 9px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;"></select>
-      </div>
-      <div class="disim-result">
-        <div class="disim-result-lbl">処置後の排便</div>
-        <div style="display:flex;gap:8px;">
-          <div class="disim-btn" id="disim-res-yes" onclick="pickDisimResult('yes',this)">排便あり</div>
-          <div class="disim-btn" id="disim-res-no" onclick="pickDisimResult('no',this)">排便なし</div>
-        </div>
-      </div>
+  <!-- STEP1：行った／行かなかった -->
+  <div class="went-row">
+    <div class="went-lbl">トイレに行きましたか？</div>
+    <div class="went-btns">
+      <button class="went-btn" id="btn-no-toilet" onclick="setWent(false)">🚫 行かなかった</button>
+      <button class="went-btn" id="btn-went" onclick="setWent(true)">✅ 行った</button>
     </div>
   </div>
 
-  <div id="rec-detail">
-    <!-- 排便時刻・所要時間・食事との関係 -->
+  <!-- 行かなかった → 理由 + メモ -->
+  <div class="no-toilet-sec" id="no-toilet-sec">
     <div class="sec">
-      <div class="time-dur-grid">
-        <div class="fld">
-          <label>排便時刻</label>
-          <!-- タイムバー -->
-          <div id="time-bar-wrap" style="margin-top:4px;">
-            <div id="time-bar-track" style="position:relative;height:28px;background:#f5f5f2;border-radius:8px;border:0.5px solid #b4b2a9;cursor:pointer;user-select:none;" ontouchstart="timeBarTouch(event)" ontouchmove="timeBarTouch(event)" onmousedown="timeBarMouse(event)">
-              <div id="time-bar-fill" style="position:absolute;left:0;top:0;bottom:0;background:#E1F5EE;border-radius:8px;pointer-events:none;width:0%;"></div>
-              <div id="time-bar-thumb" style="position:absolute;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;background:#1D9E75;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);pointer-events:none;left:0%;"></div>
-              <div id="time-bar-label" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:500;color:#1a1a18;pointer-events:none;white-space:nowrap;">--:--</div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:#b4b2a9;margin-top:2px;padding:0 2px;">
-              <span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span>
-            </div>
-          </div>
-          <input type="hidden" id="t-time" value="">
-          <!-- 食事との関係：時刻の直下 -->
-          <div style="font-size:11px;color:#5f5e5a;margin-top:7px;margin-bottom:4px;">食事との関係</div>
-          <div class="meal-row">
-            <div class="meal-btn" id="meal-morning" onclick="pickMeal('起床後食前',this)">起床後食前</div>
-            <div class="meal-btn" id="meal-during" onclick="pickMeal('食事中・直後',this)">食事中・直後</div>
-            <div class="meal-btn" id="meal-unrelated" onclick="pickMeal('食事と関係なし',this)">食事と関係なし</div>
-            <div class="meal-btn" id="meal-unknown" onclick="pickMeal('不明',this)">不明</div>
-          </div>
+      <div class="sec-lbl">行かなかった理由</div>
+      <select class="reason-sel" id="no-toilet-reason">
+        <option value="">選んでください</option>
+        <option value="便意を感じなかった">便意を感じなかった</option>
+        <option value="行くのを忘れた">行くのを忘れた</option>
+        <option value="便意があったが我慢した">便意があったが我慢した</option>
+      </select>
+    </div>
+    <div class="sec">
+      <div class="sec-lbl">メモ（任意）</div>
+      <textarea id="no-toilet-note" placeholder="例：会議中で行けなかった、夜遅くて…"></textarea>
+    </div>
+    <button class="save-btn" id="btn-save-no-toilet" onclick="saveNoToilet()">記録を保存</button>
+  </div>
+
+  <!-- 行った → 排便あり・なし -->
+  <div class="stool-row" id="stool-row" style="display:none;">
+    <div class="stool-lbl">排便はありましたか？</div>
+    <div class="stool-btns">
+      <button class="stool-btn" id="btn-no-stool" onclick="setStool(false)">⬜ 排便なし</button>
+      <button class="stool-btn" id="btn-yes-stool" onclick="setStool(true)">✅ 排便あり</button>
+    </div>
+  </div>
+
+  <!-- 排便なし（トイレ行った） -->
+  <div class="tns-sec" id="tns-sec">
+    <div class="sec">
+      <div class="sec-lbl">坐薬・浣腸の使用</div>
+      <div class="disim-toggle-row">
+        <div class="disim-tog" id="tns-disim-no" onclick="setTnsDisim(false)">使用しなかった</div>
+        <div class="disim-tog" id="tns-disim-yes" onclick="setTnsDisim(true)">使用した</div>
+      </div>
+      <div class="disim-detail" id="tns-disim-detail">
+        <div class="disim-detail-title">使用した処置</div>
+        <div class="disim-type-row">
+          <div class="disim-type-btn" id="tns-supp" onclick="pickTnsDisimType('supp',this)">坐薬</div>
+          <div class="disim-type-btn" id="tns-kan" onclick="pickTnsDisimType('kan',this)">浣腸</div>
         </div>
-        <div>
-          <div style="font-size:12px;color:#5f5e5a;margin-bottom:4px;">所要時間</div>
-          <div class="dur-grid">
-            <div class="dur-chip" onclick="pickDur(this,'1分未満')" style="grid-column:1/-1;">1分未満</div>
-            <div class="dur-chip" onclick="pickDur(this,'1〜10分')" style="grid-column:1/-1;">1〜10分</div>
-            <div class="dur-chip" onclick="pickDur(this,'10分以上')" style="grid-column:1/-1;">10分以上</div>
+        <div class="disim-count-row" id="tns-supp-count-row" style="display:none;">
+          <label>個数</label>
+          <input type="number" id="tns-supp-count" min="0.5" max="5" step="0.5" placeholder="1">
+          <span>個</span>
+        </div>
+        <div class="disim-count-row" id="tns-kan-count-row" style="display:none;">
+          <label>浣腸量</label>
+          <input type="number" id="tns-kan-ml" min="10" max="150" step="10" placeholder="30">
+          <span>mL</span>
+        </div>
+        <div style="margin-top:10px;">
+          <div style="font-size:12px;color:#5f5e5a;margin-bottom:4px;">使用時刻（= トイレ時刻）</div>
+          <div class="timebar-wrap">
+            <div class="timebar-track" id="tns-time-track" ontouchstart="timeBarTouch(event,'tns')" ontouchmove="timeBarTouch(event,'tns')" onmousedown="timeBarMouse(event,'tns')">
+              <div class="timebar-fill" id="tns-time-fill" style="width:0%"></div>
+              <div class="timebar-thumb" id="tns-time-thumb" style="left:0%"></div>
+              <div class="timebar-label" id="tns-time-label">--:--</div>
+            </div>
+            <div class="timebar-ticks"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span></div>
           </div>
+          <input type="hidden" id="tns-time" value="">
         </div>
       </div>
     </div>
+    <button class="save-btn" id="btn-save-tns" onclick="saveToiletNoStool()">記録を保存</button>
+  </div>
 
+  <!-- 排便あり -->
+  <div class="stool-sec" id="stool-sec">
+    <!-- Bristol / 簡易 -->
+    <div class="sec">
+      <div class="input-mode-tabs">
+        <div class="imt-btn on" id="imt-bristol" onclick="setInputMode('bristol')">Bristol scale</div>
+        <div class="imt-btn" id="imt-simple" onclick="setInputMode('simple')">簡易入力</div>
+      </div>
+      <div id="bristol-panel">
+        <div class="bscale" id="bg">
+          <div class="bi" id="bi-1" onclick="pickBristol(1)"><span class="bi-num">1</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
+            <circle cx="6" cy="22" r="4.5" fill="#5C3317"/><circle cx="14" cy="19" r="4.5" fill="#5C3317"/>
+            <circle cx="22" cy="22" r="4" fill="#5C3317"/><circle cx="30" cy="20" r="4" fill="#5C3317"/>
+            <circle cx="10" cy="13" r="3.5" fill="#5C3317"/><circle cx="18" cy="11" r="3" fill="#5C3317"/>
+            <circle cx="26" cy="14" r="3.5" fill="#5C3317"/>
+            <circle cx="5" cy="21" r="1.2" fill="white" opacity=".22"/><circle cx="13" cy="17" r="1.2" fill="white" opacity=".22"/><circle cx="9" cy="11" r="1" fill="white" opacity=".22"/>
+          </svg></div><span class="bi-word">①コロコロ</span></div>
+          <div class="bi" id="bi-2" onclick="pickBristol(2)"><span class="bi-num">2</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
+            <path d="M4 22 Q4 14 9 14 Q12 10 16 14 Q20 10 24 14 Q28 10 32 14 Q32 22 28 23 Q24 26 18 24 Q12 26 8 23 Z" fill="#6B3D1E"/>
+            <ellipse cx="9" cy="14" rx="4" ry="3.5" fill="#6B3D1E"/><ellipse cx="16" cy="12" rx="4" ry="3.5" fill="#6B3D1E"/>
+            <ellipse cx="24" cy="12" rx="4" ry="3.5" fill="#6B3D1E"/><ellipse cx="31" cy="14" rx="3" ry="3" fill="#6B3D1E"/>
+            <circle cx="8" cy="13" r="1.3" fill="white" opacity=".18"/><circle cx="15" cy="11" r="1.2" fill="white" opacity=".18"/>
+          </svg></div><span class="bi-word">②ゴツゴツ</span></div>
+          <div class="bi" id="bi-3" onclick="pickBristol(3)"><span class="bi-num">3</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
+            <path d="M4 12 Q4 9 8 9 L28 9 Q32 9 32 12 L32 21 Q32 24 28 24 L8 24 Q4 24 4 21 Z" fill="#7A4828"/>
+            <path d="M11 9 Q10 14 12 24" stroke="white" stroke-width="1" opacity=".55" fill="none" stroke-linecap="round"/>
+            <path d="M18 9 Q17 14 19 24" stroke="white" stroke-width="1" opacity=".55" fill="none" stroke-linecap="round"/>
+            <path d="M25 9 Q24 14 26 24" stroke="white" stroke-width="1" opacity=".55" fill="none" stroke-linecap="round"/>
+            <ellipse cx="8" cy="13" rx="2.5" ry="1.5" fill="white" opacity=".15"/>
+          </svg></div><span class="bi-word">③ひび割れ</span></div>
+          <div class="bi" id="bi-4" onclick="pickBristol(4)"><span class="bi-num">4</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
+            <path d="M4 12 Q4 9 8 9 L28 9 Q32 9 32 12 L32 21 Q32 24 28 24 L8 24 Q4 24 4 21 Z" fill="#8B5E3C"/>
+            <ellipse cx="9" cy="13" rx="4" ry="2.2" fill="white" opacity=".2"/>
+          </svg></div><span class="bi-word">④ふつう</span></div>
+          <div class="bi" id="bi-5" onclick="pickBristol(5)"><span class="bi-num">5</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
+            <ellipse cx="9" cy="21" rx="7" ry="6" fill="#9E7040"/><ellipse cx="22" cy="21" rx="7" ry="6" fill="#9E7040"/>
+            <ellipse cx="16" cy="13" rx="6" ry="5" fill="#9E7040"/><ellipse cx="30" cy="17" rx="5" ry="4.5" fill="#9E7040"/>
+            <circle cx="7" cy="18" r="1.8" fill="white" opacity=".18"/><circle cx="14" cy="11" r="1.5" fill="white" opacity=".18"/>
+          </svg></div><span class="bi-word">⑤やわらかい</span></div>
+          <div class="bi" id="bi-6" onclick="pickBristol(6)"><span class="bi-num">6</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
+            <path d="M2 22 Q3 13 8 14 Q10 9 15 13 Q17 8 22 12 Q26 7 30 12 Q34 15 32 21 Q30 27 22 26 Q14 28 7 25 Q2 24 2 22Z" fill="#B08040"/>
+            <path d="M6 14 Q5 10 9 12" fill="#B08040" stroke="#B08040" stroke-width="2" stroke-linecap="round"/>
+            <path d="M15 11 Q14 7 18 10" fill="#B08040" stroke="#B08040" stroke-width="2" stroke-linecap="round"/>
+            <path d="M24 10 Q25 6 28 10" fill="#B08040" stroke="#B08040" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="8" cy="17" rx="3" ry="1.8" fill="white" opacity=".15"/>
+          </svg></div><span class="bi-word">⑥泥状</span></div>
+          <div class="bi" id="bi-7" onclick="pickBristol(7)"><span class="bi-num">7</span><div class="bi-svg"><svg viewBox="0 0 36 30" fill="none">
+            <ellipse cx="18" cy="23" rx="15" ry="5" fill="#C4A055" opacity=".35"/>
+            <path d="M3 14 Q7 10 11 14 Q15 18 19 14 Q23 10 27 14 Q31 18 34 14" stroke="#C4A055" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M4 20 Q8 16 12 20 Q16 24 20 20 Q24 16 28 20 Q31 23 33 20" stroke="#C4A055" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".7"/>
+            <path d="M18 4 Q20 8 18 11 Q16 8 18 4Z" fill="#C4A055" opacity=".8"/>
+          </svg></div><span class="bi-word">⑦水様</span></div>
+        </div>
+      </div>
+      <div id="simple-panel" style="display:none">
+        <div class="simple-scale">
+          <div class="si" id="si-R" onclick="pickSimple('R',this)"><span class="si-word">コロコロ</span><span class="si-code">R</span></div>
+          <div class="si" id="si-H" onclick="pickSimple('H',this)"><span class="si-word">かたい</span><span class="si-code">H</span></div>
+          <div class="si" id="si-N" onclick="pickSimple('N',this)"><span class="si-word">ふつう</span><span class="si-code">N</span></div>
+          <div class="si" id="si-S" onclick="pickSimple('S',this)"><span class="si-word">やわらかい</span><span class="si-code">S</span></div>
+          <div class="si" id="si-D" onclick="pickSimple('D',this)"><span class="si-word">下痢</span><span class="si-code">D</span></div>
+        </div>
+      </div>
+      <div class="b-info" id="b-info"><span style="color:#888780;font-size:12px;">便の性状を選んでください（続けて選ぶと連続記録も可能）</span></div>
+    </div>
+
+    <!-- 排便量 -->
     <div class="sec">
       <div class="sec-lbl">排便量</div>
-      <!-- 排便量：3択 + ふつう選択時に細分化 -->
       <div class="amt-row" id="amt-main-row">
-        <!-- 少な目 -->
         <div class="amt-btn" id="amt-btn-small" onclick="pickAmtMain('少ない',this)">
-          <svg width="44" height="34" viewBox="0 0 44 34">
-            <circle cx="22" cy="22" r="8" fill="#8B5E3C"/>
-            <circle cx="19" cy="19" r="2.2" fill="white" opacity=".22"/>
-          </svg>
+          <svg width="44" height="34" viewBox="0 0 44 34"><circle cx="22" cy="22" r="8" fill="#8B5E3C"/><circle cx="19" cy="19" r="2.2" fill="white" opacity=".22"/></svg>
           <span style="font-size:11px">少ない</span>
         </div>
-        <!-- ふつう -->
         <div class="amt-btn" id="amt-btn-normal" onclick="pickAmtMain('ふつう',this)">
-          <svg width="44" height="34" viewBox="0 0 44 34">
-            <circle cx="22" cy="19" r="12" fill="#8B5E3C"/>
-            <circle cx="18" cy="15" r="3" fill="white" opacity=".2"/>
-          </svg>
+          <svg width="44" height="34" viewBox="0 0 44 34"><circle cx="22" cy="19" r="12" fill="#8B5E3C"/><circle cx="18" cy="15" r="3" fill="white" opacity=".2"/></svg>
           <span style="font-size:11px">ふつう ▾</span>
         </div>
-        <!-- 多め -->
         <div class="amt-btn" id="amt-btn-large" onclick="pickAmtMain('多い',this)">
-          <svg width="44" height="34" viewBox="0 0 44 34">
-            <rect x="3" y="20" width="38" height="12" rx="6" fill="#8B5E3C"/>
-            <rect x="7" y="12" width="30" height="12" rx="6" fill="#8B5E3C"/>
-            <ellipse cx="11" cy="15" rx="4" ry="2.2" fill="white" opacity=".18"/>
-          </svg>
+          <svg width="44" height="34" viewBox="0 0 44 34"><rect x="3" y="20" width="38" height="12" rx="6" fill="#8B5E3C"/><rect x="7" y="12" width="30" height="12" rx="6" fill="#8B5E3C"/><ellipse cx="11" cy="15" rx="4" ry="2.2" fill="white" opacity=".18"/></svg>
           <span style="font-size:11px">多い</span>
         </div>
       </div>
-      <!-- ふつう選択時の細分化 -->
       <div class="amt-sub" id="amt-sub-row">
-        <div class="amt-sub-btn" id="amt-sub-less"   onclick="pickAmtSub('やや少な目',this)">やや少な目</div>
+        <div class="amt-sub-btn" id="amt-sub-less" onclick="pickAmtSub('やや少な目',this)">やや少な目</div>
         <div class="amt-sub-btn" id="amt-sub-normal" onclick="pickAmtSub('ふつう',this)">ふつう</div>
-        <div class="amt-sub-btn" id="amt-sub-more"   onclick="pickAmtSub('やや多め',this)">やや多め</div>
+        <div class="amt-sub-btn" id="amt-sub-more" onclick="pickAmtSub('やや多め',this)">やや多め</div>
       </div>
     </div>
 
+    <!-- 排便時刻 + 食事との関係 -->
     <div class="sec">
-      <div class="sec-lbl">排便後の感覚</div>
-      <div class="res-row">
-        <div class="res-btn" onclick="pickRes(0,this)">
-          <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="#5f5e5a" stroke-width="1.5"/><circle cx="11" cy="12" r="1.8" fill="#5f5e5a"/><circle cx="19" cy="12" r="1.8" fill="#5f5e5a"/><path d="M10 19 Q15 24 20 19" stroke="#5f5e5a" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-          すっきり
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
+        <div>
+          <div style="font-size:12px;color:#5f5e5a;margin-bottom:4px;">排便時刻</div>
+          <div class="timebar-wrap">
+            <div class="timebar-track" id="stool-time-track" ontouchstart="timeBarTouch(event,'stool')" ontouchmove="timeBarTouch(event,'stool')" onmousedown="timeBarMouse(event,'stool')">
+              <div class="timebar-fill" id="stool-time-fill" style="width:0%"></div>
+              <div class="timebar-thumb" id="stool-time-thumb" style="left:0%"></div>
+              <div class="timebar-label" id="stool-time-label">--:--</div>
+            </div>
+            <div class="timebar-ticks"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span></div>
+          </div>
+          <input type="hidden" id="stool-time" value="">
+          <div style="font-size:11px;color:#5f5e5a;margin-top:9px;margin-bottom:4px;">食事との関係</div>
+          <div class="meal-row">
+            <div class="meal-btn" onclick="pickMeal('起床後食前',this)">起床後食前</div>
+            <div class="meal-btn" onclick="pickMeal('食事中・直後',this)">食事中・直後</div>
+            <div class="meal-btn" onclick="pickMeal('食事と関係なし',this)">食事と関係なし</div>
+            <div class="meal-btn" onclick="pickMeal('不明',this)">不明</div>
+          </div>
         </div>
-        <div class="res-btn" onclick="pickRes(1,this)">
-          <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="#5f5e5a" stroke-width="1.5"/><circle cx="11" cy="12" r="1.8" fill="#5f5e5a"/><circle cx="19" cy="12" r="1.8" fill="#5f5e5a"/><path d="M10 21 Q15 17 20 21" stroke="#5f5e5a" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-          残っている<br>感じ
+        <div>
+          <!-- 坐薬・浣腸の使用有無（排便あり） -->
+          <div style="font-size:12px;color:#5f5e5a;margin-bottom:6px;">坐薬・浣腸の使用</div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px;">
+            <div class="disim-tog" id="stool-disim-no" onclick="setStoolDisim(false)">使用なし</div>
+            <div class="disim-tog" id="stool-disim-yes" onclick="setStoolDisim(true)">使用した</div>
+          </div>
+          <!-- 自然排便のみ：所要時間 -->
+          <div id="dur-block">
+            <div style="font-size:11px;color:#5f5e5a;margin-bottom:4px;">所要時間</div>
+            <div class="dur-grid">
+              <div class="dur-chip" onclick="pickDur(this,'1分未満')">1分未満</div>
+              <div class="dur-chip" onclick="pickDur(this,'1〜10分')">1〜10分</div>
+              <div class="dur-chip" onclick="pickDur(this,'10分以上')">10分以上</div>
+            </div>
+          </div>
         </div>
       </div>
-      <button class="res-btn-small" id="res-unknown" onclick="pickRes(2,this)">不明</button>
     </div>
 
+    <!-- 坐薬・浣腸詳細（排便あり・使用した時） -->
+    <div class="disim-detail" id="stool-disim-detail" style="margin:0 18px 0;">
+      <div class="disim-detail-title">使用した処置</div>
+      <div class="disim-type-row">
+        <div class="disim-type-btn" id="stool-supp" onclick="pickStoolDisimType('supp',this)">坐薬</div>
+        <div class="disim-type-btn" id="stool-kan" onclick="pickStoolDisimType('kan',this)">浣腸</div>
+      </div>
+      <div class="disim-count-row" id="stool-supp-count-row" style="display:none;">
+        <label>個数</label>
+        <input type="number" id="stool-supp-count" min="0.5" max="5" step="0.5" placeholder="1">
+        <span>個</span>
+      </div>
+      <div class="disim-count-row" id="stool-kan-count-row" style="display:none;">
+        <label>浣腸量</label>
+        <input type="number" id="stool-kan-ml" min="10" max="150" step="10" placeholder="30">
+        <span>mL</span>
+      </div>
+    </div>
+
+    <!-- 症状 + すっきり感（共通） -->
     <div class="sec">
       <div class="sec-lbl">症状</div>
       <div class="sym-row">
@@ -462,19 +560,36 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         </div>
       </div>
     </div>
-  </div>
+    <div class="sec">
+      <div class="sec-lbl">排便後の感覚（すっきり感）</div>
+      <div class="res-row">
+        <div class="res-btn" id="res-btn-0" onclick="pickRes(0,this)">
+          <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="#5f5e5a" stroke-width="1.5"/><circle cx="11" cy="12" r="1.8" fill="#5f5e5a"/><circle cx="19" cy="12" r="1.8" fill="#5f5e5a"/><path d="M10 19 Q15 24 20 19" stroke="#5f5e5a" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          すっきり
+        </div>
+        <div class="res-btn" id="res-btn-1" onclick="pickRes(1,this)">
+          <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="#5f5e5a" stroke-width="1.5"/><circle cx="11" cy="12" r="1.8" fill="#5f5e5a"/><circle cx="19" cy="12" r="1.8" fill="#5f5e5a"/><path d="M10 21 Q15 17 20 21" stroke="#5f5e5a" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          残っている<br>感じ
+        </div>
+      </div>
+      <button class="res-btn-small" id="res-unknown" onclick="pickRes(2,this)">不明</button>
+    </div>
 
-  <button class="save-btn" id="rec-btn" onclick="saveRec()">排便記録を保存</button>
-  <!-- 保存後メッセージ（ボタン代替） -->
-  <div class="post-save-msg" id="post-save-msg">
-    同日に別の記録をする場合は、保存を押してから、新しく入力してください。保存後の記録の修正・削除は「履歴」タブで「カード形式」表示の当該記録上で行うことができます。<br>
-    <span class="med-remind">内服記録も忘れないようにしましょう。</span>
-  </div>
-</div>
+    <button class="save-btn" id="btn-save-stool" onclick="saveStool()">排便記録を保存</button>
+  </div><!-- /stool-sec -->
 
-<!-- 内服記録タブ -->
+</div><!-- /tab-toilet -->
+
+<!-- ============================================================
+     内服記録タブ
+     ============================================================ -->
 <div id="tab-med" style="display:none">
-  <!-- 医師からの処方情報（Supabaseから取得） -->
+  <!-- 日付セレクタ（内服タブ独自） -->
+  <div class="rec-date-row">
+    <select id="med-date-sel"></select>
+    <span>の記録</span>
+  </div>
+  <!-- 処方情報 -->
   <div id="rx-info-bar" style="display:none;margin:10px 14px 0;padding:10px 14px;background:#E1F5EE;border-radius:10px;border:0.5px solid #1D9E75;">
     <div style="font-size:10px;font-weight:500;color:#085041;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;">医師からの処方</div>
     <div id="rx-info-content" style="font-size:13px;font-weight:500;color:#085041;"></div>
@@ -509,41 +624,17 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
       </div>
       <div id="em2-mobi-detail" style="display:none" class="em-detail"><label>時刻</label><input type="time" id="em2-mobi-time"></div>
       <div id="em2-other-detail" style="display:none" class="em-detail">
-        <input type="text" id="em2-other-text" placeholder="薬剤名など"><input type="time" id="em2-other-time">
+        <input type="text" id="em2-other-text" placeholder="薬剤名など">
+        <input type="time" id="em2-other-time">
       </div>
     </div>
   </div>
   <button class="save-btn" id="med-btn" onclick="saveMed()">内服記録を保存</button>
-  <div class="post-save-msg" id="post-save-med-msg">
-    同日に別の記録をする場合は、保存を押してから、新しく入力してください。保存後の記録の修正・削除は「履歴」タブで「カード形式」表示の当該記録上で行うことができます。
-  </div>
 </div>
 
-<!-- 我慢・あきらめタブ -->
-<div id="tab-gu" style="display:none">
-  <div class="sec">
-    <div class="sec-lbl">いつ</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="fld"><label>日付</label><select id="gu-date-sel" style="width:100%;padding:8px 10px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;"></select></div>
-      <div class="fld"><label>時刻</label><select id="gu-time-sel" style="width:100%;padding:8px 10px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;"></select></div>
-    </div>
-  </div>
-  <div class="sec">
-    <div class="sec-lbl">内容（複数選択可）</div>
-    <div class="btn-row">
-      <div class="tog" id="gu-held" onclick="togBtn('gu_held',this)">便意を我慢した</div>
-      <div class="tog" id="gu-tried" onclick="togBtn('gu_tried',this)">行ったが出なかった</div>
-    </div>
-    <div style="margin-top:8px;"><div class="tog" id="gu-gave" onclick="togBtn('gu_gave',this)" style="display:inline-block;">あきらめてトイレを出た</div></div>
-  </div>
-  <div class="sec">
-    <div class="sec-lbl">メモ（任意）</div>
-    <textarea id="gu-note" placeholder="例：会議中で我慢した、15分いたが出なかった…"></textarea>
-  </div>
-  <button class="save-btn" id="gu-btn" onclick="saveGu()">記録を保存</button>
-</div>
-
-<!-- 履歴タブ -->
+<!-- ============================================================
+     履歴タブ
+     ============================================================ -->
 <div id="tab-hist" style="display:none">
   <div style="padding:12px 14px;border-bottom:0.5px solid rgba(0,0,0,0.08);background:#f5f5f2;">
     <div style="font-size:11px;color:#5f5e5a;margin-bottom:8px;">記録を医師に共有する期間を選んでください</div>
@@ -569,9 +660,34 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   </div>
 </div>
 
+<!-- 保存後POPUP -->
+<div class="popup-overlay" id="popup-overlay">
+  <div class="popup-card">
+    <div class="popup-title">記録を保存しました ✓</div>
+    <div class="popup-summary" id="popup-summary">—</div>
+    <div class="popup-actions">
+      <button class="popup-btn primary" onclick="popupAction('done')">
+        <span class="popup-btn-icon">✅</span>確認して終了
+      </button>
+      <button class="popup-btn" onclick="popupAction('another')">
+        <span class="popup-btn-icon">🚽</span>確認して別のトイレ記録をつける
+      </button>
+      <button class="popup-btn" onclick="popupAction('med')">
+        <span class="popup-btn-icon">💊</span>確認して内服記録をつける
+      </button>
+      <button class="popup-btn" onclick="popupAction('edit')">
+        <span class="popup-btn-icon">✏️</span>記録を修正する
+      </button>
+    </div>
+  </div>
+</div>
+
 </div><!-- /app -->
 
 <script>
+/* ============================================================
+   定数・データ
+   ============================================================ */
 const bData=[
   {w:'①コロコロ',desc:'コロコロした硬い塊・通過困難'},
   {w:'②コロコロの塊',desc:'短く固まった硬便・ソーセージ状'},
@@ -589,136 +705,181 @@ const simpleData={
   D:{label:'下痢',bristol:'6〜7'}
 };
 const BAR=[{w:8,h:2},{w:14,h:3},{w:22,h:4},{w:30,h:5},{w:38,h:6}];
-function durIdx(d){return {'1分未満':0,'1〜10分':2,'10分以上':4}[d]??1;}
-function amtClass(a){return a==='少な目'?'m-sz-s':a==='やや少な目'?'m-sz-s':a==='多め'?'m-sz-l':a==='やや多め'?'m-sz-l':'m-sz-m';}
-function compSym(v){
-  if(v==='全量')return{s:'○',c:'full'};
-  if(v==='2/3以上')return{s:'△',c:'partial'};
-  if(v==='1/2程度')return{s:'▽',c:'partial'};
-  if(v==='1/3以下')return{s:'▲',c:'low'};
-  return{s:'',c:'none'};
-}
 
+/* ============================================================
+   状態
+   ============================================================ */
 let S={
-  recDate:'', recMode:'present', inputMode:'bristol',
-  bristolChain:[], simpleChain:[],
+  navTab:'toilet',
+  recDate:'',
+  // トイレフロー
+  wentToToilet:null,   // null|false|true
+  hadStool:null,       // null|false|true
+  // 行った・排便なし
+  tnsDisimUsed:null, tnsDisimType:null,
+  // 排便あり
+  inputMode:'bristol', bristolChain:[], simpleChain:[],
   meal:null, amt:null, res:null, dur:null,
   strain:false, pain:false, blood:false,
+  stoolDisimUsed:null, stoolDisimType:null,
+  // 内服
   comp:null, pico:false, emTypes:{},
-  disimType:null, disimResult:null,
-  gu_held:false, gu_tried:false, gu_gave:false,
-  editingId:null, histView:'card',
+  // 共通
+  editingId:null, lastSavedId:null, histView:'card',
   recs:[]
 };
 try{S.recs=JSON.parse(localStorage.getItem('bj14')||'[]');}catch(e){}
+
+/* ============================================================
+   初期化
+   ============================================================ */
+function toDS(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 
 function init(){
   const now=new Date();
   document.getElementById('hdr-date').textContent=now.toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
 
-  /* 記録日プルダウン：過去14日 */
-  const rdSel=document.getElementById('rec-date-sel');
-  for(let i=0;i<14;i++){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const val=toDS(d);
-    let lbl=d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
-    if(i===0)lbl+='（今日）';
-    if(i===1)lbl+='（昨日）';
-    const opt=document.createElement('option');opt.value=val;opt.textContent=lbl;
-    rdSel.appendChild(opt);
-  }
-  rdSel.addEventListener('change',()=>{S.recDate=rdSel.value;});
+  // 記録日プルダウン（トイレ・内服 共用値だが別セレクト）
+  ['rec-date-sel','med-date-sel'].forEach(selId=>{
+    const sel=document.getElementById(selId);
+    for(let i=0;i<14;i++){
+      const d=new Date(); d.setDate(d.getDate()-i);
+      const val=toDS(d);
+      let lbl=d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
+      if(i===0)lbl+='（今日）'; if(i===1)lbl+='（昨日）';
+      const opt=document.createElement('option');opt.value=val;opt.textContent=lbl;
+      sel.appendChild(opt);
+    }
+    sel.value=toDS(now);
+    sel.addEventListener('change',()=>{
+      S.recDate=sel.value;
+      // 他方のセレクトも同期
+      const otherId=selId==='rec-date-sel'?'med-date-sel':'rec-date-sel';
+      document.getElementById(otherId).value=sel.value;
+    });
+  });
   S.recDate=toDS(now);
 
-  /* 時刻プルダウン */
+  // 内服時刻プルダウン
   let nearest=null,nearestDiff=Infinity;
   const curMin=now.getHours()*60+now.getMinutes();
-  // t-timeはタイムバーで管理（initTimeBar()で初期化）
-  ['m-time','disim-time'].forEach(id=>{
-    const sel=document.getElementById(id);if(!sel)return;
-    for(let h=0;h<24;h++)for(let m=0;m<60;m+=30){
-      const lbl=`${String(h).padStart(2,'0')}:${m===0?'00':'30'}`;
-      const opt=document.createElement('option');opt.value=lbl;opt.textContent=lbl;sel.appendChild(opt);
-      if(id==='m-time'){const diff=Math.abs(h*60+m-curMin);if(diff<nearestDiff){nearestDiff=diff;nearest=lbl;}}
-    }
-    if(nearest)sel.value=nearest;
-  });
-
-  /* 我慢タブ：日付過去14日・時刻 */
-  const guDS=document.getElementById('gu-date-sel');
-  for(let i=0;i<14;i++){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const opt=document.createElement('option');opt.value=toDS(d);
-    let lbl=d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
-    if(i===0)lbl+='（今日）';if(i===1)lbl+='（昨日）';
-    opt.textContent=lbl;guDS.appendChild(opt);
-  }
-  guDS.value=toDS(now);
-  const guTS=document.getElementById('gu-time-sel');
-  for(let h=0;h<24;h++)for(let m=0;m<60;m+=30){
+  const mSel=document.getElementById('m-time');
+  for(let h=0;h<24;h++) for(let m=0;m<60;m+=30){
     const lbl=`${String(h).padStart(2,'0')}:${m===0?'00':'30'}`;
-    const opt=document.createElement('option');opt.value=lbl;opt.textContent=lbl;guTS.appendChild(opt);
+    const opt=document.createElement('option');opt.value=lbl;opt.textContent=lbl;mSel.appendChild(opt);
+    const diff=Math.abs(h*60+m-curMin);if(diff<nearestDiff){nearestDiff=diff;nearest=lbl;}
   }
-  if(nearest)guTS.value=nearest;
+  if(nearest)mSel.value=nearest;
+
+  // タイムバー初期化
+  const snapped=Math.round(curMin/30)*30;
+  setTimeBar('stool',snapped);
+  setTimeBar('tns',snapped);
+
   updateAvatar();
-  initTimeBar();
 }
 
-/* ===== タイムバー ===== */
-function initTimeBar(){
-  // 現在時刻に最も近い30分単位にセット
-  const now = new Date();
-  const totalMin = now.getHours()*60 + now.getMinutes();
-  const snapped = Math.round(totalMin/30)*30;
-  setTimeBar(snapped);
-}
-
+/* ============================================================
+   タイムバー（汎用 prefix: 'stool' | 'tns'）
+   ============================================================ */
 function minutesToStr(min){
-  const h = Math.floor(min/60)%24;
-  const m = min%60;
+  const h=Math.floor(min/60)%24;
+  const m=min%60;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
 
-function setTimeBar(totalMin){
-  const clamped = Math.max(0, Math.min(totalMin, 24*60));
-  const pct = (clamped / (24*60)) * 100;
-  const label = minutesToStr(clamped);
-  const track = document.getElementById('time-bar-track');
-  if(!track) return;
-  document.getElementById('time-bar-fill').style.width = pct+'%';
-  document.getElementById('time-bar-thumb').style.left = pct+'%';
-  document.getElementById('time-bar-label').textContent = label;
-  document.getElementById('t-time').value = label;
+function setTimeBar(prefix,totalMin){
+  const clamped=Math.max(0,Math.min(totalMin,24*60));
+  const pct=(clamped/(24*60))*100;
+  const label=minutesToStr(clamped);
+  document.getElementById(prefix+'-time-fill').style.width=pct+'%';
+  document.getElementById(prefix+'-time-thumb').style.left=pct+'%';
+  document.getElementById(prefix+'-time-label').textContent=label;
+  const hidden=document.getElementById(prefix+'-time');
+  if(hidden)hidden.value=label;
 }
 
-function timeBarFromEvent(e, track){
-  const rect = track.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-  // 30分単位にスナップ
-  const totalMin = Math.round(ratio * 24 * 60 / 30) * 30;
-  setTimeBar(totalMin);
+function timeBarFromEvent(e,track,prefix){
+  const rect=track.getBoundingClientRect();
+  const clientX=e.touches?e.touches[0].clientX:e.clientX;
+  const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+  const totalMin=Math.round(ratio*24*60/30)*30;
+  setTimeBar(prefix,totalMin);
 }
 
-function timeBarMouse(e){
+function timeBarMouse(e,prefix){
   e.preventDefault();
-  const track = document.getElementById('time-bar-track');
-  timeBarFromEvent(e, track);
-  function onMove(ev){ timeBarFromEvent(ev, track); }
-  function onUp(){ document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
+  const track=document.getElementById(prefix+'-time-track');
+  timeBarFromEvent(e,track,prefix);
+  const onMove=ev=>timeBarFromEvent(ev,track,prefix);
+  const onUp=()=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
 }
 
-function timeBarTouch(e){
+function timeBarTouch(e,prefix){
   e.preventDefault();
-  const track = document.getElementById('time-bar-track');
-  timeBarFromEvent(e, track);
+  const track=document.getElementById(prefix+'-time-track');
+  timeBarFromEvent(e,track,prefix);
 }
 
-function toDS(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+/* ============================================================
+   トイレフロー制御
+   ============================================================ */
+function setWent(went){
+  S.wentToToilet=went;
+  document.getElementById('btn-no-toilet').className='went-btn'+(went===false?' on-no':'');
+  document.getElementById('btn-went').className='went-btn'+(went===true?' on-yes':'');
+  document.getElementById('no-toilet-sec').style.display=went===false?'block':'none';
+  document.getElementById('stool-row').style.display=went===true?'block':'none';
+  // 行かなかった選択時はstool側を隠す
+  if(went===false){document.getElementById('tns-sec').style.display='none';document.getElementById('stool-sec').style.display='none';}
+  if(went===true&&S.hadStool===false){document.getElementById('tns-sec').style.display='block';}
+  if(went===true&&S.hadStool===true){document.getElementById('stool-sec').style.display='block';}
+}
 
-/* ===== 入力モード ===== */
+function setStool(had){
+  S.hadStool=had;
+  document.getElementById('btn-no-stool').className='stool-btn'+(had===false?' on-no':'');
+  document.getElementById('btn-yes-stool').className='stool-btn'+(had===true?' on-yes':'');
+  document.getElementById('tns-sec').style.display=had===false?'block':'none';
+  document.getElementById('stool-sec').style.display=had===true?'block':'none';
+  if(had===true)window.scrollTo({top:document.getElementById('stool-sec').offsetTop-80,behavior:'smooth'});
+}
+
+/* 排便なし：坐薬切り替え */
+function setTnsDisim(used){
+  S.tnsDisimUsed=used;
+  document.getElementById('tns-disim-no').className='disim-tog'+(used===false?' on-no':'');
+  document.getElementById('tns-disim-yes').className='disim-tog'+(used===true?' on-yes':'');
+  document.getElementById('tns-disim-detail').classList.toggle('show',used===true);
+}
+function pickTnsDisimType(t,el){
+  S.tnsDisimType=t;
+  ['supp','kan'].forEach(k=>document.getElementById('tns-'+k).classList.toggle('on',k===t));
+  document.getElementById('tns-supp-count-row').style.display=t==='supp'?'flex':'none';
+  document.getElementById('tns-kan-count-row').style.display=t==='kan'?'flex':'none';
+}
+
+/* 排便あり：坐薬切り替え */
+function setStoolDisim(used){
+  S.stoolDisimUsed=used;
+  document.getElementById('stool-disim-no').className='disim-tog'+(used===false?' on-no':'');
+  document.getElementById('stool-disim-yes').className='disim-tog'+(used===true?' on-yes':'');
+  document.getElementById('stool-disim-detail').classList.toggle('show',used===true);
+  // 自然排便のみ所要時間を表示
+  document.getElementById('dur-block').style.display=used===false?'block':'none';
+}
+function pickStoolDisimType(t,el){
+  S.stoolDisimType=t;
+  ['supp','kan'].forEach(k=>document.getElementById('stool-'+k).classList.toggle('on',k===t));
+  document.getElementById('stool-supp-count-row').style.display=t==='supp'?'flex':'none';
+  document.getElementById('stool-kan-count-row').style.display=t==='kan'?'flex':'none';
+}
+
+/* ============================================================
+   Bristol / 簡易入力
+   ============================================================ */
 function setInputMode(mode){
   S.inputMode=mode;
   document.getElementById('imt-bristol').classList.toggle('on',mode==='bristol');
@@ -728,23 +889,9 @@ function setInputMode(mode){
   S.bristolChain=[];S.simpleChain=[];
   document.querySelectorAll('.bi').forEach(e=>e.classList.remove('on','chained'));
   document.querySelectorAll('.si').forEach(e=>e.classList.remove('on','chained'));
-  document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください　続けて選ぶと連続記録も可能</span>';
+  document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください（続けて選ぶと連続記録も可能）</span>';
 }
 
-function setMode(m){
-  S.recMode=m;
-  ['present','absent','disim'].forEach(k=>{document.getElementById('mode-'+k).className='rec-mode-btn'+(m===k?' on-'+k:'');});
-  document.getElementById('disim-sec').style.display=m==='disim'?'block':'none';
-  updateRecDetail();
-}
-function updateRecDetail(){
-  const show=S.recMode==='present'||(S.recMode==='disim'&&S.disimResult==='yes');
-  document.getElementById('rec-detail').style.display=show?'block':'none';
-}
-function pickDisimType(t,el){S.disimType=t;['supp','kan'].forEach(k=>document.getElementById('disim-'+k).classList.toggle('on',k===t));}
-function pickDisimResult(r,el){S.disimResult=r;['yes','no'].forEach(k=>document.getElementById('disim-res-'+k).classList.toggle('on',k===r));updateRecDetail();}
-
-/* ===== Bristol / 簡易 ===== */
 function pickBristol(n){
   if(S.bristolChain.length<6)S.bristolChain.push(n);
   document.querySelectorAll('.bi').forEach(e=>e.classList.remove('on','chained'));
@@ -753,8 +900,11 @@ function pickBristol(n){
   if(S.bristolChain.length===1){info.innerHTML=`<span style="font-size:12px;color:#1a1a18;">${bData[n-1].w}：${bData[n-1].desc}</span>`;}
   else{info.innerHTML=`<span class="chain-badge">${S.bristolChain.join('→')}<span class="chain-x" onclick="clearBristol()"> ✕</span></span><span style="font-size:12px;color:#5f5e5a;">連続記録</span>`;}
 }
-function clearBristol(){S.bristolChain=[];document.querySelectorAll('.bi').forEach(e=>e.classList.remove('on','chained'));document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください　続けて選ぶと連続記録も可能</span>';}
-
+function clearBristol(){
+  S.bristolChain=[];
+  document.querySelectorAll('.bi').forEach(e=>e.classList.remove('on','chained'));
+  document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください（続けて選ぶと連続記録も可能）</span>';
+}
 function pickSimple(code,el){
   if(S.simpleChain.length<4)S.simpleChain.push(code);
   document.querySelectorAll('.si').forEach(e=>e.classList.remove('on','chained'));
@@ -763,52 +913,10 @@ function pickSimple(code,el){
   if(S.simpleChain.length===1){info.innerHTML=`<span style="font-size:12px;color:#1a1a18;">${code}（${simpleData[code].label}）：Bristol ${simpleData[code].bristol}相当</span>`;}
   else{info.innerHTML=`<span class="chain-badge">${S.simpleChain.join('→')}<span class="chain-x" onclick="clearSimple()"> ✕</span></span><span style="font-size:12px;color:#5f5e5a;">連続記録</span>`;}
 }
-function clearSimple(){S.simpleChain=[];document.querySelectorAll('.si').forEach(e=>e.classList.remove('on','chained'));document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください　続けて選ぶと連続記録も可能</span>';}
-
-/* ===== その他入力 ===== */
-function pickDur(el,v){S.dur=v;document.querySelectorAll('.dur-chip').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
-function pickMeal(v,el){
-  S.meal=(S.meal===v)?null:v;
-  document.querySelectorAll('.meal-btn').forEach(b=>b.classList.remove('on'));
-  if(S.meal)el.classList.add('on');
-}
-function pickAmtMain(val,el){
-  // メインボタンの選択
-  document.querySelectorAll('#amt-main-row .amt-btn').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
-  const sub = document.getElementById('amt-sub-row');
-  if(val==='ふつう'){
-    sub.classList.add('show');
-    // サブがまだ未選択なら'ふつう'をデフォルト選択
-    const anySubOn = document.querySelector('.amt-sub-btn.on');
-    if(!anySubOn){
-      const def = document.getElementById('amt-sub-normal');
-      def.classList.add('on');
-      S.amt = 'ふつう';
-    }
-  } else {
-    sub.classList.remove('show');
-    document.querySelectorAll('.amt-sub-btn').forEach(b=>b.classList.remove('on'));
-    S.amt = val;
-  }
-}
-function pickAmtSub(val,el){
-  document.querySelectorAll('.amt-sub-btn').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
-  S.amt = val;
-}
-function pickRes(i,el){
-  S.res=i;document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('on'));
-  const u=document.getElementById('res-unknown');u.classList.remove('on');
-  if(i===2)u.classList.add('on');else if(el.classList.contains('res-btn'))el.classList.add('on');
-}
-function togSym(k,el,cls){S[k]=!S[k];el.classList.toggle(cls,S[k]);}
-function togBtn(k,el){S[k]=!S[k];el.classList.toggle('on-a',S[k]);}
-function pickComp(el,v){S.comp=v;document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
-function togPico(){S.pico=!S.pico;document.getElementById('sw-pico').classList.toggle('on',S.pico);document.getElementById('pico-input').classList.toggle('show',S.pico);}
-function togEm(type,el){
-  S.emTypes[type]=!S.emTypes[type];el.classList.toggle('on',S.emTypes[type]);
-  const det=document.getElementById('em2-'+type+'-detail');if(det)det.style.display=S.emTypes[type]?'flex':'none';
+function clearSimple(){
+  S.simpleChain=[];
+  document.querySelectorAll('.si').forEach(e=>e.classList.remove('on','chained'));
+  document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください（続けて選ぶと連続記録も可能）</span>';
 }
 
 function getStool(){
@@ -816,182 +924,347 @@ function getStool(){
   return S.simpleChain.length?{label:S.simpleChain.join('→'),mode:'simple'}:null;
 }
 
-/* ===== 保存 ===== */
-function saveRec(){
-  const stool=getStool();
-  if(S.recMode==='present'&&!stool){document.getElementById('b-info').innerHTML='<span style="color:#A32D2D;font-size:12px;">便の性状を選んでください</span>';return;}
-  if(S.recMode==='disim'){
-    if(!S.disimType){alert('坐薬または浣腸を選んでください');return;}
-    if(!S.disimResult){alert('処置後の排便の有無を選んでください');return;}
-    if(S.disimResult==='yes'&&!stool){document.getElementById('b-info').innerHTML='<span style="color:#A32D2D;font-size:12px;">便の性状を選んでください</span>';return;}
+/* ============================================================
+   その他入力
+   ============================================================ */
+function pickDur(el,v){
+  S.dur=v;
+  document.querySelectorAll('.dur-chip').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+function pickMeal(v,el){
+  S.meal=(S.meal===v)?null:v;
+  document.querySelectorAll('.meal-btn').forEach(b=>b.classList.remove('on'));
+  if(S.meal)el.classList.add('on');
+}
+function pickAmtMain(val,el){
+  document.querySelectorAll('#amt-main-row .amt-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  const sub=document.getElementById('amt-sub-row');
+  if(val==='ふつう'){
+    sub.classList.add('show');
+    if(!document.querySelector('.amt-sub-btn.on')){
+      const def=document.getElementById('amt-sub-normal');
+      def.classList.add('on'); S.amt='ふつう';
+    }
+  } else {
+    sub.classList.remove('show');
+    document.querySelectorAll('.amt-sub-btn').forEach(b=>b.classList.remove('on'));
+    S.amt=val;
   }
-  const isNew = !S.editingId;
+}
+function pickAmtSub(val,el){
+  document.querySelectorAll('.amt-sub-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on'); S.amt=val;
+}
+function pickRes(i,el){
+  S.res=i;
+  document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('on'));
+  const u=document.getElementById('res-unknown'); u.classList.remove('on');
+  if(i===2)u.classList.add('on');
+  else if(el.classList.contains('res-btn'))el.classList.add('on');
+}
+function togSym(k,el,cls){S[k]=!S[k];el.classList.toggle(cls,S[k]);}
+function pickComp(el,v){
+  S.comp=v;
+  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+function togPico(){
+  S.pico=!S.pico;
+  document.getElementById('sw-pico').classList.toggle('on',S.pico);
+  document.getElementById('pico-input').classList.toggle('show',S.pico);
+}
+function togEm(type,el){
+  S.emTypes[type]=!S.emTypes[type];
+  el.classList.toggle('on',S.emTypes[type]);
+  const det=document.getElementById('em2-'+type+'-detail');
+  if(det)det.style.display=S.emTypes[type]?'flex':'none';
+}
+
+/* ============================================================
+   保存：行かなかった
+   ============================================================ */
+function saveNoToilet(){
+  const reason=document.getElementById('no-toilet-reason').value;
+  if(!reason){alert('行かなかった理由を選んでください');return;}
+  const note=document.getElementById('no-toilet-note').value;
+  const isNew=!S.editingId;
   const r={
-    id:S.editingId||Date.now(), type:'rec', date:S.recDate,
-    clientId: isNew ? crypto.randomUUID() : (S.recs.find(x=>x.id===S.editingId)?.clientId || crypto.randomUUID()),
-    bowelMovement:S.recMode==='present'||(S.recMode==='disim'&&S.disimResult==='yes'),
-    recMode:S.recMode, stoolLabel:stool?.label||null, stoolMode:stool?.mode||null,
-    timeSlot:document.getElementById('t-time').value,
-    meal:S.meal, dur:S.dur,
+    id:S.editingId||Date.now(),
+    type:'absent', subType:'no_toilet',
+    date:S.recDate, timeSlot:null,
+    reason, note,
+    bowelMovement:false,
+    clientId:isNew?crypto.randomUUID():(S.recs.find(x=>x.id===S.editingId)?.clientId||crypto.randomUUID()),
+    recordedAt:new Date().toISOString(),
+    _synced:false,
+  };
+  commitRecord(r);
+  const summary=`📅 ${fmtDate(r.date)}　行かなかった（${reason}）${note?'\n'+note:''}`;
+  showPopup(summary,r.id);
+}
+
+/* ============================================================
+   保存：行った・排便なし
+   ============================================================ */
+function saveToiletNoStool(){
+  if(S.tnsDisimUsed===null){alert('坐薬・浣腸の使用有無を選んでください');return;}
+  if(S.tnsDisimUsed&&!S.tnsDisimType){alert('坐薬または浣腸を選んでください');return;}
+  const isNew=!S.editingId;
+  const timeSlot=S.tnsDisimUsed?document.getElementById('tns-time').value:null;
+  const disimCount=S.tnsDisimUsed&&S.tnsDisimType==='supp'?parseFloat(document.getElementById('tns-supp-count').value)||null:null;
+  const disimMl=S.tnsDisimUsed&&S.tnsDisimType==='kan'?parseFloat(document.getElementById('tns-kan-ml').value)||null:null;
+  const r={
+    id:S.editingId||Date.now(),
+    type:'absent', subType:'toilet_no_stool',
+    date:S.recDate, timeSlot,
+    disimUsed:S.tnsDisimUsed, disimType:S.tnsDisimType,
+    disimCount, disimMl,
+    bowelMovement:false,
+    clientId:isNew?crypto.randomUUID():(S.recs.find(x=>x.id===S.editingId)?.clientId||crypto.randomUUID()),
+    recordedAt:new Date().toISOString(),
+    _synced:false,
+  };
+  commitRecord(r);
+  const disimStr=S.tnsDisimUsed?`　💊${S.tnsDisimType==='supp'?`坐薬${disimCount||''}個`:`浣腸${disimMl||''}mL`}`:'';
+  const summary=`📅 ${fmtDate(r.date)}　排便なし（トイレ）${disimStr}${timeSlot?'　⏰'+timeSlot:''}`;
+  showPopup(summary,r.id);
+}
+
+/* ============================================================
+   保存：排便あり
+   ============================================================ */
+function saveStool(){
+  const stool=getStool();
+  if(!stool){
+    document.getElementById('b-info').innerHTML='<span style="color:#A32D2D;font-size:12px;">便の性状を選んでください</span>';
+    return;
+  }
+  if(S.stoolDisimUsed===null){alert('坐薬・浣腸の使用有無を選んでください');return;}
+  if(S.stoolDisimUsed&&!S.stoolDisimType){alert('坐薬または浣腸を選んでください');return;}
+  const isNew=!S.editingId;
+  const disimCount=S.stoolDisimUsed&&S.stoolDisimType==='supp'?parseFloat(document.getElementById('stool-supp-count').value)||null:null;
+  const disimMl=S.stoolDisimUsed&&S.stoolDisimType==='kan'?parseFloat(document.getElementById('stool-kan-ml').value)||null:null;
+  const r={
+    id:S.editingId||Date.now(),
+    type:'rec',
+    date:S.recDate,
+    bowelMovement:true,
+    disimUsed:S.stoolDisimUsed,
+    disimType:S.stoolDisimType,
+    disimCount, disimMl,
+    dur:S.stoolDisimUsed?null:S.dur,
+    stoolLabel:stool.label, stoolMode:stool.mode,
+    timeSlot:document.getElementById('stool-time').value,
+    meal:S.meal,
     amt:S.amt||null,
     res:S.res!==null?['すっきり','残っている感じ','不明'][S.res]:null,
     strain:S.strain, pain:S.pain, blood:S.blood,
-    disimType:S.recMode==='disim'?S.disimType:null,
-    disimTime:S.recMode==='disim'?document.getElementById('disim-time').value:null,
-    disimResult:S.recMode==='disim'?S.disimResult:null,
+    clientId:isNew?crypto.randomUUID():(S.recs.find(x=>x.id===S.editingId)?.clientId||crypto.randomUUID()),
     recordedAt:new Date().toISOString(),
-    _synced: false,
+    _synced:false,
   };
-  if(S.editingId){
-    const idx=S.recs.findIndex(x=>x.id===S.editingId);
-    if(idx>=0)S.recs[idx]=r;
-    S.editingId=null;
-    document.getElementById('edit-banner').classList.remove('show');
-    document.getElementById('rec-btn').textContent='排便記録を保存';
-    document.getElementById('rec-btn').classList.remove('edit-mode');
-  } else {
-    S.recs.unshift(r);
-  }
-  persist();
-  flashBtn('rec-btn','保存しました ✓');
-  document.getElementById('post-save-msg').classList.add('show');
-  setTimeout(()=>document.getElementById('post-save-msg').classList.remove('show'),8000);
-  resetRec(true);updateAvatar();
+  commitRecord(r);
+  const chips=[];
+  if(r.timeSlot)chips.push('⏰'+r.timeSlot);
+  if(r.disimUsed)chips.push('💊'+(r.disimType==='supp'?`坐薬${disimCount||''}個`:`浣腸${disimMl||''}mL`));
+  if(r.amt)chips.push(r.amt);
+  if(r.res)chips.push(r.res);
+  const summary=`📅 ${fmtDate(r.date)}　${stool.label}${chips.length?'\n'+chips.join('　'):''}`;
+  showPopup(summary,r.id);
 }
 
+/* ============================================================
+   保存：内服記録
+   ============================================================ */
 function saveMed(){
   const em={};
   if(S.emTypes.mobi)em.mobi={time:document.getElementById('em2-mobi-time').value};
   if(S.emTypes.other)em.other={text:document.getElementById('em2-other-text').value,time:document.getElementById('em2-other-time').value};
   const r={
-    id:Date.now(), type:'med', date:S.recDate,
-    clientId: crypto.randomUUID(),
+    id:Date.now(), type:'med',
+    date:S.recDate,
+    clientId:crypto.randomUUID(),
     timeSlot:document.getElementById('m-time').value,
     comp:S.comp, pico:S.pico,
     picoDrops:S.pico?document.getElementById('pico-drops').value:'',
     em:Object.keys(em).length?em:null,
     recordedAt:new Date().toISOString(),
-    _synced: false,
+    _synced:false,
   };
-  S.recs.unshift(r);persist();flashBtn('med-btn','保存しました ✓');
-  document.getElementById('post-save-med-msg').classList.add('show');
-  setTimeout(()=>document.getElementById('post-save-med-msg').classList.remove('show'),8000);
-  resetMed();updateAvatar();
-}
-
-function saveGu(){
-  const r={
-    id:Date.now(), type:'gu', date:new Date().toISOString(),
-    clientId: crypto.randomUUID(),
-    guDate:document.getElementById('gu-date-sel').value,
-    guTime:document.getElementById('gu-time-sel').value,
-    held:S.gu_held, tried:S.gu_tried, gave:S.gu_gave,
-    note:document.getElementById('gu-note').value,
-    recordedAt:new Date().toISOString(),
-    _synced: false,
-  };
-  S.recs.unshift(r);persist();flashBtn('gu-btn','保存しました ✓');
-  document.getElementById('gu-note').value='';
-  S.gu_held=S.gu_tried=S.gu_gave=false;
-  ['gu-held','gu-tried','gu-gave'].forEach(id=>document.getElementById(id).classList.remove('on-a'));
+  S.recs.unshift(r);
+  persist();
+  flashBtn('med-btn','保存しました ✓');
+  resetMed();
   updateAvatar();
 }
 
-/* ===== 編集・削除 ===== */
+/* ============================================================
+   commitRecord：新規 or 編集上書き
+   ============================================================ */
+function commitRecord(r){
+  if(S.editingId){
+    const idx=S.recs.findIndex(x=>x.id===S.editingId);
+    if(idx>=0)S.recs[idx]=r;
+    exitEditMode();
+  } else {
+    S.recs.unshift(r);
+  }
+  S.lastSavedId=r.id;
+  persist();
+  updateAvatar();
+}
+
+/* ============================================================
+   POPUP
+   ============================================================ */
+function showPopup(summary,recordId){
+  document.getElementById('popup-summary').textContent=summary;
+  document.getElementById('popup-overlay').classList.add('show');
+  S.lastSavedId=recordId;
+}
+
+function popupAction(action){
+  document.getElementById('popup-overlay').classList.remove('show');
+  if(action==='done'){
+    resetToiletForm(false);
+  } else if(action==='another'){
+    resetToiletForm(false);
+    // 日付維持のまま初期化（wentToToiletはリセット）
+  } else if(action==='med'){
+    resetToiletForm(false);
+    goTab('med',document.getElementById('nav-med'));
+  } else if(action==='edit'){
+    editRec(S.lastSavedId);
+  }
+}
+
+/* ============================================================
+   編集
+   ============================================================ */
 function editRec(id){
   const r=S.recs.find(x=>x.id===id);if(!r)return;
   S.editingId=id;
-  /* タブを排便記録に切り替え */
-  goTab('rec',document.querySelector('.tab'));
-  /* フォームに値を読み込む */
-  document.getElementById('rec-date-sel').value=r.date;S.recDate=r.date;
-  setMode(r.recMode||'present');
-  setInputMode(r.stoolMode||'bristol');
-  if(r.stoolLabel){
-    if(r.stoolMode==='simple'){
-      r.stoolLabel.split('→').forEach(c=>pickSimple(c,document.getElementById('si-'+c)));
-    } else {
-      r.stoolLabel.split('→').forEach(n=>pickBristol(parseInt(n)));
+  goTab('toilet',document.getElementById('nav-toilet'));
+
+  // 日付
+  document.getElementById('rec-date-sel').value=r.date;
+  document.getElementById('med-date-sel').value=r.date;
+  S.recDate=r.date;
+
+  if(r.type==='absent'&&r.subType==='no_toilet'){
+    setWent(false);
+    document.getElementById('no-toilet-reason').value=r.reason||'';
+    document.getElementById('no-toilet-note').value=r.note||'';
+  } else if(r.type==='absent'&&r.subType==='toilet_no_stool'){
+    setWent(true); setStool(false);
+    if(r.disimUsed!=null)setTnsDisim(r.disimUsed);
+    if(r.disimUsed&&r.disimType){
+      pickTnsDisimType(r.disimType,document.getElementById('tns-'+r.disimType));
+      if(r.disimCount)document.getElementById('tns-supp-count').value=r.disimCount;
+      if(r.disimMl)document.getElementById('tns-kan-ml').value=r.disimMl;
+    }
+    if(r.timeSlot){const p=r.timeSlot.split(':');setTimeBar('tns',(parseInt(p[0])||0)*60+(parseInt(p[1])||0));}
+  } else if(r.type==='rec'){
+    // 旧v14 disimモード互換
+    const wasDisim=r.disimUsed||r.recMode==='disim';
+    setWent(true); setStool(true);
+    setInputMode(r.stoolMode||'bristol');
+    if(r.stoolLabel){
+      if(r.stoolMode==='simple')r.stoolLabel.split('→').forEach(c=>pickSimple(c,document.getElementById('si-'+c)));
+      else r.stoolLabel.split('→').forEach(n=>pickBristol(parseInt(n)));
+    }
+    if(r.timeSlot){const p=r.timeSlot.split(':');setTimeBar('stool',(parseInt(p[0])||0)*60+(parseInt(p[1])||0));}
+    if(r.meal){S.meal=r.meal;document.querySelectorAll('.meal-btn').forEach(b=>{if(b.textContent===r.meal)b.classList.add('on');});}
+    if(r.amt){
+      S.amt=r.amt;
+      const mainMap={'少ない':'amt-btn-small','やや少な目':'amt-btn-normal','ふつう':'amt-btn-normal','やや多め':'amt-btn-normal','多い':'amt-btn-large'};
+      const mainId=mainMap[r.amt];
+      if(mainId)document.getElementById(mainId)?.classList.add('on');
+      if(['やや少な目','ふつう','やや多め'].includes(r.amt)){
+        document.getElementById('amt-sub-row')?.classList.add('show');
+        const subMap={'やや少な目':'amt-sub-less','ふつう':'amt-sub-normal','やや多め':'amt-sub-more'};
+        document.getElementById(subMap[r.amt])?.classList.add('on');
+      }
+    }
+    if(r.dur){document.querySelectorAll('.dur-chip').forEach(b=>{if(b.textContent===r.dur){b.classList.add('on');S.dur=r.dur;}});}
+    if(r.res){const i=['すっきり','残っている感じ','不明'].indexOf(r.res);if(i>=0)pickRes(i,document.querySelectorAll('.res-btn')[Math.min(i,1)]);}
+    if(r.strain){S.strain=true;document.getElementById('sym-strain').classList.add('on-a');}
+    if(r.pain){S.pain=true;document.getElementById('sym-pain').classList.add('on-a');}
+    if(r.blood){S.blood=true;document.getElementById('sym-blood').classList.add('on-r');}
+    // 坐薬（排便あり）
+    const disimUsed=r.disimUsed||r.recMode==='disim';
+    setStoolDisim(!!disimUsed);
+    if(disimUsed&&r.disimType){
+      pickStoolDisimType(r.disimType,document.getElementById('stool-'+r.disimType));
+      if(r.disimCount)document.getElementById('stool-supp-count').value=r.disimCount;
+      if(r.disimMl)document.getElementById('stool-kan-ml').value=r.disimMl;
     }
   }
-  if(r.timeSlot){
-    const parts=r.timeSlot.split(':');
-    const totalMin=(parseInt(parts[0])||0)*60+(parseInt(parts[1])||0);
-    setTimeBar(totalMin);
-  }
-  if(r.disimType)pickDisimType(r.disimType,document.getElementById('disim-'+r.disimType));
-  if(r.disimResult)pickDisimResult(r.disimResult,document.getElementById('disim-res-'+r.disimResult));
-  if(r.disimTime)document.getElementById('disim-time').value=r.disimTime;
-  /* 所要時間 */
-  if(r.dur){document.querySelectorAll('.dur-chip').forEach(b=>{if(b.textContent===r.dur){b.classList.add('on');S.dur=r.dur;}});}
-  /* 食事 */
-  if(r.meal){S.meal=r.meal;document.querySelectorAll('.meal-btn').forEach(b=>{if(b.textContent===r.meal)b.classList.add('on');});}
-  /* 排便量 */
-  if(r.amt){
-    S.amt=r.amt;
-    const mainMap={'少ない':'amt-btn-small','やや少な目':'amt-btn-normal','ふつう':'amt-btn-normal','やや多め':'amt-btn-normal','多い':'amt-btn-large'};
-    const mainId=mainMap[r.amt];
-    if(mainId){document.getElementById(mainId)?.classList.add('on');}
-    if(r.amt==='やや少な目'||r.amt==='ふつう'||r.amt==='やや多め'){
-      document.getElementById('amt-sub-row')?.classList.add('show');
-      const subMap={'やや少な目':'amt-sub-less','ふつう':'amt-sub-normal','やや多め':'amt-sub-more'};
-      const subId=subMap[r.amt];
-      if(subId){document.getElementById(subId)?.classList.add('on');}
-    }
-  }
-  /* 感覚 */
-  if(r.res){const i=['すっきり','残っている感じ','不明'].indexOf(r.res);if(i>=0)pickRes(i,document.querySelectorAll('.res-btn')[Math.min(i,1)]);}
-  /* 症状 */
-  if(r.strain){S.strain=true;document.getElementById('sym-strain').classList.add('on-a');}
-  if(r.pain){S.pain=true;document.getElementById('sym-pain').classList.add('on-a');}
-  if(r.blood){S.blood=true;document.getElementById('sym-blood').classList.add('on-r');}
-  /* 編集バナー＆ボタン変更 */
+
+  // 旧 type:'gu' 互換は編集不可（削除のみ）
+  if(r.type==='gu'){S.editingId=null;return;}
+
   document.getElementById('edit-banner').classList.add('show');
-  document.getElementById('rec-btn').textContent='修正を保存';
-  document.getElementById('rec-btn').classList.add('edit-mode');
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function cancelEdit(){exitEditMode();resetToiletForm(false);}
+function exitEditMode(){
+  S.editingId=null;
+  document.getElementById('edit-banner').classList.remove('show');
+}
+
+/* ============================================================
+   削除
+   ============================================================ */
 function deleteRec(id){
   if(!confirm('この記録を削除しますか？'))return;
-  const target = S.recs.find(x=>x.id===id);
-  // delete-bowel-record Edge Function 経由で論理削除
-  if(target?.clientId && PATIENT_KEY){
-    fetch(FN_DELETE, {
-      method: 'POST',
-      headers: edgeFnHeaders(),
-      body: JSON.stringify({ patient_key: PATIENT_KEY, client_id: target.clientId }),
-    }).catch(e => console.warn('delete sync error:', e));
+  const target=S.recs.find(x=>x.id===id);
+  if(target?.clientId&&PATIENT_KEY){
+    fetch(FN_DELETE,{method:'POST',headers:edgeFnHeaders(),body:JSON.stringify({patient_key:PATIENT_KEY,client_id:target.clientId})}).catch(e=>console.warn('delete sync error:',e));
   }
   S.recs=S.recs.filter(x=>x.id!==id);
   persist();updateAvatar();renderHist();
 }
 
-function cancelEdit(){
-  S.editingId=null;
-  document.getElementById('edit-banner').classList.remove('show');
-  document.getElementById('rec-btn').textContent='排便記録を保存';
-  document.getElementById('rec-btn').classList.remove('edit-mode');
-  resetRec(true);
-}
+/* ============================================================
+   フォームリセット
+   ============================================================ */
+function resetToiletForm(fullReset=true){
+  S.wentToToilet=null; S.hadStool=null;
+  S.tnsDisimUsed=null; S.tnsDisimType=null;
+  S.stoolDisimUsed=null; S.stoolDisimType=null;
+  S.bristolChain=[]; S.simpleChain=[];
+  S.meal=null; S.amt=null; S.res=null; S.dur=null;
+  S.strain=S.pain=S.blood=false;
 
-function flashBtn(id,msg){const b=document.getElementById(id),orig=b.textContent;b.textContent=msg;b.classList.add('done');setTimeout(()=>{b.textContent=orig;b.classList.remove('done');},2000);}
-
-function resetRec(full=true){
-  S.bristolChain=[];S.simpleChain=[];S.meal=null;S.amt=null;S.res=null;S.dur=null;
-  S.strain=S.pain=S.blood=false;S.disimType=null;S.disimResult=null;
+  document.getElementById('btn-no-toilet').className='went-btn';
+  document.getElementById('btn-went').className='went-btn';
+  document.getElementById('no-toilet-sec').style.display='none';
+  document.getElementById('stool-row').style.display='none';
+  document.getElementById('tns-sec').style.display='none';
+  document.getElementById('stool-sec').style.display='none';
+  document.getElementById('no-toilet-reason').value='';
+  document.getElementById('no-toilet-note').value='';
+  document.getElementById('tns-disim-no').className='disim-tog';
+  document.getElementById('tns-disim-yes').className='disim-tog';
+  document.getElementById('tns-disim-detail').classList.remove('show');
+  document.getElementById('btn-no-stool').className='stool-btn';
+  document.getElementById('btn-yes-stool').className='stool-btn';
   document.querySelectorAll('.bi').forEach(e=>e.classList.remove('on','chained'));
   document.querySelectorAll('.si').forEach(e=>e.classList.remove('on','chained'));
-  document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください　続けて選ぶと連続記録も可能</span>';
+  document.getElementById('b-info').innerHTML='<span style="color:#888780;font-size:12px;">便の性状を選んでください（続けて選ぶと連続記録も可能）</span>';
   document.querySelectorAll('.dur-chip,.amt-btn,.res-btn,.meal-btn,.amt-sub-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('amt-sub-row')?.classList.remove('show');
   document.getElementById('res-unknown').classList.remove('on');
   ['sym-strain','sym-pain','sym-blood'].forEach(id=>document.getElementById(id).classList.remove('on-a','on-r'));
-  ['supp','kan'].forEach(k=>{const el=document.getElementById('disim-'+k);if(el)el.classList.remove('on');});
-  ['yes','no'].forEach(k=>{const el=document.getElementById('disim-res-'+k);if(el)el.classList.remove('on');});
+  document.getElementById('stool-disim-no').className='disim-tog';
+  document.getElementById('stool-disim-yes').className='disim-tog';
+  document.getElementById('stool-disim-detail').classList.remove('show');
+  document.getElementById('dur-block').style.display='block';
   setInputMode('bristol');
-  if(full){S.recMode='present';setMode('present');}
-  document.getElementById('rec-detail').style.display=S.recMode==='present'?'block':'none';
 }
 
 function resetMed(){
@@ -1006,242 +1279,26 @@ function resetMed(){
   });
 }
 
-function persist(){
-  try{localStorage.setItem('bj14',JSON.stringify(S.recs));}catch(e){}
-  // Supabaseにも非同期保存（bowel_records）
-  syncToSupabase().catch(e=>console.warn('Supabase sync error:', e));
+function flashBtn(id,msg){
+  const b=document.getElementById(id),orig=b.textContent;
+  b.textContent=msg;b.classList.add('done');
+  setTimeout(()=>{b.textContent=orig;b.classList.remove('done');},2000);
 }
 
 /* ============================================================
-   ローカル記録 → bowel_records の行変換
+   タブ切り替え
    ============================================================ */
-function recToBowelRow(r) {
-  const recordType = (() => {
-    if (r.type === 'gu')  return 'gu';
-    if (r.type === 'med') return 'med';
-    if (r.recMode === 'absent') return 'absent';
-    if (r.recMode === 'disim')  return 'disim';
-    return 'bowel';
-  })();
-
-  const bristolNum = (() => {
-    if (r.stoolMode !== 'bristol' || !r.stoolLabel) return null;
-    const nums = r.stoolLabel.split('→').map(Number).filter(n => !isNaN(n) && n >= 1 && n <= 7);
-    return nums.length > 0 ? nums[0] : null;
-  })();
-
-  const simplifiedType = (r.stoolMode === 'simple' && r.stoolLabel)
-    ? r.stoolLabel.split('→')[0] || null : null;
-
-  const amountCode = ({ '少ない': 'XS', 'やや少な目': 'S', 'ふつう': 'M', 'やや多め': 'L', '多い': 'XL' })[r.amt] || r.amt || null;
-
-  const durationMin = r.dur ? (r.dur.match(/(\d+)/)?.[1] ? parseInt(r.dur.match(/(\d+)/)[1]) : null) : null;
-
-  const medTaken = (slot) => {
-    if (r.type !== 'med' || !r.comp) return null;
-    const map = { morning: '朝', noon: '昼', evening: '夕' };
-    return r.comp.includes(map[slot]) ? 'taken' : 'missed';
-  };
-
-  const recordedAt = (() => {
-    const dateStr = r.date || r.guDate || new Date().toISOString().slice(0, 10);
-    const timeStr = r.timeSlot || r.disimTime || r.guTime || '00:00';
-    return `${dateStr}T${timeStr}:00+09:00`;
-  })();
-
-  return {
-    patient_key:     PATIENT_KEY,
-    client_id:       r.clientId,
-    recorded_at:     recordedAt,
-    record_type:     recordType,
-    bristol_scale:   bristolNum,
-    simplified_type: simplifiedType,
-    amount:          amountCode,
-    duration_min:    durationMin,
-    defec_time:      r.timeSlot || r.disimTime || null,
-    sensation:       r.res || null,
-    symptom_strain:  r.strain  || false,
-    symptom_pain:    r.pain    || false,
-    symptom_blood:   r.blood   || false,
-    used_suppository: r.recMode === 'disim' || false,
-    withholding:     r.type === 'gu' || false,
-    is_no_stool:     r.recMode === 'absent' || false,
-    med_morning:     medTaken('morning'),
-    med_noon:        medTaken('noon'),
-    med_evening:     medTaken('evening'),
-    pico_drops:      (r.pico && r.picoDrops) ? parseInt(r.picoDrops) : null,
-    is_deleted:      false,
-    deleted_at:      null,
-  };
+function goTab(name,el){
+  ['toilet','med','hist'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  if(el)el.classList.add('on');
+  S.navTab=name;
+  if(name==='hist'){renderCard();if(S.histView==='tl')renderTL();}
 }
 
 /* ============================================================
-   syncToSupabase — bowel_records への upsert
-   ============================================================
-   【同期設計メモ】
-   現在: Phase2相当（upsert後にserver record_idを取得してローカルに保存）
-   将来 Phase3: 編集時はPATCH、削除時はis_deleted=trueのPATCHに分岐
+   アバターメッセージ
    ============================================================ */
-async function syncToSupabase() {
-  if (!PATIENT_KEY) return;
-
-  // _synced=falseの未送信記録のみ対象
-  const targets = S.recs.filter(r => r.clientId && !r._synced);
-  if (targets.length === 0) return;
-
-  const rows = targets.map(recToBowelRow);
-
-  // save-bowel-record Edge Function 経由で保存（Service Roleで実行）
-  const res = await fetch(FN_SAVE, {
-    method: 'POST',
-    headers: edgeFnHeaders(),
-    body: JSON.stringify({ patient_key: PATIENT_KEY, records: rows }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const result = await res.json();
-  if (!result.ok) throw new Error(result.reason || 'save failed');
-
-  // サーバのrecord_id・updated_atをローカルに保存
-  // → share-to-doctor でsource_record_idを照会なしで参照できる
-  if (result.rows) {
-    result.rows.forEach(row => {
-      const local = S.recs.find(r => r.clientId === row.client_id);
-      if (local) {
-        local._serverRecordId  = row.record_id;
-        local._serverUpdatedAt = row.updated_at;
-        local._synced = true;
-      }
-    });
-  }
-  // フォールバック: rows取得失敗でも_syncedをセット
-  targets.forEach(r => { if (!r._synced) r._synced = true; });
-  try { localStorage.setItem('bj14', JSON.stringify(S.recs)); } catch(e) {}
-}
-
-/* ============================================================
-   loadFromSupabase — bowel_records 全件取得＋マージ
-   ============================================================
-   【同期設計メモ】
-   現在: Phase2相当
-     - 全件取得（is_deletedを問わず）
-     - client_idをキーにマージ
-     - サーバのupdated_atが新しければローカルを上書き
-     - is_deleted=trueのレコードはローカルからも除去
-
-   将来 Phase3（差分取得）への移行方針:
-     クエリ変更: ?updated_at=gt.{lastSyncAt}&order=updated_at.asc
-     追加管理キー（localStorage）:
-       'bj14_lastSyncAt'  : 最終同期日時（ISO文字列）
-       'bj14_appVersion'  : 最終同期時アプリバージョン
-     全件再同期トリガー:
-       1. lastSyncAtが存在しない（初回ログイン）
-       2. lastSyncAtから7日以上経過
-       3. appVersionが変わった時
-       4. サーバ総件数とローカル件数の不一致検知時
-       5. ユーザーが「サーバから再読み込み」を押した時
-     画像対応時:
-       メタデータのみ差分取得、画像本体は必要時のみ取得
-       サムネイルと原本を分離
-   ============================================================ */
-async function loadFromSupabase() {
-  if (!PATIENT_KEY) return;
-  try {
-    // get-bowel-records Edge Function 経由で取得（Service Roleで実行）
-    // is_deletedを問わず全件取得（削除済みをローカルからも除去するため）
-    const res = await fetch(FN_GET, {
-      method: 'POST',
-      headers: edgeFnHeaders(),
-      body: JSON.stringify({ patient_key: PATIENT_KEY }),
-    });
-    if (!res.ok) return;
-    const result = await res.json();
-    if (!result.ok) return;
-    const records = result.records;
-    if (!records || records.length === 0) return;
-
-    // client_id → サーバ行 のマップ
-    const serverMap = {};
-    records.forEach(row => { if (row.client_id) serverMap[row.client_id] = row; });
-
-    // ① is_deleted=trueになった記録をローカルからも除去
-    S.recs = S.recs.filter(r => {
-      if (!r.clientId) return true; // client_idなし（旧データ）は保持
-      const srv = serverMap[r.clientId];
-      return !(srv && srv.is_deleted);
-    });
-
-    // ② client_idをキーにマージ
-    //    ローカルにない → 追加
-    //    サーバのupdated_atがローカルより新しい → 上書き
-    const localMap = {};
-    S.recs.forEach(r => { if (r.clientId) localMap[r.clientId] = r; });
-
-    let changed = false;
-    records.forEach(row => {
-      if (!row.client_id || row.is_deleted) return;
-
-      const local = localMap[row.client_id];
-      const serverUpdatedAt = new Date(row.updated_at || 0).getTime();
-      const localUpdatedAt  = new Date(local?._serverUpdatedAt || 0).getTime();
-
-      if (!local || serverUpdatedAt > localUpdatedAt) {
-        const merged = serverRowToLocal(row);
-        if (!local) {
-          S.recs.push(merged);
-        } else {
-          Object.assign(local, merged);
-        }
-        localMap[row.client_id] = merged;
-        changed = true;
-      }
-    });
-
-    if (changed) {
-      S.recs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      try { localStorage.setItem('bj14', JSON.stringify(S.recs)); } catch(e) {}
-      renderCard();
-      if (S.histView === 'tl') renderTL();
-    }
-  } catch(e) {
-    console.warn('Supabase load error:', e);
-  }
-}
-
-/* ============================================================
-   serverRowToLocal — サーバ行をローカル記録形式に変換
-   loadFromSupabase / syncToSupabase 両方から参照
-   ============================================================ */
-function serverRowToLocal(row) {
-  return {
-    clientId:         row.client_id,
-    id:               row.record_id,
-    _serverRecordId:  row.record_id,
-    _serverUpdatedAt: row.updated_at,
-    _synced:          true,
-    type:             row.record_type === 'med' ? 'med' : row.record_type === 'gu' ? 'gu' : 'rec',
-    date:             row.recorded_at?.slice(0, 10) || '',
-    recMode:          row.record_type === 'absent' ? 'absent' : row.record_type === 'disim' ? 'disim' : 'present',
-    bowelMovement:    !row.is_no_stool && row.record_type !== 'absent' && row.record_type !== 'gu' && row.record_type !== 'med',
-    stoolLabel:       row.bristol_scale ? String(row.bristol_scale) : row.simplified_type || null,
-    stoolMode:        row.bristol_scale ? 'bristol' : row.simplified_type ? 'simple' : null,
-    amt:              ({ XS: '少ない', S: 'やや少な目', M: 'ふつう', L: 'やや多め', XL: '多い' })[row.amount] || null,
-    dur:              row.duration_min ? `${row.duration_min}分以内` : null,
-    timeSlot:         row.defec_time?.slice(0, 5) || null,
-    res:              row.sensation || null,
-    strain:           row.symptom_strain || false,
-    pain:             row.symptom_pain   || false,
-    blood:            row.symptom_blood  || false,
-    comp:             [
-      row.med_morning === 'taken' ? '朝' : '',
-      row.med_noon    === 'taken' ? '昼' : '',
-      row.med_evening === 'taken' ? '夕' : '',
-    ].filter(Boolean).join('') || null,
-    pico:             row.pico_drops != null,
-    picoDrops:        row.pico_drops,
-    recordedAt:       row.recorded_at,
-  };
-}
-
 function updateAvatar(){
   const now=new Date();
   const todayStr=toDS(now);const yestStr=toDS(new Date(now.getTime()-86400000));
@@ -1249,22 +1306,28 @@ function updateAvatar(){
   const yestRecs=S.recs.filter(r=>r.date===yestStr);
   const tb=todayRecs.filter(r=>r.type==='rec'&&r.bowelMovement).length;
   const tm=todayRecs.filter(r=>r.type==='med').length;
-  const tg=todayRecs.filter(r=>r.type==='gu').length;
+  const ta=todayRecs.filter(r=>r.type==='absent').length;
   let msg='';
   if(todayRecs.length===0&&yestRecs.length===0){msg='<span style="color:#A32D2D;font-weight:500;">昨日・今日の記録がありません。記録を忘れていませんか？</span>';}
   else if(todayRecs.length===0&&now.getHours()>=18){msg='<span style="color:#BA7517;font-weight:500;">今日の記録がまだありません。記録をつけましょう。</span>';}
   else if(todayRecs.length===0){msg='<b>今日の記録</b>をつけましょう。';}
-  else{const p=[];if(tb>0)p.push(`排便 <b>${tb}回</b>`);if(tm>0)p.push(`内服 <b>${tm}回</b>`);msg=p.length?p.join('　')+'記録済み。':'今日の記録があります。';if(tg>0)msg+=` 我慢・あきらめ <b>${tg}件</b>。`;}
+  else{
+    const p=[];
+    if(tb>0)p.push(`排便 <b>${tb}回</b>`);
+    if(ta>0)p.push(`排便なし記録 <b>${ta}件</b>`);
+    if(tm>0)p.push(`内服 <b>${tm}回</b>`);
+    msg=p.length?p.join('　')+'記録済み。':'今日の記録があります。';
+  }
   document.getElementById('av-msg').innerHTML=msg;
 }
 
-function goTab(name,el){
-  ['rec','med','gu','hist'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  if(el)el.classList.add('on');
-  if(name==='hist'){renderCard();if(S.histView==='tl')renderTL();}
+function fmtDate(dateStr){
+  try{const d=new Date(dateStr+'T00:00:00');return d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});}catch(e){return dateStr;}
 }
 
+/* ============================================================
+   履歴表示切り替え
+   ============================================================ */
 function switchHistView(v){
   S.histView=v;
   document.getElementById('hvt-card').classList.toggle('on',v==='card');
@@ -1276,36 +1339,46 @@ function switchHistView(v){
 
 function getByDate(){
   const byDate={};
-  S.recs.forEach(r=>{const d=(r.type==='gu'?r.guDate:r.date)||'';if(!byDate[d])byDate[d]=[];byDate[d].push(r);});
+  S.recs.forEach(r=>{
+    const d=r.type==='gu'?(r.guDate||r.date):r.date;
+    if(!d)return;
+    if(!byDate[d])byDate[d]=[];
+    byDate[d].push(r);
+  });
   return byDate;
 }
 
-/* ===== カード形式 ===== */
+/* ============================================================
+   カード形式履歴
+   ============================================================ */
 function renderCard(){
   const el=document.getElementById('hist-card');
   const byDate=getByDate();
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   if(!dates.length){el.innerHTML='<div class="empty-hist">まだ記録がありません</div>';return;}
-  el.innerHTML=dates.map(d=>{
-    const recs=byDate[d].filter(r=>r.type==='rec');
-    const meds=byDate[d].filter(r=>r.type==='med');
-    const gus=byDate[d].filter(r=>r.type==='gu');
-    const ds=new Date(d).toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
-    const bowelRecs=recs.filter(r=>r.bowelMovement);
-    const absentRecs=recs.filter(r=>!r.bowelMovement&&r.recMode==='absent');
-    const disimRecs=recs.filter(r=>r.recMode==='disim');
 
-    function chip(t,c){
-      const bg=c==='w'?'#FAEEDA':c==='r'?'#FCEBEB':c==='b'?'#E6F1FB':'#f5f5f2';
-      const col=c==='w'?'#633806':c==='r'?'#501313':c==='b'?'#0C447C':'#5f5e5a';
-      return `<span class="hchip" style="background:${bg};color:${col};">${t}</span>`;
+  el.innerHTML=dates.map(d=>{
+    const all=byDate[d];
+    const recs=all.filter(r=>r.type==='rec');
+    const meds=all.filter(r=>r.type==='med');
+    const absents=all.filter(r=>r.type==='absent');
+    const gus=all.filter(r=>r.type==='gu');
+    const ds=fmtDate(d);
+    const bowelRecs=recs.filter(r=>r.bowelMovement);
+
+    function chip(t,col){
+      const bg=col==='w'?'#FAEEDA':col==='r'?'#FCEBEB':col==='b'?'#E6F1FB':col==='g'?'#E1F5EE':'#f5f5f2';
+      const fc=col==='w'?'#633806':col==='r'?'#501313':col==='b'?'#0C447C':col==='g'?'#085041':'#5f5e5a';
+      return `<span class="hchip" style="background:${bg};color:${fc};">${t}</span>`;
     }
+
     function recHTML(r){
       const label=r.stoolLabel||'—';
       const chips=[];
-      if(r.timeSlot)chips.push(chip('🕐 '+r.timeSlot,''));
+      if(r.timeSlot)chips.push(chip('⏰ '+r.timeSlot,''));
+      if(r.disimUsed)chips.push(chip('💊 '+(r.disimType==='supp'?'坐薬':'浣腸'),'b'));
       if(r.meal)chips.push(chip(r.meal,''));
-      if(r.dur)chips.push(chip(r.dur,''));
+      if(!r.disimUsed&&r.dur)chips.push(chip(r.dur,''));
       if(r.amt)chips.push(chip(r.amt,''));
       if(r.res)chips.push(chip(r.res,r.res==='残っている感じ'?'w':''));
       if(r.strain)chips.push(chip('気張り','w'));
@@ -1323,18 +1396,32 @@ function renderCard(){
         </div>
       </div>`;
     }
-    function disimHTML(r){
-      const type=r.disimType==='supp'?'坐薬':'浣腸';
-      const result=r.disimResult==='yes'?'排便あり':'排便なし';
-      const stool=r.stoolLabel?` (${r.stoolLabel})`:'';
-      return `<div style="margin-bottom:6px;padding:5px 8px;background:#EEF4FB;border-radius:6px;border-left:2px solid #185FA5;font-size:11px;color:#0C447C;display:flex;justify-content:space-between;align-items:center;">
-        <span>${type} ${r.disimTime||''} → ${result}${stool}</span>
+
+    function absentHTML(r){
+      if(r.subType==='no_toilet'){
+        const isGaman=r.reason==='便意があったが我慢した';
+        const bg=isGaman?'#FAEEDA':'#f5f5f2';
+        const fc=isGaman?'#633806':'#888780';
+        const label=isGaman?'⏸ 我慢':('行かなかった（'+r.reason+'）');
+        return `<div class="absent-card" style="background:${bg};color:${fc};">
+          <span>${label}${r.note?' — '+r.note:''}</span>
+          <div style="display:flex;gap:4px;">
+            <button class="h-edit-btn" onclick="editRec(${r.id})">編集</button>
+            <button class="h-del-btn" onclick="deleteRec(${r.id})">削除</button>
+          </div>
+        </div>`;
+      }
+      // toilet_no_stool
+      const disimStr=r.disimUsed?` 💊${r.disimType==='supp'?'坐薬':'浣腸'}`:'';
+      return `<div class="absent-card">
+        <span>⬜ 排便なし（トイレ）${disimStr}${r.timeSlot?'  ⏰'+r.timeSlot:''}</span>
         <div style="display:flex;gap:4px;">
           <button class="h-edit-btn" onclick="editRec(${r.id})">編集</button>
           <button class="h-del-btn" onclick="deleteRec(${r.id})">削除</button>
         </div>
       </div>`;
     }
+
     function medHTML(r){
       const lines=[];
       if(r.comp)lines.push(r.comp);
@@ -1344,27 +1431,27 @@ function renderCard(){
       return `<div class="h-med-entry">
         <div class="h-med-time">${r.timeSlot||''}</div>
         <div class="h-med-detail">${lines.join('　')}</div>
-        <div class="h-entry-btns">
-          <button class="h-del-btn" onclick="deleteRec(${r.id})">削除</button>
-        </div>
+        <div class="h-entry-btns"><button class="h-del-btn" onclick="deleteRec(${r.id})">削除</button></div>
       </div>`;
     }
+
+    // 旧gu互換
     const guHTML=gus.map(g=>{
       const items=[];if(g.held)items.push('我慢');if(g.tried)items.push('出なかった');if(g.gave)items.push('あきらめ');
-      return `<div class="gu-item">⏸ ${g.guTime} ${items.join('・')}${g.note?' — '+g.note:''}
-        <button class="h-del-btn" style="margin-left:6px;" onclick="deleteRec(${g.id})">削除</button>
+      return `<div class="gu-item">⏸ ${g.guTime||''} ${items.join('・')}${g.note?' — '+g.note:''}
+        <button class="h-del-btn" style="margin-left:4px;" onclick="deleteRec(${g.id})">削除</button>
       </div>`;
     }).join('');
+
     const blank='<div style="font-size:11px;color:#888780;">—</div>';
-    const absentHTML=absentRecs.length?`<div class="absent-card">排便なし</div>`:'';
+    const bowelCount=bowelRecs.length;
 
     return `<div class="diary-spread">
       <div class="spread-hdr">
         <span class="spread-date">${ds}</span>
-        <span class="spread-count">排便 ${bowelRecs.length}回　内服 ${meds.length}回${gus.length?'　⏸'+gus.length:''}</span>
+        <span class="spread-count">排便 ${bowelCount}回　内服 ${meds.length}回${absents.length?'　記録'+absents.length+'件':''}</span>
       </div>
-      ${absentHTML}
-      ${disimRecs.map(disimHTML).join('')}
+      ${absents.map(absentHTML).join('')}
       <div class="spread-cols">
         <div class="spread-col">
           <div class="col-hdr">排便の記録</div>
@@ -1380,7 +1467,19 @@ function renderCard(){
   }).join('');
 }
 
-/* ===== タイムライン形式 ===== */
+/* ============================================================
+   タイムライン形式履歴
+   ============================================================ */
+function durIdx(d){return {'1分未満':0,'1〜10分':2,'10分以上':4}[d]??1;}
+function amtClass(a){return a==='少ない'||a==='やや少な目'?'m-sz-s':a==='多い'||a==='やや多め'?'m-sz-l':'m-sz-m';}
+function compSym(v){
+  if(v==='全量')return{s:'○',c:'full'};
+  if(v==='2/3以上')return{s:'△',c:'partial'};
+  if(v==='1/2程度')return{s:'▽',c:'partial'};
+  if(v==='1/3以下')return{s:'▲',c:'low'};
+  return{s:'',c:'none'};
+}
+
 function renderTL(){
   const el=document.getElementById('hist-tl');
   const byDate=getByDate();
@@ -1392,8 +1491,9 @@ function renderTL(){
     <div class="tl-legend-item"><div class="leg-c" style="width:20px;height:20px;border-color:#b4b2a9;background:#fff;color:#1a1a18;">④</div><span>ふつう</span></div>
     <div class="tl-legend-item"><div class="leg-c" style="width:26px;height:26px;border-color:#b4b2a9;background:#fff;color:#1a1a18;">④</div><span>多/やや多</span></div>
     <div class="tl-legend-item"><div class="leg-c" style="width:22px;height:22px;border-color:#D85A30;background:#FAECE7;color:#712B13;">③</div><span>気張り</span></div>
-    <div class="tl-legend-item"><div style="display:flex;flex-direction:column;gap:2px;"><div style="width:8px;height:2px;border-radius:1px;background:#5f5e5a;opacity:.6;"></div><div style="width:22px;height:4px;border-radius:1px;background:#5f5e5a;opacity:.6;"></div><div style="width:38px;height:6px;border-radius:1px;background:#5f5e5a;opacity:.6;"></div></div><span>所要時間</span></div>
     <div class="tl-legend-item"><span style="color:#A32D2D;font-weight:500;">B P</span><span>出血・痛み</span></div>
+    <div class="tl-legend-item"><span style="font-size:10px;color:#5f5e5a;">⬜</span><span>排便なし（トイレ）</span></div>
+    <div class="tl-legend-item"><span style="font-size:10px;color:#BA7517;">⏸</span><span>我慢/行かなかった</span></div>
   </div>
   <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>ピコ=ピコスルファート　青字=臨時薬</div>
   <div class="tl-outer"><table class="tl-table"><thead><tr>
@@ -1403,16 +1503,17 @@ function renderTL(){
   </tr></thead><tbody>`;
 
   dates.forEach((d,di)=>{
-    const recs=byDate[d].filter(r=>r.type==='rec');
-    const meds=byDate[d].filter(r=>r.type==='med');
-    const gus=byDate[d].filter(r=>r.type==='gu');
-    const dt=new Date(d);
+    const all=byDate[d];
+    const recs=all.filter(r=>r.type==='rec');
+    const meds=all.filter(r=>r.type==='med');
+    const gus=all.filter(r=>r.type==='gu');
+    const absents=all.filter(r=>r.type==='absent');
+    const dt=new Date(d+'T00:00:00');
     const dateMain=`${dt.getMonth()+1}/${dt.getDate()}`;
     const dateDay=['日','月','火','水','木','金','土'][dt.getDay()];
     const bowelRecs=recs.filter(r=>r.bowelMovement);
     const rowBg=di%2===0?'#fff':'#f5f5f2';
 
-    /* 内服スロット */
     const medAm=meds.find(m=>m.timeSlot&&parseInt(m.timeSlot)<12);
     const medNoon=meds.find(m=>m.timeSlot&&parseInt(m.timeSlot)>=12&&parseInt(m.timeSlot)<18);
     const medPm=meds.find(m=>m.timeSlot&&parseInt(m.timeSlot)>=18)||(!medAm&&!medNoon?meds[0]:null);
@@ -1435,10 +1536,15 @@ function renderTL(){
     });
     const emergHTML=emergLines.length?`<div class="emerg-row">${emergLines.join(' ')}</div>`:'';
 
-    /* タイムラインマーカー */
+    // タイムライン
     let tlHTML='';
     for(let h=3;h<24;h+=3){const pct=(h/24*100).toFixed(2);tlHTML+=`<div class="grid-line" style="left:${pct}%"></div>`;}
-    if(bowelRecs.length===0){tlHTML+=`<div class="tl-no-rec">排便なし</div>`;}
+
+    const hasBowel=bowelRecs.some(r=>r.timeSlot);
+    const hasTns=absents.some(r=>r.subType==='toilet_no_stool'&&r.timeSlot);
+    if(!hasBowel&&!hasTns)tlHTML+=`<div class="tl-no-rec">排便なし</div>`;
+
+    // 排便ありマーカー
     bowelRecs.forEach(r=>{
       if(!r.timeSlot)return;
       const parts=r.timeSlot.split(':');
@@ -1451,11 +1557,20 @@ function renderTL(){
       const totalH=radius*2+2+bar.h;
       const topPct=`calc(50% - ${totalH/2}px)`;
       const bp=(r.blood?'B':'')+(r.pain?'P':'');
+      const disimDot=r.disimUsed?`<span style="position:absolute;bottom:-4px;right:-4px;font-size:8px;">💊</span>`:'';
       const label=r.stoolLabel||'';
       tlHTML+=`<div class="marker" style="left:${pct}%;top:${topPct};">
-        <div class="m-circle ${sz}${strainCls}">${label}${bp?`<span class="m-bp">${bp}</span>`:''}</div>
+        <div class="m-circle ${sz}${strainCls}" style="position:relative;">${label}${bp?`<span class="m-bp">${bp}</span>`:''}${disimDot}</div>
         <div class="m-bar" style="width:${bar.w}px;height:${bar.h}px;"></div>
       </div>`;
+    });
+
+    // 排便なし（トイレ）マーカー：メインTL行に表示
+    absents.filter(r=>r.subType==='toilet_no_stool'&&r.timeSlot).forEach(r=>{
+      const parts=r.timeSlot.split(':');
+      const hh=parseInt(parts[0])+(parseInt(parts[1]||0)/60);
+      const pct=(hh/24*100).toFixed(2);
+      tlHTML+=`<div class="tns-mark" style="left:${pct}%;">□</div>`;
     });
 
     html+=`<tr style="background:${rowBg};">
@@ -1471,298 +1586,349 @@ function renderTL(){
       <td class="td-tl"><div class="tl-inner">${tlHTML}</div></td>
     </tr>`;
 
-    if(gus.length){
+    // 我慢行（旧guレコード + no_toiletのうち我慢）
+    const guItems=[
+      ...gus,
+      ...absents.filter(r=>r.subType==='no_toilet')
+    ];
+    if(guItems.length){
       html+=`<tr><td style="background:#FFF8EF;border-top:none;"></td><td style="background:#FFF8EF;border-top:none;"></td><td class="td-gu-tl"><div class="gu-tl-inner">`;
       for(let h=3;h<24;h+=3){const pct=(h/24*100).toFixed(2);html+=`<div style="position:absolute;left:${pct}%;top:0;bottom:0;width:0.5px;background:rgba(0,0,0,0.12);"></div>`;}
+      // 旧guレコード
       gus.forEach(g=>{
         if(!g.guTime)return;
         const parts=g.guTime.split(':');
         const hh=parseInt(parts[0])+(parseInt(parts[1]||0)/60);
-        const pct=(hh/24*100).toFixed(2);
-        html+=`<div class="gu-mark" style="left:${pct}%;">⏸</div>`;
+        html+=`<div class="gu-mark" style="left:${(hh/24*100).toFixed(2)}%;">⏸</div>`;
+      });
+      // no_toilet（我慢）：時刻なしでも左端に表示
+      absents.filter(r=>r.subType==='no_toilet').forEach(r=>{
+        if(r.reason==='便意があったが我慢した'){
+          html+=`<div class="gu-mark" style="left:2%;">⏸</div>`;
+        } else {
+          html+=`<div style="position:absolute;left:2%;top:1px;font-size:9px;color:#888780;">×</div>`;
+        }
       });
       html+=`</div></td></tr>`;
     }
   });
+
   html+=`</tbody></table></div>`;
   el.innerHTML=html;
 }
 
 function renderHist(){renderCard();if(S.histView==='tl')renderTL();}
 
-// ============================================================
-// Supabase接続設定
-// ============================================================
-const SUPABASE_URL = 'https://fdaveqbwobuivgqpvxer.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXZlcWJ3b2J1aXZncXB2eGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjE4OTIsImV4cCI6MjA5MTM5Nzg5Mn0.5y_M-VuGPPGcQI7g9ZyX8DUxu2I480BfQZQbgQJxTxE';
-
-// Edge Function エンドポイント
-const FN_SAVE    = SUPABASE_URL + '/functions/v1/save-bowel-record';
-const FN_GET     = SUPABASE_URL + '/functions/v1/get-bowel-records';
-const FN_SHARE   = SUPABASE_URL + '/functions/v1/share-to-doctor';    // 次段階
-const FN_DELETE  = SUPABASE_URL + '/functions/v1/delete-bowel-record'; // 次段階
-const FN_RX      = SUPABASE_URL + '/functions/v1/get-prescription';    // 次段階
-
-// Edge Function 共通ヘッダー
-function edgeFnHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_KEY,
-    'Authorization': 'Bearer ' + SUPABASE_KEY,
-  };
+/* ============================================================
+   永続化
+   ============================================================ */
+function persist(){
+  try{localStorage.setItem('bj14',JSON.stringify(S.recs));}catch(e){}
+  syncToSupabase().catch(e=>console.warn('Supabase sync error:',e));
 }
 
-// patient_key（callbackでHMAC済みキーをlocalStorageに保存済み）
-// patientId（旧キー）が残存している場合も考慮して除去
-const PATIENT_KEY = (() => {
-  const k = localStorage.getItem('patientKey');
-  if (k) return k;
-  // 旧キーが残っていた場合は除去してnullを返す（再ログインへ）
-  localStorage.removeItem('patientId');
-  return null;
-})();
-
-// ============================================================
-// Supabase REST API ヘルパー
-// ============================================================
-async function supabaseInsert(table, rows) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Prefer': 'return=minimal',
-    },
-    body: JSON.stringify(rows),
-  });
-  if (!res.ok) throw new Error(await res.text());
-}
-
-async function supabaseFetch(table, params='') {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+/* ============================================================
+   recToBowelRow（bowel_records用）
+   新フィールド対応：subType / disimUsed / disimCount / disimMl
+   ※ Supabaseスキーマ追加後に正式反映
+   ============================================================ */
+function recToBowelRow(r){
+  const recordType=(()=>{
+    if(r.type==='gu')return 'gu';
+    if(r.type==='med')return 'med';
+    if(r.type==='absent'){
+      if(r.subType==='no_toilet')return 'absent';
+      if(r.subType==='toilet_no_stool')return 'absent';
+      return 'absent';
     }
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-
-// ============================================================
-// ローカル記録 → shared_bowel_records の行変換
-// 「先生に送る」操作時のみ呼ぶ
-// ============================================================
-function recToRow(r, now) {
-  const isNoStool = (r.recMode === 'absent');
-  const isDisim   = (r.recMode === 'disim');
-
-  // Bristol scale（数値）
-  const bristolNum = (() => {
-    if (!r.stoolLabel) return null;
-    if (r.stoolMode === 'bristol') {
-      const nums = r.stoolLabel.split('→').map(n => parseInt(n)).filter(n => !isNaN(n));
-      return nums.length > 0 ? nums[0] : null; // 最初の値を代表値として使用
-    }
-    return null;
+    if(r.recMode==='absent')return 'absent';
+    if(r.recMode==='disim')return 'disim';
+    if(r.disimUsed)return 'disim';
+    return 'bowel';
   })();
 
-  // 簡易モードのtype
-  const simplifiedType = (() => {
-    if (r.stoolMode === 'simple' && r.stoolLabel) {
-      return r.stoolLabel.split('→')[0] || null;
-    }
-    return null;
+  const bristolNum=(()=>{
+    if(r.stoolMode!=='bristol'||!r.stoolLabel)return null;
+    const nums=r.stoolLabel.split('→').map(Number).filter(n=>!isNaN(n)&&n>=1&&n<=7);
+    return nums.length>0?nums[0]:null;
   })();
 
-  // 排便量 S/M/L に正規化
-  const amountCode = (() => {
-    if (!r.amt) return null;
-    if (r.amt === '少ない')    return 'XS';
-    if (r.amt === 'やや少な目') return 'S';
-    if (r.amt === 'ふつう')    return 'M';
-    if (r.amt === 'やや多め')  return 'L';
-    if (r.amt === '多い')      return 'XL';
-    return r.amt;
-  })();
+  const simplifiedType=(r.stoolMode==='simple'&&r.stoolLabel)?r.stoolLabel.split('→')[0]||null:null;
+  const amountCode=({'少ない':'XS','やや少な目':'S','ふつう':'M','やや多め':'L','多い':'XL'})[r.amt]||r.amt||null;
+  const durationMin=r.dur?(r.dur.match(/(\d+)/)?.[1]?parseInt(r.dur.match(/(\d+)/)[1]):null):null;
 
-  // 所要時間（分）に変換
-  const durationMin = (() => {
-    if (!r.dur) return null;
-    const m = r.dur.match(/(\d+)/);
-    return m ? parseInt(m[1]) : null;
-  })();
-
-  // 排便時刻 → time形式
-  const defecTime = r.timeSlot || (isDisim ? r.disimTime : null) || null;
-
-  // 服薬
-  const medSlot = (s) => {
-    if (!r.comp) return null;
-    if (r.comp.includes('朝') && s === 'morning') return 'taken';
-    if (r.comp.includes('昼') && s === 'noon')    return 'taken';
-    if (r.comp.includes('夕') && s === 'evening')  return 'taken';
-    return null;
-  };
-
-  // recorded_at: 排便日(r.date) + 排便時刻(r.timeSlot) を組み合わせる
-  // r.recordedAt は「記録した時刻」であり「排便日時」ではないため使わない
-  const sharedRecordedAt = (() => {
-    const dateStr = r.date || r.guDate || now.toISOString().slice(0, 10);
-    const timeStr = r.timeSlot || r.disimTime || r.guTime || '00:00';
+  const recordedAt=(()=>{
+    const dateStr=r.date||r.guDate||new Date().toISOString().slice(0,10);
+    const timeStr=r.timeSlot||r.disimTime||r.guTime||'00:00';
     return `${dateStr}T${timeStr}:00+09:00`;
   })();
 
-  // Bristol連続記録（例: "4→5"）を全て保存するため、
-  // 代表値（最初）はbristol_scaleに、全ラベルはstool_labelカラムに保存
-  // ※ shared_bowel_recordsにstool_labelがない場合は bristol_scale のみ
-  const bristolAll = (() => {
-    if (r.stoolMode !== 'bristol' || !r.stoolLabel) return null;
-    return r.stoolLabel; // "4→5" のような文字列をそのまま保持
+  return {
+    patient_key:     PATIENT_KEY,
+    client_id:       r.clientId,
+    recorded_at:     recordedAt,
+    record_type:     recordType,
+    bristol_scale:   bristolNum,
+    simplified_type: simplifiedType,
+    amount:          amountCode,
+    duration_min:    durationMin,
+    defec_time:      r.timeSlot||r.disimTime||null,
+    sensation:       r.res||null,
+    symptom_strain:  r.strain||false,
+    symptom_pain:    r.pain||false,
+    symptom_blood:   r.blood||false,
+    used_suppository:r.disimUsed||r.recMode==='disim'||false,
+    withholding:     r.type==='gu'||(r.subType==='no_toilet'&&r.reason==='便意があったが我慢した')||false,
+    is_no_stool:     r.type==='absent'||r.recMode==='absent'||false,
+    med_morning:     null,
+    med_noon:        null,
+    med_evening:     null,
+    pico_drops:      null,
+    is_deleted:      false,
+    deleted_at:      null,
+    // 将来スキーマ追加後に有効化：
+    // sub_type:     r.subType||null,
+    // toilet_reason:r.reason||null,
+    // disim_count:  r.disimCount||null,
+    // disim_ml:     r.disimMl||null,
+  };
+}
+
+/* ============================================================
+   recToRow（shared_bowel_records用）
+   ============================================================ */
+function recToRow(r,now){
+  const isNoStool=r.type==='absent'||r.recMode==='absent';
+  const isDisim=r.disimUsed||r.recMode==='disim';
+
+  const bristolNum=(()=>{
+    if(!r.stoolLabel)return null;
+    if(r.stoolMode==='bristol'){const nums=r.stoolLabel.split('→').map(n=>parseInt(n)).filter(n=>!isNaN(n));return nums.length>0?nums[0]:null;}
+    return null;
+  })();
+
+  const simplifiedType=(r.stoolMode==='simple'&&r.stoolLabel)?r.stoolLabel.split('→')[0]||null:null;
+  const amountCode=({'少ない':'XS','やや少な目':'S','ふつう':'M','やや多め':'L','多い':'XL'})[r.amt]||r.amt||null;
+  const durationMin=r.dur?(r.dur.match(/(\d+)/)?.[1]?parseInt(r.dur.match(/(\d+)/)[1]):null):null;
+  const defecTime=r.timeSlot||(isDisim?r.disimTime:null)||null;
+
+  const sharedRecordedAt=(()=>{
+    const dateStr=r.date||r.guDate||(now||new Date()).toISOString().slice(0,10);
+    const timeStr=r.timeSlot||r.disimTime||r.guTime||'00:00';
+    return `${dateStr}T${timeStr}:00+09:00`;
   })();
 
   return {
     patient_key:     PATIENT_KEY,
     recorded_at:     sharedRecordedAt,
-    // shared_at は DB の DEFAULT now() に任せる
     source:          'patient',
-    record_type:     r.type === 'med' ? 'med'
-                   : r.type === 'gu'  ? 'gu'
-                   : r.recMode === 'absent' ? 'absent'
-                   : r.recMode === 'disim'  ? 'disim'
-                   : 'bowel',
-    bristol_scale:   bristolNum,   // 代表値（最初の値）
-    stool_label:     r.stoolLabel || null, // 連続記録ラベル（例: "4→5"）
+    record_type:     r.type==='med'?'med':r.type==='gu'?'gu':r.type==='absent'?'absent':isDisim?'disim':'bowel',
+    bristol_scale:   bristolNum,
+    stool_label:     r.stoolLabel||null,
     simplified_type: simplifiedType,
     amount:          amountCode,
     duration_min:    durationMin,
     defec_time:      defecTime,
-    sensation:       r.res || null,
-    symptom_strain:  r.strain  || false,
-    symptom_pain:    r.pain    || false,
-    symptom_blood:   r.blood   || false,
-    used_suppository: isDisim  || false,
-    withholding:     r.type === 'gu' ? true : false,
+    sensation:       r.res||null,
+    symptom_strain:  r.strain||false,
+    symptom_pain:    r.pain||false,
+    symptom_blood:   r.blood||false,
+    used_suppository:!!isDisim,
+    withholding:     r.type==='gu'||(r.subType==='no_toilet'&&r.reason==='便意があったが我慢した')||false,
     share_status:    'shared',
     is_no_stool:     isNoStool,
-    med_morning:     r.type === 'med' ? (r.comp?.includes('朝') ? 'taken' : 'missed') : null,
-    med_noon:        r.type === 'med' ? (r.comp?.includes('昼') ? 'taken' : 'missed') : null,
-    med_evening:     r.type === 'med' ? (r.comp?.includes('夕') ? 'taken' : 'missed') : null,
-    pico_drops:      r.pico && r.picoDrops ? parseInt(r.picoDrops) : null,
+    med_morning:     r.type==='med'?(r.comp?.includes('朝')?'taken':'missed'):null,
+    med_noon:        r.type==='med'?(r.comp?.includes('昼')?'taken':'missed'):null,
+    med_evening:     r.type==='med'?(r.comp?.includes('夕')?'taken':'missed'):null,
+    pico_drops:      r.pico&&r.picoDrops?parseInt(r.picoDrops):null,
   };
 }
 
-// ============================================================
-// 起動時に処方情報を取得して内服タブに表示
-// ============================================================
-async function loadPrescription() {
-  if (!PATIENT_KEY) return;
-  try {
-    // get-prescription Edge Function 経由で取得
-    const res = await fetch(FN_RX, {
-      method: 'POST',
-      headers: edgeFnHeaders(),
-      body: JSON.stringify({ patient_key: PATIENT_KEY }),
-    });
-    if (!res.ok) return;
-    const result = await res.json();
-    if (!result.ok || !result.prescription) return;
+/* ============================================================
+   Supabase 設定
+   ============================================================ */
+const SUPABASE_URL='https://fdaveqbwobuivgqpvxer.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXZlcWJ3b2J1aXZncXB2eGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjE4OTIsImV4cCI6MjA5MTM5Nzg5Mn0.5y_M-VuGPPGcQI7g9ZyX8DUxu2I480BfQZQbgQJxTxE';
+const FN_SAVE=SUPABASE_URL+'/functions/v1/save-bowel-record';
+const FN_GET=SUPABASE_URL+'/functions/v1/get-bowel-records';
+const FN_SHARE=SUPABASE_URL+'/functions/v1/share-to-doctor';
+const FN_DELETE=SUPABASE_URL+'/functions/v1/delete-bowel-record';
+const FN_RX=SUPABASE_URL+'/functions/v1/get-prescription';
 
-    const rx  = result.prescription;
-    const bar     = document.getElementById('rx-info-bar');
-    const content = document.getElementById('rx-info-content');
-    const sub     = document.getElementById('rx-info-sub');
-    if (!bar || !content) return;
+function edgeFnHeaders(){return{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};}
 
-    // 表示テキスト組み立て
-    const doseParts = [];
-    if (rx.dose_morning != null) doseParts.push(`朝 ${rx.dose_morning}`);
-    if (rx.dose_noon    != null) doseParts.push(`昼 ${rx.dose_noon}`);
-    if (rx.dose_evening != null) doseParts.push(`夕 ${rx.dose_evening}`);
-    const doseStr = doseParts.join('　') + (rx.dose_unit ? ` ${rx.dose_unit}` : '');
-    content.textContent = `${rx.drug_name}　${doseStr}`;
-    sub.textContent = rx.notes || '';
-    bar.style.display = 'block';
-  } catch(e) {
-    console.error('loadPrescription error:', e);
-  }
+const PATIENT_KEY=(()=>{
+  const k=localStorage.getItem('patientKey');
+  if(k)return k;
+  localStorage.removeItem('patientId');
+  return null;
+})();
+
+/* ============================================================
+   Supabase sync（bowel_records upsert）
+   ============================================================ */
+async function syncToSupabase(){
+  if(!PATIENT_KEY)return;
+  const targets=S.recs.filter(r=>r.clientId&&!r._synced);
+  if(!targets.length)return;
+  const rows=targets.map(recToBowelRow);
+  const res=await fetch(FN_SAVE,{method:'POST',headers:edgeFnHeaders(),body:JSON.stringify({patient_key:PATIENT_KEY,records:rows})});
+  if(!res.ok)throw new Error(await res.text());
+  const result=await res.json();
+  if(!result.ok)throw new Error(result.reason||'save failed');
+  if(result.rows){result.rows.forEach(row=>{const local=S.recs.find(r=>r.clientId===row.client_id);if(local){local._serverRecordId=row.record_id;local._serverUpdatedAt=row.updated_at;local._synced=true;}});}
+  targets.forEach(r=>{if(!r._synced)r._synced=true;});
+  try{localStorage.setItem('bj14',JSON.stringify(S.recs));}catch(e){}
 }
 
-// ============================================================
-// 医師へ共有ボタンの処理
-// ローカルの記録を shared_bowel_records に送信する
-// ============================================================
-async function shareToDoctor() {
-  if (!PATIENT_KEY) {
-    alert('ログインが必要です。最初からやり直してください。');
-    return;
-  }
-
-  const btn    = document.getElementById('share-btn');
-  const status = document.getElementById('share-status');
-  const days   = parseInt(document.getElementById('share-days').value);
-
-  btn.disabled = true;
-  btn.textContent = '送信中…';
-  status.style.display = 'block';
-  status.style.color = '#5f5e5a';
-  status.textContent = '記録を送信しています…';
-
-  try {
-    const now    = new Date();
-    const cutoff = days === 0 ? null : new Date(now - days * 86400000);
-
-    // サーバー側がrecord_type込みupsertで冪等なため、
-    // _sharedによる差分送信はやめ、選択期間内の全記録を毎回送る
-    const targets = S.recs.filter(r => {
-      if (!cutoff) return true;
-      const d = new Date(r.date || r.guDate || 0);
-      return d >= cutoff;
+/* ============================================================
+   Supabase load（bowel_records 全件取得）
+   ============================================================ */
+async function loadFromSupabase(){
+  if(!PATIENT_KEY)return;
+  try{
+    const res=await fetch(FN_GET,{method:'POST',headers:edgeFnHeaders(),body:JSON.stringify({patient_key:PATIENT_KEY})});
+    if(!res.ok)return;
+    const result=await res.json();
+    if(!result.ok)return;
+    const records=result.records;
+    if(!records||!records.length)return;
+    const serverMap={};
+    records.forEach(row=>{if(row.client_id)serverMap[row.client_id]=row;});
+    S.recs=S.recs.filter(r=>{
+      if(!r.clientId)return true;
+      const srv=serverMap[r.clientId];
+      return!(srv&&srv.is_deleted);
     });
-
-    if (targets.length === 0) {
-      status.style.color = '#BA7517';
-      status.textContent = '対象期間に記録がありません。';
-      btn.disabled = false;
-      btn.textContent = '医師へ共有';
-      return;
+    const localMap={};
+    S.recs.forEach(r=>{if(r.clientId)localMap[r.clientId]=r;});
+    let changed=false;
+    records.forEach(row=>{
+      if(!row.client_id||row.is_deleted)return;
+      const local=localMap[row.client_id];
+      const serverUpdatedAt=new Date(row.updated_at||0).getTime();
+      const localUpdatedAt=new Date(local?._serverUpdatedAt||0).getTime();
+      if(!local||serverUpdatedAt>localUpdatedAt){
+        const merged=serverRowToLocal(row);
+        if(!local){S.recs.push(merged);}else{Object.assign(local,merged);}
+        localMap[row.client_id]=merged;
+        changed=true;
+      }
+    });
+    if(changed){
+      S.recs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      try{localStorage.setItem('bj14',JSON.stringify(S.recs));}catch(e){}
+      renderCard();
+      if(S.histView==='tl')renderTL();
     }
+  }catch(e){console.warn('Supabase load error:',e);}
+}
 
-    // _serverRecordId（sync時にローカルに保存済み）をそのまま使用
-    const rows = targets.map(r => ({
-      ...recToRow(r, now),
-      source_record_id: r._serverRecordId || null,
-    }));
+/* ============================================================
+   serverRowToLocal（サーバ行 → ローカル形式）
+   ============================================================ */
+function serverRowToLocal(row){
+  const isAbsent=row.record_type==='absent'||row.is_no_stool;
+  const isDisim=row.record_type==='disim'||row.used_suppository;
+  const isBowel=!isAbsent&&row.record_type!=='gu'&&row.record_type!=='med';
+  // bowelMovement: 排便なしとgu・med以外
+  const bowelMovement=isBowel&&!row.is_no_stool;
+  return{
+    clientId:row.client_id,
+    id:row.record_id,
+    _serverRecordId:row.record_id,
+    _serverUpdatedAt:row.updated_at,
+    _synced:true,
+    type:row.record_type==='med'?'med':row.record_type==='gu'?'gu':isAbsent?'absent':'rec',
+    subType:isAbsent?(row.withholding?'no_toilet':'toilet_no_stool'):undefined,
+    date:row.recorded_at?.slice(0,10)||'',
+    bowelMovement,
+    disimUsed:row.used_suppository||false,
+    stoolLabel:row.bristol_scale?String(row.bristol_scale):row.simplified_type||null,
+    stoolMode:row.bristol_scale?'bristol':row.simplified_type?'simple':null,
+    amt:({'XS':'少ない','S':'やや少な目','M':'ふつう','L':'やや多め','XL':'多い'})[row.amount]||null,
+    dur:row.duration_min?`${row.duration_min}分以内`:null,
+    timeSlot:row.defec_time?.slice(0,5)||null,
+    res:row.sensation||null,
+    strain:row.symptom_strain||false,
+    pain:row.symptom_pain||false,
+    blood:row.symptom_blood||false,
+    comp:[
+      row.med_morning==='taken'?'朝':'',
+      row.med_noon==='taken'?'昼':'',
+      row.med_evening==='taken'?'夕':'',
+    ].filter(Boolean).join('')||null,
+    pico:row.pico_drops!=null,
+    picoDrops:row.pico_drops,
+    recordedAt:row.recorded_at,
+  };
+}
 
-    // share-to-doctor Edge Function 経由で送信（Service Roleで実行）
-    const shareRes = await fetch(FN_SHARE, {
-      method: 'POST',
-      headers: edgeFnHeaders(),
-      body: JSON.stringify({ patient_key: PATIENT_KEY, records: rows }),
+/* ============================================================
+   医師へ共有
+   ============================================================ */
+async function shareToDoctor(){
+  if(!PATIENT_KEY){alert('ログインが必要です。最初からやり直してください。');return;}
+  const btn=document.getElementById('share-btn');
+  const status=document.getElementById('share-status');
+  const days=parseInt(document.getElementById('share-days').value);
+  btn.disabled=true;btn.textContent='送信中…';
+  status.style.display='block';status.style.color='#5f5e5a';status.textContent='記録を送信しています…';
+  try{
+    const now=new Date();
+    const cutoff=days===0?null:new Date(now-days*86400000);
+    const targets=S.recs.filter(r=>{
+      if(!cutoff)return true;
+      const d=new Date(r.date||r.guDate||0);
+      return d>=cutoff;
     });
-    if (!shareRes.ok) throw new Error(await shareRes.text());
-    const shareResult = await shareRes.json();
-    // ok:true が返った後だけ成功表示（_sharedフラグはセットしない）
-    if (!shareResult.ok) throw new Error(shareResult.reason || 'share failed');
-
-    const shareStart = cutoff ? cutoff.toISOString().slice(0,10) : (S.recs[S.recs.length-1]?.date || '');
-    const shareEnd   = now.toISOString().slice(0,10);
-
-    status.style.color = '#0F6E56';
-    status.textContent = `✓ ${rows.length}件の記録を医師に共有しました（${shareStart} 〜 ${shareEnd}）`;
-    btn.textContent = '医師へ共有';
-    btn.disabled = false;
-
-  } catch(e) {
+    if(!targets.length){status.style.color='#BA7517';status.textContent='対象期間に記録がありません。';btn.disabled=false;btn.textContent='医師へ共有';return;}
+    const rows=targets.map(r=>({...recToRow(r,now),source_record_id:r._serverRecordId||null}));
+    const shareRes=await fetch(FN_SHARE,{method:'POST',headers:edgeFnHeaders(),body:JSON.stringify({patient_key:PATIENT_KEY,records:rows})});
+    if(!shareRes.ok)throw new Error(await shareRes.text());
+    const shareResult=await shareRes.json();
+    if(!shareResult.ok)throw new Error(shareResult.reason||'share failed');
+    const shareStart=cutoff?cutoff.toISOString().slice(0,10):(S.recs[S.recs.length-1]?.date||'');
+    const shareEnd=now.toISOString().slice(0,10);
+    status.style.color='#0F6E56';
+    status.textContent=`✓ ${rows.length}件の記録を医師に共有しました（${shareStart} 〜 ${shareEnd}）`;
+    btn.textContent='医師へ共有';btn.disabled=false;
+  }catch(e){
     console.error(e);
-    status.style.color = '#A32D2D';
-    status.textContent = '送信に失敗しました。時間をおいて再試行してください。';
-    btn.disabled = false;
-    btn.textContent = '医師へ共有';
+    status.style.color='#A32D2D';status.textContent='送信に失敗しました。時間をおいて再試行してください。';
+    btn.disabled=false;btn.textContent='医師へ共有';
   }
 }
 
+/* ============================================================
+   処方情報取得
+   ============================================================ */
+async function loadPrescription(){
+  if(!PATIENT_KEY)return;
+  try{
+    const res=await fetch(FN_RX,{method:'POST',headers:edgeFnHeaders(),body:JSON.stringify({patient_key:PATIENT_KEY})});
+    if(!res.ok)return;
+    const result=await res.json();
+    if(!result.ok||!result.prescription)return;
+    const rx=result.prescription;
+    const bar=document.getElementById('rx-info-bar');
+    const content=document.getElementById('rx-info-content');
+    const sub=document.getElementById('rx-info-sub');
+    if(!bar||!content)return;
+    const doseParts=[];
+    if(rx.dose_morning!=null)doseParts.push(`朝 ${rx.dose_morning}`);
+    if(rx.dose_noon!=null)doseParts.push(`昼 ${rx.dose_noon}`);
+    if(rx.dose_evening!=null)doseParts.push(`夕 ${rx.dose_evening}`);
+    const doseStr=doseParts.join('　')+(rx.dose_unit?` ${rx.dose_unit}`:'');
+    content.textContent=`${rx.drug_name}　${doseStr}`;
+    sub.textContent=rx.notes||'';
+    bar.style.display='block';
+  }catch(e){console.error('loadPrescription error:',e);}
+}
+
+/* ============================================================
+   起動
+   ============================================================ */
 init();
 loadPrescription();
 loadFromSupabase();
