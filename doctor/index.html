@@ -470,13 +470,23 @@ function shareBarHTML(p){
 }
 
 // タイムライン行HTML（共通）
+// 時刻文字列 "HH:MM" を小数時間に変換するヘルパー
+function timeToDecimalHours(timeStr) {
+  if (!timeStr) return null;
+  const parts = String(timeStr).slice(0,5).split(':');
+  const h = parseInt(parts[0]) || 0;
+  const m = parseInt(parts[1]) || 0;
+  return h + m / 60;
+}
+
 function tlRowHTML(r, idx){
   const dt = new Date(r.date);
   const dow = dt.getDay();
   const isWE = dow===0||dow===6;
   const isVisit = currentPt.visits.includes(r.date);
   // 排便なし（かつ坐薬・浣腸もなし）の日はうっすら赤背景
-  const hasStoolOrSupp = !!(r.stool || r.supp);
+  // 簡易入力は stool=null でも hasBowel=true → 排便ありと扱う
+  const hasStoolOrSupp = !!(r.stool || r.hasBowel || r.stoolLabel || r.supp);
   const noStoolBg = !hasStoolOrSupp && !r.skip && r.note !== '受診日' ? 'rgba(242,200,200,0.75)' : null;
   const rowBg = noStoolBg || (idx%2===0 ? 'var(--surface)' : 'var(--surface2)');
   const dateLabel = `${dt.getMonth()+1}/${dt.getDate()}<br><span style="font-size:7px;color:${isWE?'var(--red)':'var(--text3)'}">${DOW[dow]}</span>`;
@@ -491,8 +501,8 @@ function tlRowHTML(r, idx){
   </div>`;
 
   // タイムラインマーカー
-  // 排便なし日かどうか判定
-  const hasStool = !!r.stool;
+  // 簡易入力も「排便あり」として扱う（hasBowel / stoolLabel で判定）
+  const hasStool = !!(r.stool || r.hasBowel || r.stoolLabel);
   const isNoStoolDay = !hasStool && !r.supp;
 
   let markerHTML = '';
@@ -500,42 +510,84 @@ function tlRowHTML(r, idx){
     const pct=(h/24*100).toFixed(1);
     markerHTML+=`<div style="position:absolute;top:0;bottom:0;left:${pct}%;width:0.5px;background:var(--border)"></div>`;
   }
-  if(r.stool){
-    const estH = 11;
+
+  // 排便マーカー（Bristol数値 or 簡易入力ラベルを表示）
+  if(hasStool){
+    // 記録された時刻があればそれを使用、なければ 11時にフォールバック
+    const estH = timeToDecimalHours(r.timeSlot) ?? 11;
     const pct=(estH/24*100).toFixed(1);
-    // 色統一：全てブリストル色、怒責のみオレンジ枠
     const bc='#185FA5';
     const bord=r.strain?'#BA7517':'#185FA5';
-    // 肩文字：P=痛み、B=出血（両方あればPB）
     const shoulder=[(r.pain?'P':''),(r.blood?'B':'')].filter(Boolean).join('');
+    // おむつ中ドット
+    const omutsuDot = r.isOmutsu
+      ? `<span style="position:absolute;top:-5px;left:-6px;font-size:8px;line-height:1;">🧷</span>`
+      : '';
     markerHTML+=`<div style="position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);z-index:1">
       <div style="position:relative;width:20px;height:20px;border-radius:50%;background:#E6F1FB;border:1.5px solid ${bord};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${bc}">
-        ${r.stoolLabel || r.stool}
+        ${r.stoolLabel || r.stool || '?'}
         ${shoulder?`<span style="position:absolute;top:-5px;right:-5px;font-size:7px;font-weight:700;color:#A32D2D;line-height:1">${shoulder}</span>`:''}
         ${r.amt?`<span style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:7px;color:var(--text3);line-height:1">${r.amt}</span>`:''}
+        ${omutsuDot}
       </div>
     </div>`;
   }
-  // 坐薬・浣腸マーカー
+
+  // 坐薬・浣腸マーカー（実時刻使用、なければ 20時にフォールバック）
   if(r.supp){
-    const suppH = r.suppTime || 20;
+    const suppH = r.suppTime ?? 20;
     const suppPct=(suppH/24*100).toFixed(1);
-    const suppBg=r.supp==='坐'?'#EEEDFE':'#FAEEDA';
-    const suppColor=r.supp==='坐'?'#3C3489':'#854F0B';
-    markerHTML+=`<div style="position:absolute;left:${suppPct}%;top:50%;transform:translate(-50%,-50%);z-index:1">
+    const isKan  = r.supp === '浣' || r.disimType === 'kan';
+    const suppBg = isKan ? '#FAEEDA' : '#EEEDFE';
+    const suppColor = isKan ? '#854F0B' : '#3C3489';
+    // 量ラベル
+    const qtyLabel = isKan
+      ? (r.disimMl    ? `${r.disimMl}mL` : '')
+      : (r.disimCount ? `${r.disimCount}個` : '');
+    markerHTML+=`<div style="position:absolute;left:${suppPct}%;top:50%;transform:translate(-50%,-50%);z-index:1;display:flex;flex-direction:column;align-items:center;gap:1px;">
       <div style="width:18px;height:18px;border-radius:3px;background:${suppBg};border:1.5px solid ${suppColor};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${suppColor}">${r.supp}</div>
+      ${qtyLabel ? `<span style="font-size:7px;color:${suppColor};line-height:1;white-space:nowrap;">${qtyLabel}</span>` : ''}
     </div>`;
   }
+
+  // ── v15 記録タイプ補足マーカー ──
+  // 我慢（withholding）→ ⏸ 左端
+  if(r.withholding){
+    markerHTML+=`<div style="position:absolute;left:1%;top:50%;transform:translateY(-50%);font-size:10px;color:#BA7517;line-height:1;" title="我慢">⏸</div>`;
+  }
+  // トイレ行ったが出なかった
+  if(r.isToiletNoStool){
+    markerHTML+=`<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:3px;border:1.5px solid #888780;background:#f5f5f2;display:flex;align-items:center;justify-content:center;font-size:9px;color:#5f5e5a;" title="トイレ行ったが排便なし">□</div>`;
+  }
+  // おむつ排便なし
+  if(r.isOmutsuNoStool){
+    markerHTML+=`<div style="position:absolute;right:2%;top:50%;transform:translateY(-50%);font-size:11px;line-height:1;" title="おむつ排便なし">🧷</div>`;
+  }
+
   if(isVisit) markerHTML+=`<div style="position:absolute;left:2px;top:2px;font-size:7px;background:var(--purple-light);color:var(--purple);padding:1px 3px;border-radius:2px">受診</div>`;
   if(r.skip)  markerHTML+=`<div style="position:absolute;right:2px;top:50%;transform:translateY(-50%);font-size:8px;background:var(--red-light);color:var(--red);padding:1px 4px;border-radius:2px">スキップ</div>`;
+
+  // ── 補足行（toiletReason / freeNote）──
+  // 行かなかった理由や自由メモがある場合は行の下に小文字で表示
+  const noteItems = [];
+  if(r.toiletReason && r.toiletReason !== '不明'){
+    const isGaman = r.toiletReason === '便意があったが我慢した';
+    noteItems.push(`<span style="color:${isGaman?'#854F0B':'#6B6860'};">${isGaman?'⏸ 我慢':'行かなかった：'+r.toiletReason}</span>`);
+  }
+  if(r.freeNote){
+    noteItems.push(`<span style="color:#9C9A94;">${r.freeNote}</span>`);
+  }
+  const noteRow = noteItems.length
+    ? `<tr><td></td><td></td><td style="padding:1px 6px 3px;font-size:9px;line-height:1.4;">${noteItems.join('　')}</td></tr>`
+    : '';
 
   const srcHTML = '';
 
   return `<tr>
-    <td class="tl-date" style="background:${isVisit?'var(--purple-light)':rowBg};color:${isWE?'var(--red)':'var(--text)'}">${dateLabel}${srcHTML}</td>
+    <td class="tl-date" style="background:${isVisit?'var(--purple-light)':rowBg};color:${isWE?'var(--red)':'var(--text)'}">${dateLabel}${r.isOmutsu?'<br><span style="font-size:8px;color:#BA7517;">🧷</span>':''}${srcHTML}</td>
     <td class="tl-med" style="background:${rowBg}">${medHTML}</td>
     <td class="tl-tl" style="background:${rowBg}"><div class="tl-inner">${markerHTML}</div></td>
-  </tr>`;
+  </tr>${noteRow}`;
 }
 
 // ── レンダリング ──────────────────────────────────────────────
@@ -1436,37 +1488,80 @@ async function loadPatientRecords(patientId) {
     // 日付ごとに1行にまとめる
     const bowelRows = Object.keys(byDate).sort((a,b) => b.localeCompare(a)).map(date => {
       const dayRecs  = byDate[date];
-      const bowelRec = dayRecs.find(r => r.record_type === 'bowel' || (!r.is_no_stool && r.bristol_scale));
-      const absentRec= dayRecs.find(r => r.is_no_stool);
-      const suppRec  = dayRecs.find(r => r.used_suppository);
-      const medRec   = dayRecs.find(r => r.med_morning || r.med_noon || r.med_evening);
+      const meta     = (r) => r.metadata || {};
+
+      // 排便ありレコード（omutsuフラグ含む）
+      const bowelRec = dayRecs.find((r) =>
+        r.record_type === 'bowel' ||
+        r.record_type === 'disim' ||
+        (!r.is_no_stool && (r.bristol_scale || r.simplified_type || r.stool_label)));
+      const absentRec= dayRecs.find((r) => r.is_no_stool);
+      const suppRec  = dayRecs.find((r) => r.used_suppository);
+      const medRec   = dayRecs.find((r) => r.med_morning || r.med_noon || r.med_evening);
       const primary  = bowelRec || absentRec || suppRec || medRec || dayRecs[0];
 
       // 服薬は全レコードから統合（同日に複数記録がある場合を考慮）
-      const medAm   = compFromSlot(dayRecs.map(r=>r.med_morning).find(v=>v) || null);
-      const medNoon = compFromSlot(dayRecs.map(r=>r.med_noon).find(v=>v)    || null);
-      const medPm   = compFromSlot(dayRecs.map(r=>r.med_evening).find(v=>v) || null);
+      const medAm   = compFromSlot(dayRecs.map((r)=>r.med_morning).find((v)=>v) || null);
+      const medNoon = compFromSlot(dayRecs.map((r)=>r.med_noon).find((v)=>v)    || null);
+      const medPm   = compFromSlot(dayRecs.map((r)=>r.med_evening).find((v)=>v) || null);
 
-      // stool_label（"4→5"等の連続記録）を優先、なければbristol_scaleを文字列に
-      const stoolLabel = bowelRec?.stool_label || (bowelRec?.bristol_scale ? String(bowelRec.bristol_scale) : null);
+      // stool_label（"4→5"等の連続記録）を優先、metadataのfull labelも考慮
+      const stoolLabel =
+        meta(bowelRec).stool_label_full ||
+        bowelRec?.stool_label ||
+        (bowelRec?.bristol_scale ? String(bowelRec.bristol_scale) : null);
+
+      // ── v15 metadata フィールドの抽出 ──
+      const subTypes   = dayRecs.map((r) => meta(r).sub_type).filter(Boolean);
+      const isOmutsu   = dayRecs.some((r) => meta(r).omutsu === true);
+      const withholding= dayRecs.some((r) => r.withholding || meta(r).sub_type === 'no_toilet' && meta(r).reason === '便意があったが我慢した');
+      const isToiletNoStool = subTypes.includes('toilet_no_stool');
+      const isOmutsuNoStool = subTypes.includes('omutsu_no_stool');
+      const toiletReason    = dayRecs.map((r) => meta(r).reason).find(Boolean) || null;
+      const freeNote        = dayRecs.map((r) => meta(r).note).find(Boolean) || null;
+
+      // 坐薬個数・浣腸mL（suppRecのmetadataから）
+      const disimCount = suppRec ? (meta(suppRec).disim_count ?? null) : null;
+      const disimMl    = suppRec ? (meta(suppRec).disim_ml    ?? null) : null;
+      const disimType  = suppRec ? (meta(suppRec).disim_type  ?? null) : null;
+
+      // 坐薬マーカー表示用ラベル: 種類＋量を組み立て
+      let suppLabel = suppRec ? (disimType === 'kan' ? '浣' : '坐') : null;
+
+      // 排便時刻・坐薬時刻を小数時間に変換（記録がなければ null）
+      const timeSlot = bowelRec?.defec_time?.slice(0,5) || null;
+      const suppTimeRaw = suppRec?.defec_time?.slice(0,5) || null;
+      const suppTime = suppTimeRaw
+        ? (() => { const p=suppTimeRaw.split(':'); return parseInt(p[0])+(parseInt(p[1])||0)/60; })()
+        : null;
 
       return {
-        date:       date,
-        stool:      bowelRec?.bristol_scale || null, // 数値（統計用）
-        stoolLabel: stoolLabel,                      // 表示用（"4→5"等）
-        strain:     dayRecs.some(r => r.symptom_strain),
-        pain:       dayRecs.some(r => r.symptom_pain),
-        blood:      dayRecs.some(r => r.symptom_blood),
+        date,
+        stool:      bowelRec?.bristol_scale || null,
+        stoolLabel,
+        hasBowel:   !!bowelRec,   // 簡易入力含む「排便あり」フラグ
+        timeSlot,                  // 排便時刻 "HH:MM"（実時刻マーカー用）
+        strain:     dayRecs.some((r) => r.symptom_strain),
+        pain:       dayRecs.some((r) => r.symptom_pain),
+        blood:      dayRecs.some((r) => r.symptom_blood),
         amt:        bowelRec?.amount || null,
-        supp:       suppRec ? (suppRec.used_suppository ? '坐' : null) : null,
-        suppTime:   null,
+        supp:       suppLabel,
+        suppTime,                  // 坐薬使用時刻（小数時間、null なら fallback 20h）
+        disimCount, disimMl, disimType,
         medAm,
         medNoon,
         medPm,
         note:       absentRec ? 'なし' : null,
         skip:       !!(absentRec && medAm === 'skip'),
-        picoDrops:  dayRecs.find(r=>r.pico_drops)?.pico_drops || null,
-        src:        'patient',
+        picoDrops:  dayRecs.find((r)=>r.pico_drops)?.pico_drops || null,
+        // ── v15 ──
+        isOmutsu,
+        withholding,
+        isToiletNoStool,
+        isOmutsuNoStool,
+        toiletReason,
+        freeNote,
+        src: 'patient',
       };
     });
 
@@ -1477,11 +1572,13 @@ async function loadPatientRecords(patientId) {
     // ── 統計を実データから計算して上書き ──
     function calcPeriodStats(rows) {
       const totalDays  = rows.length;
-      const bowelRows2 = rows.filter(r => r.stool !== null);
-      const bowelDays  = bowelRows2.length;
-      const noStoolDays= rows.filter(r => r.note === 'なし' || r.stool === null).length;
+      // 排便日数：Bristol数値がなくても hasBowel（簡易入力含む）があれば排便あり
+      const bowelDays  = rows.filter(r => r.hasBowel || r.stool !== null).length;
+      const noStoolDays= rows.filter(r => !r.hasBowel && r.stool === null).length;
       const strainDays = rows.filter(r => r.strain).length;
-      const stools     = bowelRows2.map(r => r.stool).filter(Boolean);
+      // Bristol平均・最頻値は数値がある行のみで計算
+      const numericRows = rows.filter(r => r.stool !== null);
+      const stools      = numericRows.map(r => r.stool).filter(Boolean);
       const bristolAvg = stools.length
         ? parseFloat((stools.reduce((a,b)=>a+b,0)/stools.length).toFixed(1))
         : 0;
