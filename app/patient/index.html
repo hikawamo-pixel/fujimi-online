@@ -303,7 +303,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:380px;width:100%;text-align:center;">
     <div style="font-size:22px;margin-bottom:10px;">📋</div>
     <div style="font-size:16px;font-weight:500;color:#1a1a18;margin-bottom:8px;">記録をつける方を選んでください</div>
-    <div style="font-size:12px;color:#888780;margin-bottom:24px;">この設定はあとから変更できます</div>
+    <div style="font-size:12px;color:#888780;margin-bottom:24px;">ログアウトまたは記録対象の切り替え時に、選び直せます</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <button onclick="selectProfile('adult_self')"
         style="padding:16px;border-radius:12px;border:1.5px solid #1D9E75;background:#E1F5EE;cursor:pointer;font-size:14px;font-weight:500;color:#085041;text-align:left;">
@@ -844,6 +844,7 @@ async function switchPatient(){
   localStorage.removeItem('patientId');
   localStorage.removeItem('bj14');
   localStorage.removeItem('omutsuDefault');
+  localStorage.removeItem('profileType');
   location.href = '/';
 }
 
@@ -857,6 +858,13 @@ function selectProfile(type){
   // body クラスを更新
   document.body.classList.remove('profile-adult','profile-child');
   document.body.classList.add(type === 'adult_self' ? 'profile-adult' : 'profile-child');
+  // adult_self ではおむつ機能を使わないので状態をクリア
+  if(type === 'adult_self'){
+    S.isOmutsu = false;
+    localStorage.removeItem('omutsuDefault');
+    const chk=document.getElementById('omutsu-chk');
+    if(chk) chk.checked = false;
+  }
   // 患者ラベルを更新
   const _pid = localStorage.getItem('patientId');
   const _pidEl = document.getElementById('patient-id-display');
@@ -978,10 +986,15 @@ function init(){
     }
   }
 
-  // おむつ中デフォルト復元
-  if(localStorage.getItem('omutsuDefault')==='true'){
+  // おむつ中デフォルト復元（child_guardian のみ。adult_self では使わない）
+  if(PROFILE_TYPE === 'child_guardian' && localStorage.getItem('omutsuDefault') === 'true'){
     const chk=document.getElementById('omutsu-chk');
     if(chk){chk.checked=true;togOmutsu();}
+  } else if(PROFILE_TYPE === 'adult_self'){
+    S.isOmutsu = false;
+    localStorage.removeItem('omutsuDefault');
+    const chk=document.getElementById('omutsu-chk');
+    if(chk) chk.checked = false;
   }
 
   updateAvatar();
