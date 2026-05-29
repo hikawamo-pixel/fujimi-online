@@ -2399,7 +2399,17 @@ async function loadPrescription(){
     if(rx.dose_evening!=null)doseParts.push(`夕 ${rx.dose_evening}`);
     const doseStr=doseParts.join('　')+(rx.dose_unit?` ${rx.dose_unit}`:'');
     content.textContent=`${rx.drug_name}　${doseStr}`;
-    sub.textContent=rx.notes||'';
+    // notes は JSON 構造（{freq, note, raw_dose}）または平文（旧形式）を許容
+    let freqText='', noteText='';
+    try{
+      const meta=JSON.parse(rx.notes||'{}');
+      freqText=meta.freq||'';
+      noteText=meta.note||'';
+    }catch{
+      // 旧形式（平文）はそのまま表示
+      noteText=rx.notes||'';
+    }
+    sub.textContent=[freqText, noteText].filter(Boolean).join('　');
     bar.style.display='block';
   }catch(e){console.error('loadPrescription error:',e);}
 }
