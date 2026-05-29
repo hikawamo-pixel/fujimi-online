@@ -1488,7 +1488,7 @@ async function loadPatientRecords(patientId) {
     // 日付ごとに1行にまとめる
     const bowelRows = Object.keys(byDate).sort((a,b) => b.localeCompare(a)).map(date => {
       const dayRecs  = byDate[date];
-      const meta     = (r) => r.metadata || {};
+      const meta     = (r) => r?.metadata || {};
 
       // 排便ありレコード（omutsuフラグ含む）
       const bowelRec = dayRecs.find((r) =>
@@ -1505,7 +1505,7 @@ async function loadPatientRecords(patientId) {
       const medNoon = compFromSlot(dayRecs.map((r)=>r.med_noon).find((v)=>v)    || null);
       const medPm   = compFromSlot(dayRecs.map((r)=>r.med_evening).find((v)=>v) || null);
 
-      // stool_label（"4→5"等の連続記録）を優先、metadataのfull labelも考慮
+      // stool_label：metadata の full label を優先、なければ直カラムから
       const stoolLabel =
         meta(bowelRec).stool_label_full ||
         bowelRec?.stool_label ||
