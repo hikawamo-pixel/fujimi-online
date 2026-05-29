@@ -171,9 +171,18 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 /* ===== 内服記録タブ ===== */
 .med-block{background:#f5f5f2;border-radius:10px;padding:12px 14px;margin-bottom:10px;}
 .med-block-title{font-size:12px;font-weight:500;color:#1a1a18;margin-bottom:10px;}
-.comp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.comp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.comp-missed-row{margin-top:5px;}
 .comp-btn{padding:7px 2px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:11px;color:#5f5e5a;text-align:center;line-height:1.3;transition:all .15s;}
 .comp-btn.on{background:#E1F5EE;border-color:#1D9E75;color:#085041;font-weight:500;}
+.comp-btn.on-missed{background:#FCEBEB;border-color:#A32D2D;color:#501313;font-weight:500;}
+/* ステートアイコン（選択時のみ表示） */
+.stool-btn.on-yes::before{content:"✅ ";}
+.stool-btn.on-no::before{content:"⬜ ";}
+/* おむつ中の記録はカード背景を薄橙に */
+.omutsu-day-card{background:#FFF8EF !important;}
+/* 履歴タブ内 カード/TL切り替えをsticky */
+.hist-sticky-header{position:sticky;top:var(--sticky-top-h,130px);z-index:9;background:#f5f5f2;padding:8px 12px 6px;border-bottom:0.5px solid rgba(0,0,0,0.12);}
 .pico-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:0.5px solid rgba(0,0,0,0.12);}
 .pico-label{font-size:12px;color:#5f5e5a;flex:1;}
 .pico-input{display:none;align-items:center;gap:6px;margin-top:8px;}
@@ -365,8 +374,8 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <div class="stool-row" id="stool-row" style="display:none;">
     <div class="stool-lbl">排便はありましたか？</div>
     <div class="stool-btns">
-      <button class="stool-btn" id="btn-yes-stool" onclick="setStool(true)">✅ 排便あり</button>
-      <button class="stool-btn" id="btn-no-stool" onclick="setStool(false)">⬜ 排便なし</button>
+      <button class="stool-btn" id="btn-yes-stool" onclick="setStool(true)">排便あり</button>
+      <button class="stool-btn" id="btn-no-stool" onclick="setStool(false)">排便なし</button>
     </div>
   </div>
 
@@ -638,7 +647,15 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   </div>
   <div class="sec">
     <div class="sec-lbl">内服時刻</div>
-    <div class="fld"><select id="m-time" style="width:100%;padding:8px 10px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;"></select></div>
+    <div class="timebar-wrap">
+      <div class="timebar-track" id="med-time-track" ontouchstart="timeBarTouch(event,'med')" ontouchmove="timeBarTouch(event,'med')" onmousedown="timeBarMouse(event,'med')">
+        <div class="timebar-fill" id="med-time-fill" style="width:0%"></div>
+        <div class="timebar-thumb" id="med-time-thumb" style="left:0%"></div>
+        <div class="timebar-label" id="med-time-label">--:--</div>
+      </div>
+      <div class="timebar-ticks"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span></div>
+    </div>
+    <input type="hidden" id="med-time" value="">
   </div>
   <div class="sec">
     <div class="med-block">
@@ -648,6 +665,8 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         <div class="comp-btn" onclick="pickComp(this,'2/3以上')">2/3以上</div>
         <div class="comp-btn" onclick="pickComp(this,'1/2程度')">1/2程度</div>
         <div class="comp-btn" onclick="pickComp(this,'1/3以下')">1/3以下</div>
+        <div class="comp-btn" onclick="pickComp(this,'飲めなかった')">飲めなかった</div>
+        <div class="comp-btn" onclick="pickComp(this,'忘れた')">忘れた</div>
       </div>
       <div class="pico-row">
         <span class="pico-label">ピコスルファートも使用中</span>
@@ -692,10 +711,12 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
     <div id="share-status" style="margin-top:8px;font-size:12px;display:none;"></div>
   </div>
   <div class="hist-wrap">
+  <div class="hist-sticky-header">
     <div class="hist-view-toggle">
       <div class="hvt-btn on" id="hvt-card" onclick="switchHistView('card')">カード形式</div>
       <div class="hvt-btn" id="hvt-tl" onclick="switchHistView('tl')">タイムライン形式</div>
     </div>
+  </div>
     <div id="hist-card"></div>
     <div id="hist-tl" style="display:none"></div>
   </div>
@@ -801,21 +822,24 @@ function init(){
   });
   S.recDate=toDS(now);
 
-  // 内服時刻プルダウン
-  let nearest=null,nearestDiff=Infinity;
-  const curMin=now.getHours()*60+now.getMinutes();
-  const mSel=document.getElementById('m-time');
-  for(let h=0;h<24;h++) for(let m=0;m<60;m+=30){
-    const lbl=`${String(h).padStart(2,'0')}:${m===0?'00':'30'}`;
-    const opt=document.createElement('option');opt.value=lbl;opt.textContent=lbl;mSel.appendChild(opt);
-    const diff=Math.abs(h*60+m-curMin);if(diff<nearestDiff){nearestDiff=diff;nearest=lbl;}
-  }
-  if(nearest)mSel.value=nearest;
+  // sticky-top の高さをCSS変数に設定（履歴タブのstickyトグル用）
+  requestAnimationFrame(()=>{
+    const h=document.querySelector('.sticky-top')?.offsetHeight||130;
+    document.documentElement.style.setProperty('--sticky-top-h', h+'px');
+  });
 
-  // タイムバー初期化
+  // タイムバー初期化（排便・坐薬・内服）
+  const curMin=now.getHours()*60+now.getMinutes();
   const snapped=Math.round(curMin/30)*30;
   setTimeBar('stool',snapped);
   setTimeBar('tns',snapped);
+  setTimeBar('med',snapped);
+
+  // おむつ中デフォルト復元
+  if(localStorage.getItem('omutsuDefault')==='true'){
+    const chk=document.getElementById('omutsu-chk');
+    if(chk){chk.checked=true;togOmutsu();}
+  }
 
   updateAvatar();
 }
@@ -869,6 +893,7 @@ function timeBarTouch(e,prefix){
    ============================================================ */
 function togOmutsu(){
   S.isOmutsu=document.getElementById('omutsu-chk').checked;
+  localStorage.setItem('omutsuDefault', S.isOmutsu ? 'true' : 'false');
   document.getElementById('omutsu-notice').classList.toggle('show',S.isOmutsu);
   const wentRow=document.getElementById('went-row');
   if(S.isOmutsu){
@@ -1093,8 +1118,9 @@ function pickRes(i,el){
 function togSym(k,el,cls){S[k]=!S[k];el.classList.toggle(cls,S[k]);}
 function pickComp(el,v){
   S.comp=v;
-  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
+  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on','on-missed'));
+  const isMissed=(v==='飲めなかった'||v==='忘れた');
+  el.classList.add(isMissed?'on-missed':'on');
 }
 function togPico(){
   S.pico=!S.pico;
@@ -1215,17 +1241,19 @@ function saveMed(){
   const em={};
   if(S.emTypes.mobi)em.mobi={time:document.getElementById('em2-mobi-time').value};
   if(S.emTypes.other)em.other={text:document.getElementById('em2-other-text').value,time:document.getElementById('em2-other-time').value};
+  const isMissed=S.comp==='飲めなかった'||S.comp==='忘れた';
   const r={
     id:Date.now(), type:'med',
     date:S.recDate,
     clientId:crypto.randomUUID(),
-    timeSlot:document.getElementById('m-time').value,
+    timeSlot:document.getElementById('med-time').value,
     comp:S.comp, pico:S.pico,
     picoDrops:S.pico?document.getElementById('pico-drops').value:'',
     em:Object.keys(em).length?em:null,
     recordedAt:new Date().toISOString(),
     _synced:false,
   };
+  if(isMissed) r.missedReason=S.comp;
   S.recs.unshift(r);
   persist();
   flashBtn('med-btn','保存しました ✓');
@@ -1458,7 +1486,7 @@ function resetToiletForm(fullReset=true){
 
 function resetMed(){
   S.comp=null;S.pico=false;S.emTypes={};
-  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on','on-missed'));
   document.getElementById('sw-pico').classList.remove('on');
   document.getElementById('pico-input').classList.remove('show');
   document.getElementById('pico-drops').value='';
@@ -1645,9 +1673,10 @@ function renderCard(){
     const blank='<div style="font-size:11px;color:#888780;">—</div>';
     const bowelCount=bowelRecs.length;
 
-    return `<div class="diary-spread">
+    const hasOmutsu=all.some(r=>r.omutsu||r.subType==='omutsu_no_stool');
+    return `<div class="diary-spread${hasOmutsu?' omutsu-day-card':''}">
       <div class="spread-hdr">
-        <span class="spread-date">${ds}</span>
+        <span class="spread-date">${ds}${hasOmutsu?' <span style="font-size:10px;color:#BA7517;margin-left:4px;">🧷おむつ中</span>':''}</span>
         <span class="spread-count">排便 ${bowelCount}回　内服 ${meds.length}回${absents.length?'　記録'+absents.length+'件':''}</span>
       </div>
       ${absents.map(absentHTML).join('')}
@@ -1719,9 +1748,11 @@ function renderTL(){
     const medPm=meds.find(m=>m.timeSlot&&parseInt(m.timeSlot)>=18)||(!medAm&&!medNoon?meds[0]:null);
 
     function slotHTML(med){
-      if(!med)return '<span class="med-comp none"></span>';
+      if(!med)return '<div class="med-slot-empty"></div>';
       const cs=compSym(med.comp);
-      let h=`<span class="med-comp ${cs.c}">${cs.s}</span>`;
+      // comp未選択でも記録があれば「−」で示す
+      const sym=cs.s||'−';
+      let h=`<span class="med-comp ${cs.c||'partial'}" style="${cs.c?'':'color:#b4b2a9;'}">${sym}</span>`;
       if(med.pico&&med.picoDrops)h+=`<span class="pico-txt">ピコ${med.picoDrops}滴</span>`;
       else if(med.pico)h+=`<span class="pico-txt">ピコ○</span>`;
       return h;
@@ -1842,6 +1873,8 @@ function persist(){
 /* v15新フィールドをまとめる metadata ビルダー */
 function buildMetadata(r){
   const m={};
+  if(r.comp)                 m.comp=r.comp;
+  if(r.missedReason)         m.missed_reason=r.missedReason;
   if(r.omutsu)               m.omutsu=true;
   if(r.subType)              m.sub_type=r.subType;
   if(r.reason)               m.reason=r.reason;
@@ -1888,7 +1921,7 @@ function recToBowelRow(r){
     return `${dateStr}T${timeStr}:00+09:00`;
   })();
 
-  return {
+  const row = {
     patient_key:     PATIENT_KEY,
     client_id:       r.clientId,
     recorded_at:     recordedAt,
@@ -1908,11 +1941,31 @@ function recToBowelRow(r){
     med_morning:     null,
     med_noon:        null,
     med_evening:     null,
-    pico_drops:      null,
+    pico_drops:      r.type==='med'&&r.pico&&r.picoDrops?parseInt(r.picoDrops):null,
     is_deleted:      false,
     deleted_at:      null,
     metadata:        buildMetadata(r),
   };
+  // med レコードはコンプライアンスを時刻スロットに対応するカラムに保存
+  if(r.type==='med'){
+    const medVal=(()=>{
+      const c=r.comp||'';
+      if(c==='飲めなかった'||c==='忘れた')return 'missed';
+      if(c)return 'taken';
+      return null;
+    })();
+    const slot=(()=>{
+      const h=parseInt(r.timeSlot||'0');
+      if(h<12)return 'morning';
+      if(h<17)return 'noon';
+      return 'evening';
+    })();
+    row.med_morning = slot==='morning'?medVal:null;
+    row.med_noon    = slot==='noon'?medVal:null;
+    row.med_evening = slot==='evening'?medVal:null;
+    row.defec_time  = r.timeSlot||null;
+  }
+  return row;
 }
 
 /* ============================================================
@@ -1939,8 +1992,23 @@ function recToRow(r,now){
     return `${dateStr}T${timeStr}:00+09:00`;
   })();
 
+  // med レコードの朝昼晩は r.timeSlot から決定（r.comp は '全量' 等の文字列で朝昼夕は含まない）
+  const medVal=(()=>{
+    const c=r.comp||'';
+    if(c==='飲めなかった'||c==='忘れた')return 'missed';
+    if(c)return 'taken';
+    return null;
+  })();
+  const medSlot=(()=>{
+    const h=parseInt(r.timeSlot||'0');
+    if(h<12)return 'morning';
+    if(h<17)return 'noon';
+    return 'evening';
+  })();
+
   return {
     patient_key:     PATIENT_KEY,
+    client_id:       r.clientId||null,
     recorded_at:     sharedRecordedAt,
     source:          'patient',
     record_type:     r.type==='med'?'med':r.type==='gu'?'gu':r.type==='absent'?'absent':isDisim?'disim':'bowel',
@@ -1958,9 +2026,9 @@ function recToRow(r,now){
     withholding:     r.type==='gu'||(r.subType==='no_toilet'&&r.reason==='便意があったが我慢した')||false,
     share_status:    'shared',
     is_no_stool:     isNoStool,
-    med_morning:     r.type==='med'?(r.comp?.includes('朝')?'taken':'missed'):null,
-    med_noon:        r.type==='med'?(r.comp?.includes('昼')?'taken':'missed'):null,
-    med_evening:     r.type==='med'?(r.comp?.includes('夕')?'taken':'missed'):null,
+    med_morning:     r.type==='med'&&medSlot==='morning'?medVal:null,
+    med_noon:        r.type==='med'&&medSlot==='noon'?medVal:null,
+    med_evening:     r.type==='med'&&medSlot==='evening'?medVal:null,
     pico_drops:      r.pico&&r.picoDrops?parseInt(r.picoDrops):null,
     metadata:        buildMetadata(r),
   };
@@ -2094,11 +2162,12 @@ function serverRowToLocal(row){
     strain:           row.symptom_strain||false,
     pain:             row.symptom_pain||false,
     blood:            row.symptom_blood||false,
-    comp:             [
+    comp:             meta.comp || [
       row.med_morning==='taken'?'朝':'',
       row.med_noon==='taken'?'昼':'',
       row.med_evening==='taken'?'夕':'',
     ].filter(Boolean).join('')||null,
+    missedReason:     meta.missed_reason||null,
     pico:             row.pico_drops!=null,
     picoDrops:        row.pico_drops,
     recordedAt:       row.recorded_at,
