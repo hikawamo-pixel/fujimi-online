@@ -7,9 +7,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f5f2;font-family:'Hiragino Sans','Noto Sans JP',sans-serif;}
-.app{max-width:480px;margin:0 auto;padding-bottom:80px;}
+.app{max-width:480px;margin:0 auto;padding-bottom:80px;zoom:1.15;}
 
 /* ===== ヘッダー + ナビバー（sticky wrapper） ===== */
+/* ===== profileType 出し分け =====
+   body に .profile-adult または .profile-child を付与して切り替える */
+.profile-adult .child-only { display:none !important; }
+.profile-child .adult-only { display:none !important; }
+
 .sticky-top{position:sticky;top:0;z-index:20;}
 .hdr{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.12);padding:13px 18px 10px;}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
@@ -316,6 +321,21 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   </div>
 </div>
 
+<!-- 患者切り替えバー（複数患者対応）-->
+<div id="patient-switch-bar" style="background:#f0ede6;border-bottom:0.5px solid rgba(0,0,0,0.12);padding:6px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+  <span style="font-size:11px;color:#5f5e5a;">
+    記録対象：<span id="patient-id-display" style="font-weight:500;font-family:monospace;color:#1a1a18;">—</span>
+  </span>
+  <!-- child_guardian 用ボタン -->
+  <button class="child-only" onclick="switchPatient()" style="flex-shrink:0;padding:4px 10px;border-radius:6px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:10px;color:#5f5e5a;white-space:nowrap;">
+    別のお子さんの記録に切り替える
+  </button>
+  <!-- adult_self 用ボタン -->
+  <button class="adult-only" onclick="switchPatient()" style="flex-shrink:0;padding:4px 10px;border-radius:6px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:10px;color:#5f5e5a;white-space:nowrap;">
+    ログアウト / 別の診察券番号でログイン
+  </button>
+</div>
+
 <!-- 編集バナー -->
 <div class="edit-banner" id="edit-banner">
   <span>📝 記録を編集中</span>
@@ -331,14 +351,14 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <div class="rec-date-row">
     <select id="rec-date-sel"></select>
     <span>の記録</span>
-    <label class="omutsu-chk-wrap" style="margin-left:auto;">
+    <label class="omutsu-chk-wrap child-only" style="margin-left:auto;">
       <input type="checkbox" id="omutsu-chk" onchange="togOmutsu()">
       <span>🐣 おむつ中</span>
     </label>
   </div>
 
   <!-- おむつ中のお知らせ -->
-  <div class="omutsu-notice" id="omutsu-notice">
+  <div class="omutsu-notice child-only" id="omutsu-notice">
     おむつ中モードです。トイレへの移動はなく、排便の有無から記録できます。
   </div>
 
@@ -436,9 +456,9 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
     <div class="sec">
       <div class="input-mode-tabs">
         <div class="imt-btn on" id="imt-bristol" onclick="setInputMode('bristol')">Bristol scale</div>
-        <div class="imt-btn" id="imt-simple" onclick="setInputMode('simple')">簡易入力</div>
+        <div class="imt-btn child-only" id="imt-simple" onclick="setInputMode('simple')">簡易入力</div>
       </div>
-      <div id="simple-hint" style="display:none;margin-bottom:8px;padding:6px 10px;background:#EEF4FB;border-radius:8px;font-size:11px;color:#185FA5;line-height:1.55;">
+      <div id="simple-hint" class="child-only" style="display:none;margin-bottom:8px;padding:6px 10px;background:#EEF4FB;border-radius:8px;font-size:11px;color:#185FA5;line-height:1.55;">
         💡 保育園など外出先での排便でスケールが分からない場合にご使用ください
       </div>
       <div id="bristol-panel">
@@ -748,6 +768,69 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 
 <script>
 /* ============================================================
+   患者切り替え（別のお子さんへ）
+   bj14・patientKey・patientId をクリアしてログイン画面へ戻す
+   同期済みの記録は再ログイン後に loadFromSupabase() で復元される
+   ============================================================ */
+async function switchPatient(){
+  // 未同期レコードを確認
+  let unsynced = [];
+  try {
+    const recs = JSON.parse(localStorage.getItem('bj14') || '[]');
+    unsynced = recs.filter(r => r && r._synced === false);
+  } catch(e) {}
+
+  if(unsynced.length > 0){
+    // まず自動で同期を試みる
+    const bar = document.getElementById('patient-switch-bar');
+    const origHTML = bar ? bar.innerHTML : '';
+    if(bar) bar.innerHTML = `<span style="font-size:11px;color:#BA7517;">🔄 ${unsynced.length}件の未同期記録を同期中…</span>`;
+    try { await syncToSupabase(); } catch(e) {}
+    if(bar) bar.innerHTML = origHTML;
+
+    // 同期後に再チェック
+    let stillUnsynced = [];
+    try {
+      const recs2 = JSON.parse(localStorage.getItem('bj14') || '[]');
+      stillUnsynced = recs2.filter(r => r && r._synced === false);
+    } catch(e) {}
+
+    if(stillUnsynced.length > 0){
+      // 同期失敗 → 切り替えを禁止（強制切り替えの選択肢は出さない）
+      alert(
+        `通信状況などの問題により、${stillUnsynced.length}件の記録がまだ同期できていません。\n\n` +
+        '記録が失われる可能性があるため、現在は別の記録対象に切り替えできません。\n' +
+        '通信状況が改善してから、もう一度お試しください。\n\n' +
+        '通信が回復した後、次に記録を保存するか、もう一度切り替えボタンを押すと同期を再試行します。'
+      );
+      return;
+    }
+  }
+
+  // 未同期 0件 → 通常の確認
+  const switchLabel = PROFILE_TYPE === 'adult_self'
+    ? '別の診察券番号でログインし直します。'
+    : '別のお子さんの記録に切り替えます。';
+  if(!confirm(
+    `${switchLabel}\n` +
+    'Supabaseに同期済みの記録は再ログイン後に自動で復元されます。\n\n' +
+    'よろしいですか？'
+  )) return;
+
+  localStorage.removeItem('patientKey');
+  localStorage.removeItem('patientId');
+  localStorage.removeItem('bj14');
+  localStorage.removeItem('omutsuDefault');
+  location.href = '/';
+}
+
+/* ============================================================
+   profileType：adult_self（成人本人）/ child_guardian（小児保護者）
+   将来的にはログイン時に選択・DB保存する想定。当面は localStorage で管理。
+   ============================================================ */
+const PROFILE_TYPE = localStorage.getItem('profileType') || 'child_guardian';
+
+/* ============================================================
    定数・データ
    ============================================================ */
 const bData=[
@@ -834,6 +917,20 @@ function init(){
   setTimeBar('stool',snapped);
   setTimeBar('tns',snapped);
   setTimeBar('med',snapped);
+
+  // profileType を body クラスに反映（CSS 出し分け）
+  document.body.classList.add(PROFILE_TYPE === 'adult_self' ? 'profile-adult' : 'profile-child');
+
+  // 患者切り替えバー：patientId と profileType に応じたラベルを表示
+  const _pid = localStorage.getItem('patientId');
+  const _pidEl = document.getElementById('patient-id-display');
+  if(_pidEl){
+    if(PROFILE_TYPE === 'adult_self'){
+      _pidEl.textContent = 'ご本人';
+    } else {
+      _pidEl.textContent = _pid ? `診察券番号 ${_pid}` : '（取得中）';
+    }
+  }
 
   // おむつ中デフォルト復元
   if(localStorage.getItem('omutsuDefault')==='true'){
@@ -1031,6 +1128,8 @@ function pickStoolDisimType(t,el){
    Bristol / 簡易入力
    ============================================================ */
 function setInputMode(mode){
+  // adult_self では簡易入力を使用しない
+  if(mode === 'simple' && PROFILE_TYPE === 'adult_self') mode = 'bristol';
   S.inputMode=mode;
   document.getElementById('imt-bristol').classList.toggle('on',mode==='bristol');
   document.getElementById('imt-simple').classList.toggle('on',mode==='simple');
