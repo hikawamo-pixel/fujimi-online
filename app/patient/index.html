@@ -225,6 +225,16 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .gu-bar{background:#FFF8EF;border-top:0.5px solid rgba(0,0,0,0.12);padding:6px 10px;}
 .gu-item{font-size:11px;color:#633806;padding:2px 0;display:flex;align-items:center;gap:6px;}
 
+/* おむつ */
+.omutsu-chk-wrap{display:flex;align-items:center;gap:7px;padding:5px 10px;background:#FFF8EF;border-radius:8px;border:0.5px solid #E8C97A;cursor:pointer;}
+.omutsu-chk-wrap input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:#BA7517;}
+.omutsu-chk-wrap span{font-size:12px;color:#633806;font-weight:500;}
+.omutsu-notice{display:none;margin:10px 18px 0;padding:9px 13px;background:#FFF8EF;border-radius:9px;border:0.5px solid #E8C97A;font-size:12px;color:#633806;line-height:1.6;}
+.omutsu-notice.show{display:block;}
+/* おむつ排便なし シンプルフォーム */
+.omutsu-no-stool-sec{display:none;padding:14px 18px;border-bottom:0.5px solid rgba(0,0,0,0.12);}
+.omutsu-no-stool-sec .info{font-size:13px;color:#5f5e5a;margin-bottom:12px;}
+
 /* タイムライン */
 .tl-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:10px;color:#5f5e5a;align-items:center;}
 .tl-legend-item{display:flex;align-items:center;gap:4px;}
@@ -308,18 +318,27 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
      ============================================================ -->
 <div id="tab-toilet">
 
-  <!-- 日付セレクタ -->
+  <!-- 日付セレクタ + おむつチェック -->
   <div class="rec-date-row">
     <select id="rec-date-sel"></select>
     <span>の記録</span>
+    <label class="omutsu-chk-wrap" style="margin-left:auto;">
+      <input type="checkbox" id="omutsu-chk" onchange="togOmutsu()">
+      <span>🐣 おむつ中</span>
+    </label>
   </div>
 
-  <!-- STEP1：行った／行かなかった -->
-  <div class="went-row">
+  <!-- おむつ中のお知らせ -->
+  <div class="omutsu-notice" id="omutsu-notice">
+    おむつ中モードです。トイレへの移動はなく、排便の有無から記録できます。
+  </div>
+
+  <!-- STEP1：行った／行かなかった（おむつ中は非表示） -->
+  <div class="went-row" id="went-row">
     <div class="went-lbl">トイレに行きましたか？</div>
     <div class="went-btns">
-      <button class="went-btn" id="btn-no-toilet" onclick="setWent(false)">🚫 行かなかった</button>
       <button class="went-btn" id="btn-went" onclick="setWent(true)">✅ 行った</button>
+      <button class="went-btn" id="btn-no-toilet" onclick="setWent(false)">🚫 行かなかった</button>
     </div>
   </div>
 
@@ -332,6 +351,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         <option value="便意を感じなかった">便意を感じなかった</option>
         <option value="行くのを忘れた">行くのを忘れた</option>
         <option value="便意があったが我慢した">便意があったが我慢した</option>
+        <option value="不明">不明</option>
       </select>
     </div>
     <div class="sec">
@@ -345,8 +365,8 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <div class="stool-row" id="stool-row" style="display:none;">
     <div class="stool-lbl">排便はありましたか？</div>
     <div class="stool-btns">
-      <button class="stool-btn" id="btn-no-stool" onclick="setStool(false)">⬜ 排便なし</button>
       <button class="stool-btn" id="btn-yes-stool" onclick="setStool(true)">✅ 排便あり</button>
+      <button class="stool-btn" id="btn-no-stool" onclick="setStool(false)">⬜ 排便なし</button>
     </div>
   </div>
 
@@ -391,6 +411,16 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
     <button class="save-btn" id="btn-save-tns" onclick="saveToiletNoStool()">記録を保存</button>
   </div>
 
+  <!-- おむつ中・排便なし（シンプル） -->
+  <div class="omutsu-no-stool-sec" id="omutsu-no-stool-sec">
+    <div class="info">おむつ内に排便はありませんでした。このまま保存できます。</div>
+    <div class="fld" style="margin-bottom:10px;">
+      <label>メモ（任意）</label>
+      <textarea id="omutsu-no-stool-note" placeholder="例：就寝中、外出中など" style="min-height:48px;"></textarea>
+    </div>
+    <button class="save-btn" id="btn-save-omutsu-no-stool" onclick="saveOmutsuNoStool()">記録を保存</button>
+  </div>
+
   <!-- 排便あり -->
   <div class="stool-sec" id="stool-sec">
     <!-- Bristol / 簡易 -->
@@ -398,6 +428,9 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
       <div class="input-mode-tabs">
         <div class="imt-btn on" id="imt-bristol" onclick="setInputMode('bristol')">Bristol scale</div>
         <div class="imt-btn" id="imt-simple" onclick="setInputMode('simple')">簡易入力</div>
+      </div>
+      <div id="simple-hint" style="display:none;margin-bottom:8px;padding:6px 10px;background:#EEF4FB;border-radius:8px;font-size:11px;color:#185FA5;line-height:1.55;">
+        💡 保育園など外出先での排便でスケールが分からない場合にご使用ください
       </div>
       <div id="bristol-panel">
         <div class="bscale" id="bg">
@@ -485,7 +518,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
     <div class="sec">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
         <div>
-          <div style="font-size:12px;color:#5f5e5a;margin-bottom:4px;">排便時刻</div>
+          <div id="stool-time-lbl" style="font-size:12px;color:#5f5e5a;margin-bottom:4px;">排便時刻</div>
           <div class="timebar-wrap">
             <div class="timebar-track" id="stool-time-track" ontouchstart="timeBarTouch(event,'stool')" ontouchmove="timeBarTouch(event,'stool')" onmousedown="timeBarMouse(event,'stool')">
               <div class="timebar-fill" id="stool-time-fill" style="width:0%"></div>
@@ -495,15 +528,17 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
             <div class="timebar-ticks"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span></div>
           </div>
           <input type="hidden" id="stool-time" value="">
-          <div style="font-size:11px;color:#5f5e5a;margin-top:9px;margin-bottom:4px;">食事との関係</div>
-          <div class="meal-row">
-            <div class="meal-btn" onclick="pickMeal('起床後食前',this)">起床後食前</div>
-            <div class="meal-btn" onclick="pickMeal('食事中・直後',this)">食事中・直後</div>
-            <div class="meal-btn" onclick="pickMeal('食事と関係なし',this)">食事と関係なし</div>
-            <div class="meal-btn" onclick="pickMeal('不明',this)">不明</div>
+          <div id="stool-meal-block" style="margin-top:9px;">
+            <div style="font-size:11px;color:#5f5e5a;margin-bottom:4px;">食事との関係</div>
+            <div class="meal-row">
+              <div class="meal-btn" onclick="pickMeal('起床後食前',this)">起床後食前</div>
+              <div class="meal-btn" onclick="pickMeal('食事中・直後',this)">食事中・直後</div>
+              <div class="meal-btn" onclick="pickMeal('食事と関係なし',this)">食事と関係なし</div>
+              <div class="meal-btn" onclick="pickMeal('不明',this)">不明</div>
+            </div>
           </div>
         </div>
-        <div>
+        <div id="stool-disim-block">
           <!-- 坐薬・浣腸の使用有無（排便あり） -->
           <div style="font-size:12px;color:#5f5e5a;margin-bottom:6px;">坐薬・浣腸の使用</div>
           <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px;">
@@ -573,6 +608,12 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         </div>
       </div>
       <button class="res-btn-small" id="res-unknown" onclick="pickRes(2,this)">不明</button>
+    </div>
+
+    <!-- おむつ中：メモ（任意） -->
+    <div id="stool-omutsu-note-block" style="display:none;" class="sec">
+      <div class="sec-lbl">メモ（任意）</div>
+      <textarea id="stool-omutsu-note" placeholder="例：就寝中、機嫌が悪くなった後など" style="width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:13px;background:#fff;min-height:56px;resize:vertical;"></textarea>
     </div>
 
     <button class="save-btn" id="btn-save-stool" onclick="saveStool()">排便記録を保存</button>
@@ -824,6 +865,56 @@ function timeBarTouch(e,prefix){
 }
 
 /* ============================================================
+   おむつ切り替え
+   ============================================================ */
+function togOmutsu(){
+  S.isOmutsu=document.getElementById('omutsu-chk').checked;
+  document.getElementById('omutsu-notice').classList.toggle('show',S.isOmutsu);
+  const wentRow=document.getElementById('went-row');
+  if(S.isOmutsu){
+    // went-rowを隠し、no-toilet-secも隠す
+    wentRow.style.display='none';
+    document.getElementById('no-toilet-sec').style.display='none';
+    S.wentToToilet=null;
+    // 排便あり/なしを直接表示
+    document.getElementById('stool-row').style.display='block';
+    document.getElementById('stool-row').querySelector('.stool-lbl').textContent='おむつ内に排便はありましたか？';
+  } else {
+    wentRow.style.display='block';
+    document.getElementById('stool-row').style.display='none';
+    document.getElementById('stool-row').querySelector('.stool-lbl').textContent='排便はありましたか？';
+    document.getElementById('omutsu-no-stool-sec').style.display='none';
+  }
+  // hadStoolもリセット
+  S.hadStool=null;
+  document.getElementById('btn-no-stool').className='stool-btn';
+  document.getElementById('btn-yes-stool').className='stool-btn';
+  document.getElementById('tns-sec').style.display='none';
+  document.getElementById('stool-sec').style.display='none';
+}
+
+/* ============================================================
+   保存：おむつ中・排便なし
+   ============================================================ */
+function saveOmutsuNoStool(){
+  const note=document.getElementById('omutsu-no-stool-note').value;
+  const isNew=!S.editingId;
+  const r={
+    id:S.editingId||Date.now(),
+    type:'absent', subType:'omutsu_no_stool',
+    date:S.recDate, timeSlot:null,
+    note, omutsu:true,
+    bowelMovement:false,
+    clientId:isNew?crypto.randomUUID():(S.recs.find(x=>x.id===S.editingId)?.clientId||crypto.randomUUID()),
+    recordedAt:new Date().toISOString(),
+    _synced:false,
+  };
+  commitRecord(r);
+  const summary=`📅 ${fmtDate(r.date)}　🐣 おむつ・排便なし${note?'\n'+note:''}`;
+  showPopup(summary,r.id);
+}
+
+/* ============================================================
    トイレフロー制御
    ============================================================ */
 function setWent(went){
@@ -842,9 +933,26 @@ function setStool(had){
   S.hadStool=had;
   document.getElementById('btn-no-stool').className='stool-btn'+(had===false?' on-no':'');
   document.getElementById('btn-yes-stool').className='stool-btn'+(had===true?' on-yes':'');
-  document.getElementById('tns-sec').style.display=had===false?'block':'none';
-  document.getElementById('stool-sec').style.display=had===true?'block':'none';
-  if(had===true)window.scrollTo({top:document.getElementById('stool-sec').offsetTop-80,behavior:'smooth'});
+
+  if(S.isOmutsu){
+    // おむつモード
+    document.getElementById('omutsu-no-stool-sec').style.display=had===false?'block':'none';
+    document.getElementById('tns-sec').style.display='none';
+    document.getElementById('stool-sec').style.display=had===true?'block':'none';
+    if(had===true){
+      // おむつ用UI調整
+      applyOmutsuStoolMode(true);
+      window.scrollTo({top:document.getElementById('stool-sec').offsetTop-80,behavior:'smooth'});
+    }
+  } else {
+    document.getElementById('omutsu-no-stool-sec').style.display='none';
+    document.getElementById('tns-sec').style.display=had===false?'block':'none';
+    document.getElementById('stool-sec').style.display=had===true?'block':'none';
+    if(had===true){
+      applyOmutsuStoolMode(false);
+      window.scrollTo({top:document.getElementById('stool-sec').offsetTop-80,behavior:'smooth'});
+    }
+  }
 }
 
 /* 排便なし：坐薬切り替え */
@@ -870,6 +978,23 @@ function setStoolDisim(used){
   // 自然排便のみ所要時間を表示
   document.getElementById('dur-block').style.display=used===false?'block':'none';
 }
+/* おむつモード時のstool-sec表示切替 */
+function applyOmutsuStoolMode(isOmutsu){
+  document.getElementById('stool-time-lbl').textContent=isOmutsu?'排便/確認時刻':'排便時刻';
+  document.getElementById('stool-meal-block').style.display=isOmutsu?'none':'block';
+  document.getElementById('stool-disim-block').style.display=isOmutsu?'none':'block';
+  // stool-disim-detail は classList.show で管理（style.display を直接固定しない）
+  if(isOmutsu){
+    document.getElementById('stool-disim-detail').classList.remove('show');
+    // おむつ中は坐薬なしを強制セット（バリデーション対象外）
+    S.stoolDisimUsed=false;
+  }
+  // 通常モードへの復帰時は stool-disim-block の再表示のみ行い、
+  // detail の show/hide は setStoolDisim() に委ねる
+  document.getElementById('stool-omutsu-note-block').style.display=isOmutsu?'block':'none';
+}
+
+
 function pickStoolDisimType(t,el){
   S.stoolDisimType=t;
   ['supp','kan'].forEach(k=>document.getElementById('stool-'+k).classList.toggle('on',k===t));
@@ -886,6 +1011,7 @@ function setInputMode(mode){
   document.getElementById('imt-simple').classList.toggle('on',mode==='simple');
   document.getElementById('bristol-panel').style.display=mode==='bristol'?'block':'none';
   document.getElementById('simple-panel').style.display=mode==='simple'?'block':'none';
+  document.getElementById('simple-hint').style.display=mode==='simple'?'block':'none';
   S.bristolChain=[];S.simpleChain=[];
   document.querySelectorAll('.bi').forEach(e=>e.classList.remove('on','chained'));
   document.querySelectorAll('.si').forEach(e=>e.classList.remove('on','chained'));
@@ -1041,32 +1167,39 @@ function saveStool(){
     document.getElementById('b-info').innerHTML='<span style="color:#A32D2D;font-size:12px;">便の性状を選んでください</span>';
     return;
   }
-  if(S.stoolDisimUsed===null){alert('坐薬・浣腸の使用有無を選んでください');return;}
-  if(S.stoolDisimUsed&&!S.stoolDisimType){alert('坐薬または浣腸を選んでください');return;}
+  // おむつ中でない場合のみ坐薬バリデーション
+  if(!S.isOmutsu){
+    if(S.stoolDisimUsed===null){alert('坐薬・浣腸の使用有無を選んでください');return;}
+    if(S.stoolDisimUsed&&!S.stoolDisimType){alert('坐薬または浣腸を選んでください');return;}
+  }
   const isNew=!S.editingId;
-  const disimCount=S.stoolDisimUsed&&S.stoolDisimType==='supp'?parseFloat(document.getElementById('stool-supp-count').value)||null:null;
-  const disimMl=S.stoolDisimUsed&&S.stoolDisimType==='kan'?parseFloat(document.getElementById('stool-kan-ml').value)||null:null;
+  const disimCount=!S.isOmutsu&&S.stoolDisimUsed&&S.stoolDisimType==='supp'?parseFloat(document.getElementById('stool-supp-count').value)||null:null;
+  const disimMl=!S.isOmutsu&&S.stoolDisimUsed&&S.stoolDisimType==='kan'?parseFloat(document.getElementById('stool-kan-ml').value)||null:null;
+  const omutsuNote=S.isOmutsu?document.getElementById('stool-omutsu-note').value:'';
   const r={
     id:S.editingId||Date.now(),
     type:'rec',
     date:S.recDate,
     bowelMovement:true,
-    disimUsed:S.stoolDisimUsed,
-    disimType:S.stoolDisimType,
+    omutsu:S.isOmutsu||false,
+    disimUsed:S.isOmutsu?false:S.stoolDisimUsed,
+    disimType:S.isOmutsu?null:S.stoolDisimType,
     disimCount, disimMl,
-    dur:S.stoolDisimUsed?null:S.dur,
+    dur:S.stoolDisimUsed&&!S.isOmutsu?null:S.dur,
     stoolLabel:stool.label, stoolMode:stool.mode,
     timeSlot:document.getElementById('stool-time').value,
-    meal:S.meal,
+    meal:S.isOmutsu?null:S.meal,
     amt:S.amt||null,
     res:S.res!==null?['すっきり','残っている感じ','不明'][S.res]:null,
     strain:S.strain, pain:S.pain, blood:S.blood,
+    note:omutsuNote||undefined,
     clientId:isNew?crypto.randomUUID():(S.recs.find(x=>x.id===S.editingId)?.clientId||crypto.randomUUID()),
     recordedAt:new Date().toISOString(),
     _synced:false,
   };
   commitRecord(r);
   const chips=[];
+  if(r.omutsu)chips.push('🧷おむつ');
   if(r.timeSlot)chips.push('⏰'+r.timeSlot);
   if(r.disimUsed)chips.push('💊'+(r.disimType==='supp'?`坐薬${disimCount||''}個`:`浣腸${disimMl||''}mL`));
   if(r.amt)chips.push(r.amt);
@@ -1128,10 +1261,23 @@ function showPopup(summary,recordId){
 function popupAction(action){
   document.getElementById('popup-overlay').classList.remove('show');
   if(action==='done'){
+    // 完全初期化して最上部へ
     resetToiletForm(false);
+    window.scrollTo({top:0,behavior:'smooth'});
   } else if(action==='another'){
+    // 同日付でフォームをリセット、トイレ記録入力を促す
+    const keepDate=S.recDate;
     resetToiletForm(false);
-    // 日付維持のまま初期化（wentToToiletはリセット）
+    // 日付は維持
+    S.recDate=keepDate;
+    document.getElementById('rec-date-sel').value=keepDate;
+    document.getElementById('med-date-sel').value=keepDate;
+    // トイレ記録タブを確実に表示し、入力促進のため went-row / stool-row を適切に表示
+    // おむつ中モードならそのまま stool-row を表示、通常なら went-row を表示
+    // (resetToiletForm が S.isOmutsu に基づいて正しく設定済み)
+    window.scrollTo({top:document.getElementById('went-row').offsetTop>0
+      ?document.getElementById('went-row').offsetTop-80
+      :document.getElementById('stool-row').offsetTop-80, behavior:'smooth'});
   } else if(action==='med'){
     resetToiletForm(false);
     goTab('med',document.getElementById('nav-med'));
@@ -1153,7 +1299,25 @@ function editRec(id){
   document.getElementById('med-date-sel').value=r.date;
   S.recDate=r.date;
 
-  if(r.type==='absent'&&r.subType==='no_toilet'){
+  // おむつ中フラグの復元（omutsu_no_stool subType または r.omutsu===true）
+  const needsOmutsu=r.omutsu||r.subType==='omutsu_no_stool';
+  if(needsOmutsu){
+    S.isOmutsu=true;
+    const chk=document.getElementById('omutsu-chk');
+    chk.checked=true;
+    // togOmutsu と同等の処理を手動実行
+    document.getElementById('omutsu-notice').classList.add('show');
+    document.getElementById('went-row').style.display='none';
+    document.getElementById('stool-row').style.display='block';
+    document.getElementById('stool-row').querySelector('.stool-lbl').textContent='おむつ内に排便はありましたか？';
+    S.wentToToilet=null;
+  }
+
+  if(r.type==='absent'&&r.subType==='omutsu_no_stool'){
+    // おむつ中・排便なし
+    setStool(false);
+    document.getElementById('omutsu-no-stool-note').value=r.note||'';
+  } else if(r.type==='absent'&&r.subType==='no_toilet'){
     setWent(false);
     document.getElementById('no-toilet-reason').value=r.reason||'';
     document.getElementById('no-toilet-note').value=r.note||'';
@@ -1167,16 +1331,19 @@ function editRec(id){
     }
     if(r.timeSlot){const p=r.timeSlot.split(':');setTimeBar('tns',(parseInt(p[0])||0)*60+(parseInt(p[1])||0));}
   } else if(r.type==='rec'){
-    // 旧v14 disimモード互換
-    const wasDisim=r.disimUsed||r.recMode==='disim';
-    setWent(true); setStool(true);
+    if(needsOmutsu){
+      // おむつ中・排便あり
+      setStool(true); // applyOmutsuStoolMode(true) が呼ばれる
+    } else {
+      setWent(true); setStool(true);
+    }
     setInputMode(r.stoolMode||'bristol');
     if(r.stoolLabel){
       if(r.stoolMode==='simple')r.stoolLabel.split('→').forEach(c=>pickSimple(c,document.getElementById('si-'+c)));
       else r.stoolLabel.split('→').forEach(n=>pickBristol(parseInt(n)));
     }
     if(r.timeSlot){const p=r.timeSlot.split(':');setTimeBar('stool',(parseInt(p[0])||0)*60+(parseInt(p[1])||0));}
-    if(r.meal){S.meal=r.meal;document.querySelectorAll('.meal-btn').forEach(b=>{if(b.textContent===r.meal)b.classList.add('on');});}
+    if(!needsOmutsu&&r.meal){S.meal=r.meal;document.querySelectorAll('.meal-btn').forEach(b=>{if(b.textContent===r.meal)b.classList.add('on');});}
     if(r.amt){
       S.amt=r.amt;
       const mainMap={'少ない':'amt-btn-small','やや少な目':'amt-btn-normal','ふつう':'amt-btn-normal','やや多め':'amt-btn-normal','多い':'amt-btn-large'};
@@ -1188,18 +1355,23 @@ function editRec(id){
         document.getElementById(subMap[r.amt])?.classList.add('on');
       }
     }
-    if(r.dur){document.querySelectorAll('.dur-chip').forEach(b=>{if(b.textContent===r.dur){b.classList.add('on');S.dur=r.dur;}});}
+    if(!needsOmutsu&&r.dur){document.querySelectorAll('.dur-chip').forEach(b=>{if(b.textContent===r.dur){b.classList.add('on');S.dur=r.dur;}});}
     if(r.res){const i=['すっきり','残っている感じ','不明'].indexOf(r.res);if(i>=0)pickRes(i,document.querySelectorAll('.res-btn')[Math.min(i,1)]);}
     if(r.strain){S.strain=true;document.getElementById('sym-strain').classList.add('on-a');}
     if(r.pain){S.pain=true;document.getElementById('sym-pain').classList.add('on-a');}
     if(r.blood){S.blood=true;document.getElementById('sym-blood').classList.add('on-r');}
-    // 坐薬（排便あり）
-    const disimUsed=r.disimUsed||r.recMode==='disim';
-    setStoolDisim(!!disimUsed);
-    if(disimUsed&&r.disimType){
-      pickStoolDisimType(r.disimType,document.getElementById('stool-'+r.disimType));
-      if(r.disimCount)document.getElementById('stool-supp-count').value=r.disimCount;
-      if(r.disimMl)document.getElementById('stool-kan-ml').value=r.disimMl;
+    if(needsOmutsu){
+      // おむつモードではメモ欄を復元
+      document.getElementById('stool-omutsu-note').value=r.note||'';
+    } else {
+      // 通常モードの坐薬復元
+      const disimUsed=r.disimUsed||r.recMode==='disim';
+      setStoolDisim(!!disimUsed);
+      if(disimUsed&&r.disimType){
+        pickStoolDisimType(r.disimType,document.getElementById('stool-'+r.disimType));
+        if(r.disimCount)document.getElementById('stool-supp-count').value=r.disimCount;
+        if(r.disimMl)document.getElementById('stool-kan-ml').value=r.disimMl;
+      }
     }
   }
 
@@ -1210,7 +1382,15 @@ function editRec(id){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function cancelEdit(){exitEditMode();resetToiletForm(false);}
+function cancelEdit(){
+  // おむつ中状態もリセット
+  S.isOmutsu=false;
+  const chk=document.getElementById('omutsu-chk');
+  if(chk)chk.checked=false;
+  document.getElementById('omutsu-notice').classList.remove('show');
+  exitEditMode();
+  resetToiletForm(false);
+}
 function exitEditMode(){
   S.editingId=null;
   document.getElementById('edit-banner').classList.remove('show');
@@ -1243,11 +1423,17 @@ function resetToiletForm(fullReset=true){
   document.getElementById('btn-no-toilet').className='went-btn';
   document.getElementById('btn-went').className='went-btn';
   document.getElementById('no-toilet-sec').style.display='none';
-  document.getElementById('stool-row').style.display='none';
+  document.getElementById('omutsu-no-stool-sec').style.display='none';
+  // went-rowはおむつ中なら非表示維持、そうでなければ表示
+  document.getElementById('went-row').style.display=S.isOmutsu?'none':'block';
+  document.getElementById('stool-row').style.display=S.isOmutsu?'block':'none';
   document.getElementById('tns-sec').style.display='none';
   document.getElementById('stool-sec').style.display='none';
   document.getElementById('no-toilet-reason').value='';
   document.getElementById('no-toilet-note').value='';
+  document.getElementById('omutsu-no-stool-note').value='';
+  document.getElementById('stool-omutsu-note').value='';
+  document.getElementById('stool-omutsu-note-block').style.display='none';
   document.getElementById('tns-disim-no').className='disim-tog';
   document.getElementById('tns-disim-yes').className='disim-tog';
   document.getElementById('tns-disim-detail').classList.remove('show');
@@ -1264,6 +1450,9 @@ function resetToiletForm(fullReset=true){
   document.getElementById('stool-disim-yes').className='disim-tog';
   document.getElementById('stool-disim-detail').classList.remove('show');
   document.getElementById('dur-block').style.display='block';
+  document.getElementById('stool-meal-block').style.display='block';
+  document.getElementById('stool-disim-block').style.display='block';
+  document.getElementById('stool-time-lbl').textContent='排便時刻';
   setInputMode('bristol');
 }
 
@@ -1375,6 +1564,7 @@ function renderCard(){
     function recHTML(r){
       const label=r.stoolLabel||'—';
       const chips=[];
+      if(r.omutsu)chips.push(chip('🧷 おむつ','w'));
       if(r.timeSlot)chips.push(chip('⏰ '+r.timeSlot,''));
       if(r.disimUsed)chips.push(chip('💊 '+(r.disimType==='supp'?'坐薬':'浣腸'),'b'));
       if(r.meal)chips.push(chip(r.meal,''));
@@ -1398,11 +1588,20 @@ function renderCard(){
     }
 
     function absentHTML(r){
+      if(r.subType==='omutsu_no_stool'){
+        return `<div class="absent-card" style="background:#FFF8EF;color:#633806;">
+          <span>🧷 おむつ・排便なし${r.note?' — '+r.note:''}</span>
+          <div style="display:flex;gap:4px;">
+            <button class="h-del-btn" onclick="deleteRec(${r.id})">削除</button>
+          </div>
+        </div>`;
+      }
       if(r.subType==='no_toilet'){
         const isGaman=r.reason==='便意があったが我慢した';
-        const bg=isGaman?'#FAEEDA':'#f5f5f2';
+        const isUnknown=r.reason==='不明'||!r.reason;
+        const bg=isGaman?'#FAEEDA':isUnknown?'#f5f5f2':'#f5f5f2';
         const fc=isGaman?'#633806':'#888780';
-        const label=isGaman?'⏸ 我慢':('行かなかった（'+r.reason+'）');
+        const label=isGaman?'⏸ 我慢':isUnknown?'行かなかった（不明）':('行かなかった（'+r.reason+'）');
         return `<div class="absent-card" style="background:${bg};color:${fc};">
           <span>${label}${r.note?' — '+r.note:''}</span>
           <div style="display:flex;gap:4px;">
@@ -1494,6 +1693,7 @@ function renderTL(){
     <div class="tl-legend-item"><span style="color:#A32D2D;font-weight:500;">B P</span><span>出血・痛み</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;color:#5f5e5a;">⬜</span><span>排便なし（トイレ）</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;color:#BA7517;">⏸</span><span>我慢/行かなかった</span></div>
+    <div class="tl-legend-item"><span style="font-size:10px;">🧷</span><span>おむつ排便なし</span></div>
   </div>
   <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>ピコ=ピコスルファート　青字=臨時薬</div>
   <div class="tl-outer"><table class="tl-table"><thead><tr>
@@ -1542,9 +1742,10 @@ function renderTL(){
 
     const hasBowel=bowelRecs.some(r=>r.timeSlot);
     const hasTns=absents.some(r=>r.subType==='toilet_no_stool'&&r.timeSlot);
-    if(!hasBowel&&!hasTns)tlHTML+=`<div class="tl-no-rec">排便なし</div>`;
+    const hasOmutsuNoStool=absents.some(r=>r.subType==='omutsu_no_stool');
+    if(!hasBowel&&!hasTns&&!hasOmutsuNoStool)tlHTML+=`<div class="tl-no-rec">排便なし</div>`;
 
-    // 排便ありマーカー
+    // 排便ありマーカー（おむつマークを右下ドットで表示）
     bowelRecs.forEach(r=>{
       if(!r.timeSlot)return;
       const parts=r.timeSlot.split(':');
@@ -1558,9 +1759,10 @@ function renderTL(){
       const topPct=`calc(50% - ${totalH/2}px)`;
       const bp=(r.blood?'B':'')+(r.pain?'P':'');
       const disimDot=r.disimUsed?`<span style="position:absolute;bottom:-4px;right:-4px;font-size:8px;">💊</span>`:'';
+      const omutsuDot=r.omutsu?`<span style="position:absolute;top:-5px;right:-6px;font-size:9px;">🧷</span>`:'';
       const label=r.stoolLabel||'';
       tlHTML+=`<div class="marker" style="left:${pct}%;top:${topPct};">
-        <div class="m-circle ${sz}${strainCls}" style="position:relative;">${label}${bp?`<span class="m-bp">${bp}</span>`:''}${disimDot}</div>
+        <div class="m-circle ${sz}${strainCls}" style="position:relative;">${label}${bp?`<span class="m-bp">${bp}</span>`:''}${disimDot}${omutsuDot}</div>
         <div class="m-bar" style="width:${bar.w}px;height:${bar.h}px;"></div>
       </div>`;
     });
@@ -1572,6 +1774,11 @@ function renderTL(){
       const pct=(hh/24*100).toFixed(2);
       tlHTML+=`<div class="tns-mark" style="left:${pct}%;">□</div>`;
     });
+
+    // おむつ排便なしマーカー（左端付近に固定表示）
+    if(hasOmutsuNoStool){
+      tlHTML+=`<div style="position:absolute;left:2%;top:50%;transform:translateY(-50%);font-size:12px;line-height:1;" title="おむつ排便なし">🧷</div>`;
+    }
 
     html+=`<tr style="background:${rowBg};">
       <td class="td-date"><div class="td-date-main">${dateMain}</div><div class="td-date-day">${dateDay}</div></td>
@@ -1629,9 +1836,26 @@ function persist(){
 
 /* ============================================================
    recToBowelRow（bowel_records用）
-   新フィールド対応：subType / disimUsed / disimCount / disimMl
-   ※ Supabaseスキーマ追加後に正式反映
+   metadata jsonb に新フィールドをまとめて保存
    ============================================================ */
+
+/* v15新フィールドをまとめる metadata ビルダー */
+function buildMetadata(r){
+  const m={};
+  if(r.omutsu)               m.omutsu=true;
+  if(r.subType)              m.sub_type=r.subType;
+  if(r.reason)               m.reason=r.reason;
+  if(r.note)                 m.note=r.note;
+  if(r.disimType)            m.disim_type=r.disimType;
+  if(r.disimCount!=null)     m.disim_count=r.disimCount;
+  if(r.disimMl!=null)        m.disim_ml=r.disimMl;
+  // Bristol 連続記録はフル文字列で保持（DB bristol_scale は先頭1つだけ）
+  if(r.stoolLabel&&(r.stoolLabel.includes('→')||r.stoolMode==='simple'))
+                              m.stool_label_full=r.stoolLabel;
+  if(r.stoolMode)            m.stool_mode=r.stoolMode;
+  return Object.keys(m).length?m:null;
+}
+
 function recToBowelRow(r){
   const recordType=(()=>{
     if(r.type==='gu')return 'gu';
@@ -1639,6 +1863,7 @@ function recToBowelRow(r){
     if(r.type==='absent'){
       if(r.subType==='no_toilet')return 'absent';
       if(r.subType==='toilet_no_stool')return 'absent';
+      if(r.subType==='omutsu_no_stool')return 'absent';
       return 'absent';
     }
     if(r.recMode==='absent')return 'absent';
@@ -1686,11 +1911,7 @@ function recToBowelRow(r){
     pico_drops:      null,
     is_deleted:      false,
     deleted_at:      null,
-    // 将来スキーマ追加後に有効化：
-    // sub_type:     r.subType||null,
-    // toilet_reason:r.reason||null,
-    // disim_count:  r.disimCount||null,
-    // disim_ml:     r.disimMl||null,
+    metadata:        buildMetadata(r),
   };
 }
 
@@ -1741,6 +1962,7 @@ function recToRow(r,now){
     med_noon:        r.type==='med'?(r.comp?.includes('昼')?'taken':'missed'):null,
     med_evening:     r.type==='med'?(r.comp?.includes('夕')?'taken':'missed'):null,
     pico_drops:      r.pico&&r.picoDrops?parseInt(r.picoDrops):null,
+    metadata:        buildMetadata(r),
   };
 }
 
@@ -1831,36 +2053,55 @@ function serverRowToLocal(row){
   const isAbsent=row.record_type==='absent'||row.is_no_stool;
   const isDisim=row.record_type==='disim'||row.used_suppository;
   const isBowel=!isAbsent&&row.record_type!=='gu'&&row.record_type!=='med';
-  // bowelMovement: 排便なしとgu・med以外
   const bowelMovement=isBowel&&!row.is_no_stool;
+  const meta=row.metadata||{};
+
+  // subType の復元優先順：metadata > 既存フラグから推定
+  const subType=(()=>{
+    if(meta.sub_type)return meta.sub_type;
+    if(!isAbsent)return undefined;
+    if(row.withholding)return 'no_toilet';
+    return 'toilet_no_stool';
+  })();
+
+  // stoolLabel: metadata に full label があればそちらを優先
+  const stoolLabel=meta.stool_label_full||(row.bristol_scale?String(row.bristol_scale):row.simplified_type||null);
+  const stoolMode=meta.stool_mode||(row.bristol_scale?'bristol':row.simplified_type?'simple':null);
+
   return{
-    clientId:row.client_id,
-    id:row.record_id,
-    _serverRecordId:row.record_id,
-    _serverUpdatedAt:row.updated_at,
-    _synced:true,
-    type:row.record_type==='med'?'med':row.record_type==='gu'?'gu':isAbsent?'absent':'rec',
-    subType:isAbsent?(row.withholding?'no_toilet':'toilet_no_stool'):undefined,
-    date:row.recorded_at?.slice(0,10)||'',
+    clientId:         row.client_id,
+    id:               row.record_id,
+    _serverRecordId:  row.record_id,
+    _serverUpdatedAt: row.updated_at,
+    _synced:          true,
+    type:   row.record_type==='med'?'med':row.record_type==='gu'?'gu':isAbsent?'absent':'rec',
+    subType,
+    omutsu:           meta.omutsu||false,
+    date:             row.recorded_at?.slice(0,10)||'',
     bowelMovement,
-    disimUsed:row.used_suppository||false,
-    stoolLabel:row.bristol_scale?String(row.bristol_scale):row.simplified_type||null,
-    stoolMode:row.bristol_scale?'bristol':row.simplified_type?'simple':null,
-    amt:({'XS':'少ない','S':'やや少な目','M':'ふつう','L':'やや多め','XL':'多い'})[row.amount]||null,
-    dur:row.duration_min?`${row.duration_min}分以内`:null,
-    timeSlot:row.defec_time?.slice(0,5)||null,
-    res:row.sensation||null,
-    strain:row.symptom_strain||false,
-    pain:row.symptom_pain||false,
-    blood:row.symptom_blood||false,
-    comp:[
+    reason:           meta.reason||null,
+    note:             meta.note||null,
+    disimUsed:        row.used_suppository||false,
+    disimType:        meta.disim_type||null,
+    disimCount:       meta.disim_count!=null?meta.disim_count:null,
+    disimMl:          meta.disim_ml!=null?meta.disim_ml:null,
+    stoolLabel,
+    stoolMode,
+    amt:              ({'XS':'少ない','S':'やや少な目','M':'ふつう','L':'やや多め','XL':'多い'})[row.amount]||null,
+    dur:              row.duration_min?`${row.duration_min}分以内`:null,
+    timeSlot:         row.defec_time?.slice(0,5)||null,
+    res:              row.sensation||null,
+    strain:           row.symptom_strain||false,
+    pain:             row.symptom_pain||false,
+    blood:            row.symptom_blood||false,
+    comp:             [
       row.med_morning==='taken'?'朝':'',
       row.med_noon==='taken'?'昼':'',
       row.med_evening==='taken'?'夕':'',
     ].filter(Boolean).join('')||null,
-    pico:row.pico_drops!=null,
-    picoDrops:row.pico_drops,
-    recordedAt:row.recorded_at,
+    pico:             row.pico_drops!=null,
+    picoDrops:        row.pico_drops,
+    recordedAt:       row.recorded_at,
   };
 }
 
