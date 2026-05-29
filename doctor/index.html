@@ -1012,8 +1012,10 @@ function renderRxHistory(){
 // ── 処方・評価タブ ──────────────────────────────────────────────
 function renderPrescription(){
   const p=currentPt;
-  const rx=getCurrentRx(p)||{drug:'',dose:'',freq:'',days:30,start:p.currentVisit,note:''};
+  const rx=getCurrentRx(p)||{drug:'',dose:'',doseValue:'',freq:'',days:30,start:p.currentVisit,note:''};
   const nextDays=calcNextVisitDays(p);
+  // フォーム入力欄には数値のみを使う（「朝1.75包」→「1.75」）
+  const rxDoseValue = rx.doseValue ?? parseDoseNumber(rx.dose) ?? '';
 
   // 前回処方（現在の1つ前のentry）をデフォルト表示用に取得
   const allEntries=[];
@@ -1047,7 +1049,7 @@ function renderPrescription(){
           </label>
           <input type="text" id="rxDrug" value="${rx.drug}">
         </div>
-        <div class="form-group"><label>用量</label><input type="text" id="rxDose" value="${rx.dose}" placeholder="例: 2.25包、1/2錠"></div>
+        <div class="form-group"><label>用量</label><input type="text" id="rxDose" value="${rxDoseValue}" placeholder="例: 2.25、1.75（単位は用法欄に記入）"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>用法</label><input type="text" id="rxFreq" value="${rx.freq}"></div>
@@ -1252,6 +1254,11 @@ async function saveRx(mode){
 
   const status = mode === 'push' ? 'pushed' : mode === 'confirm' ? 'confirmed' : 'draft';
 
+  // 用量は必ず数値に変換（「朝1.75」「1.75包」などの文字列をnumericカラムに直接送らない）
+  const doseNumber = parseDoseNumber(dose);
+  // 単位は dose → freq → 薬剤名 の順で補完
+  const doseUnit   = parseDoseUnit(dose) || parseDoseUnit(freq) || defaultDoseUnitByDrug(drug);
+
   // patient_keyを現在の患者から取得
   const currentPtObj = PATIENTS.find(pt => pt.id === CURRENT_PATIENT_ID);
   const patientKey = currentPtObj?.patientKey;
@@ -1266,11 +1273,11 @@ async function saveRx(mode){
   const payload = {
     patient_key:  patientKey,
     drug_name:    drug,
-    dose_morning: dose || null,   // TODO: フォームをam/noon/pm分割後に対応
+    dose_morning: doseNumber,   // 必ず数値 or null（文字列不可）
     dose_noon:    null,
     dose_evening: null,
-    dose_unit:    null,
-    notes:        [freq, note].filter(Boolean).join('　') || null,
+    dose_unit:    doseUnit,
+    notes:        [freq, note, dose ? `入力用量: ${dose}` : null].filter(Boolean).join('　') || null,
     is_active:    mode === 'push',
     prescribed_at: new Date().toISOString(),
     prescribed_by: DOCTOR_EMAIL || 'doctor',
@@ -1315,6 +1322,29 @@ async function saveRx(mode){
     console.error('saveRx error:', e);
     alert('保存に失敗しました: ' + e.message);
   }
+}
+
+// ── 用量パース ─────────────────────────────────────────────────
+function parseDoseNumber(raw) {
+  const m = String(raw || '').match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+}
+function parseDoseUnit(raw) {
+  const s = String(raw || '');
+  if (s.includes('包')) return '包';
+  if (s.includes('mg')) return 'mg';
+  if (s.includes('錠')) return '錠';
+  if (s.includes('滴')) return '滴';
+  if (s.includes('g'))  return 'g';
+  return null;
+}
+function defaultDoseUnitByDrug(drug) {
+  const s = String(drug || '');
+  if (s.includes('モビコール'))                         return '包';
+  if (s.includes('ピコ') || s.includes('ラキソ'))       return '滴';
+  if (s.includes('マグ') || s.includes('酸化マグネシウム')) return 'g';
+  if (s.includes('マルツ'))                             return 'g';
+  return null;
 }
 
 // ── 画像出力 ─────────────────────────────────────────────────
@@ -1656,23 +1686,26 @@ async function loadPrescriptions(patientId) {
       const key = rx.drug_name;
       if (!drugMap[key]) drugMap[key] = [];
 
-      // 用量文字列を組み立て（新スキーマ: dose_morning/noon/evening + dose_unit）
+      // 表示用ラベル（「朝1.75包」）とフォーム再編集用の数値（「1.75」）を分ける
+      const doseValue = rx.dose_morning ?? rx.dose_evening ?? rx.dose_noon ?? '';
       const doseParts = [];
       if (rx.dose_morning != null) doseParts.push(`朝${rx.dose_morning}`);
       if (rx.dose_noon    != null) doseParts.push(`昼${rx.dose_noon}`);
       if (rx.dose_evening != null) doseParts.push(`夕${rx.dose_evening}`);
-      const doseStr = doseParts.join('／') + (rx.dose_unit ? rx.dose_unit : '');
+      const doseLabel = doseParts.join('／') + (rx.dose_unit ? rx.dose_unit : '');
 
       drugMap[key].push({
-        dose:       doseStr,
-        freq:       rx.notes || '',
-        start:      rx.prescribed_at?.slice(0, 10) || '',
-        end:        '',
-        days:       30,
-        pushed:     rx.is_active,
-        changeType: 'same',
-        current:    false, // 後で最後の1件をtrueに
-        note:       rx.notes || '',
+        dose:      doseLabel || String(doseValue),  // 履歴・概要表示用（「朝1.75包」）
+        doseValue: String(doseValue),               // フォーム再編集用（数字のみ「1.75」）
+        doseUnit:  rx.dose_unit || '',
+        freq:      rx.notes || '',
+        start:     rx.prescribed_at?.slice(0, 10) || '',
+        end:       '',
+        days:      30,
+        pushed:    rx.is_active,
+        changeType:'same',
+        current:   false, // 後で最後の1件をtrueに
+        note:      rx.notes || '',
       });
     });
 
