@@ -935,7 +935,7 @@ function saveOmutsuNoStool(){
     _synced:false,
   };
   commitRecord(r);
-  const summary=`📅 ${fmtDate(r.date)}　🐣 おむつ・排便なし${note?'\n'+note:''}`;
+  const summary=`📅 ${fmtDate(r.date)}　🐣 おむつ中${note?'\n'+note:''}`;
   showPopup(summary,r.id);
 }
 
@@ -1618,7 +1618,7 @@ function renderCard(){
     function absentHTML(r){
       if(r.subType==='omutsu_no_stool'){
         return `<div class="absent-card" style="background:#FFF8EF;color:#633806;">
-          <span>🧷 おむつ・排便なし${r.note?' — '+r.note:''}</span>
+          <span>🧷 おむつ中${r.note?' — '+r.note:''}</span>
           <div style="display:flex;gap:4px;">
             <button class="h-del-btn" onclick="deleteRec(${r.id})">削除</button>
           </div>
@@ -1705,6 +1705,9 @@ function compSym(v){
   if(v==='2/3以上')return{s:'△',c:'partial'};
   if(v==='1/2程度')return{s:'▽',c:'partial'};
   if(v==='1/3以下')return{s:'▲',c:'low'};
+  if(v==='服用')return{s:'○',c:'full'};
+  if(v==='飲めなかった')return{s:'×',c:'low'};
+  if(v==='忘れた')return{s:'×',c:'low'};
   return{s:'',c:'none'};
 }
 
@@ -1722,7 +1725,7 @@ function renderTL(){
     <div class="tl-legend-item"><span style="color:#A32D2D;font-weight:500;">B P</span><span>出血・痛み</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;color:#5f5e5a;">⬜</span><span>排便なし（トイレ）</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;color:#BA7517;">⏸</span><span>我慢/行かなかった</span></div>
-    <div class="tl-legend-item"><span style="font-size:10px;">🧷</span><span>おむつ排便なし</span></div>
+    <div class="tl-legend-item"><span style="font-size:10px;">🧷</span><span>おむつ中</span></div>
   </div>
   <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>ピコ=ピコスルファート　青字=臨時薬</div>
   <div class="tl-outer"><table class="tl-table"><thead><tr>
@@ -1806,9 +1809,9 @@ function renderTL(){
       tlHTML+=`<div class="tns-mark" style="left:${pct}%;">□</div>`;
     });
 
-    // おむつ排便なしマーカー（左端付近に固定表示）
+    // おむつ中マーカー（TL左端に表示）
     if(hasOmutsuNoStool){
-      tlHTML+=`<div style="position:absolute;left:2%;top:50%;transform:translateY(-50%);font-size:12px;line-height:1;" title="おむつ排便なし">🧷</div>`;
+      tlHTML+=`<div style="position:absolute;left:2%;top:50%;transform:translateY(-50%);font-size:12px;line-height:1;" title="おむつ中">🧷</div>`;
     }
 
     html+=`<tr style="background:${rowBg};">
@@ -2162,11 +2165,13 @@ function serverRowToLocal(row){
     strain:           row.symptom_strain||false,
     pain:             row.symptom_pain||false,
     blood:            row.symptom_blood||false,
-    comp:             meta.comp || [
-      row.med_morning==='taken'?'朝':'',
-      row.med_noon==='taken'?'昼':'',
-      row.med_evening==='taken'?'夕':'',
-    ].filter(Boolean).join('')||null,
+    comp:             (()=>{
+      if(meta.comp)return meta.comp;
+      const ms=row.med_morning||row.med_noon||row.med_evening||null;
+      if(ms==='taken')return '服用';
+      if(ms==='missed')return '飲めなかった';
+      return null;
+    })(),
     missedReason:     meta.missed_reason||null,
     pico:             row.pico_drops!=null,
     picoDrops:        row.pico_drops,
