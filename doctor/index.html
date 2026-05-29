@@ -34,7 +34,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
-.layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh;zoom:1.15;}
 
 /* Sidebar */
 .sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
@@ -561,7 +561,7 @@ function tlRowHTML(r, idx){
   }
   // おむつ排便なし
   if(r.isOmutsuNoStool){
-    markerHTML+=`<div style="position:absolute;right:2%;top:50%;transform:translateY(-50%);font-size:11px;line-height:1;" title="おむつ排便なし">🧷</div>`;
+    markerHTML+=`<div style="position:absolute;right:2%;top:50%;transform:translateY(-50%);font-size:11px;line-height:1;" title="おむつ中">🧷</div>`;
   }
 
   if(isVisit) markerHTML+=`<div style="position:absolute;left:2px;top:2px;font-size:7px;background:var(--purple-light);color:var(--purple);padding:1px 3px;border-radius:2px">受診</div>`;
