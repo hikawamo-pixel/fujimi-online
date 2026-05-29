@@ -1277,7 +1277,8 @@ async function saveRx(mode){
     dose_noon:    null,
     dose_evening: null,
     dose_unit:    doseUnit,
-    notes:        [freq, note, dose ? `入力用量: ${dose}` : null].filter(Boolean).join('　') || null,
+    // notes は JSON 構造で保存（freq と note を分離して再表示時に崩れないようにする）
+    notes:        JSON.stringify({ freq, note: note||'', raw_dose: dose||'' }),
     is_active:    mode === 'push',
     prescribed_at: new Date().toISOString(),
     prescribed_by: DOCTOR_EMAIL || 'doctor',
@@ -1686,6 +1687,17 @@ async function loadPrescriptions(patientId) {
       const key = rx.drug_name;
       if (!drugMap[key]) drugMap[key] = [];
 
+      // notes は JSON 構造（新形式）または平文（旧形式）を許容
+      let parsedFreq = '', parsedNote = '';
+      try {
+        const rxMeta = JSON.parse(rx.notes || '{}');
+        parsedFreq = rxMeta.freq || '';
+        parsedNote = rxMeta.note || '';
+      } catch {
+        // 旧形式（平文）：全体を clinical note として扱い freq には入れない
+        parsedNote = rx.notes || '';
+      }
+
       // 表示用ラベル（「朝1.75包」）とフォーム再編集用の数値（「1.75」）を分ける
       const doseValue = rx.dose_morning ?? rx.dose_evening ?? rx.dose_noon ?? '';
       const doseParts = [];
@@ -1698,14 +1710,14 @@ async function loadPrescriptions(patientId) {
         dose:      doseLabel || String(doseValue),  // 履歴・概要表示用（「朝1.75包」）
         doseValue: String(doseValue),               // フォーム再編集用（数字のみ「1.75」）
         doseUnit:  rx.dose_unit || '',
-        freq:      rx.notes || '',
+        freq:      parsedFreq,  // 用法（「1日1回朝」）— notes から分離、蓄積しない
+        note:      parsedNote,  // 医師メモのみ
         start:     rx.prescribed_at?.slice(0, 10) || '',
         end:       '',
         days:      30,
         pushed:    rx.is_active,
         changeType:'same',
         current:   false, // 後で最後の1件をtrueに
-        note:      rx.notes || '',
       });
     });
 
