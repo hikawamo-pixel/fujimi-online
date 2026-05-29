@@ -298,6 +298,29 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 </style>
 </head>
 <body>
+<!-- プロフィール選択オーバーレイ（初回ログイン時） -->
+<div id="profile-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:380px;width:100%;text-align:center;">
+    <div style="font-size:22px;margin-bottom:10px;">📋</div>
+    <div style="font-size:16px;font-weight:500;color:#1a1a18;margin-bottom:8px;">記録をつける方を選んでください</div>
+    <div style="font-size:12px;color:#888780;margin-bottom:24px;">この設定はあとから変更できます</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <button onclick="selectProfile('adult_self')"
+        style="padding:16px;border-radius:12px;border:1.5px solid #1D9E75;background:#E1F5EE;cursor:pointer;font-size:14px;font-weight:500;color:#085041;text-align:left;">
+        <div style="font-size:20px;margin-bottom:4px;">🧑</div>
+        ご本人の記録をつける
+        <div style="font-size:11px;color:#0F6E56;margin-top:3px;font-weight:400;">成人の方・ご自身で記録する場合</div>
+      </button>
+      <button onclick="selectProfile('child_guardian')"
+        style="padding:16px;border-radius:12px;border:1.5px solid #185FA5;background:#E6F1FB;cursor:pointer;font-size:14px;font-weight:500;color:#0C447C;text-align:left;">
+        <div style="font-size:20px;margin-bottom:4px;">👨‍👩‍👧</div>
+        お子さんの記録をつける
+        <div style="font-size:11px;color:#185FA5;margin-top:3px;font-weight:400;">保護者の方・お子さんの記録を管理する場合</div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
 <!-- sticky wrapper -->
@@ -825,10 +848,26 @@ async function switchPatient(){
 }
 
 /* ============================================================
+   プロフィール選択
+   ============================================================ */
+function selectProfile(type){
+  PROFILE_TYPE = type;
+  localStorage.setItem('profileType', type);
+  document.getElementById('profile-overlay').style.display = 'none';
+  // body クラスを更新
+  document.body.classList.remove('profile-adult','profile-child');
+  document.body.classList.add(type === 'adult_self' ? 'profile-adult' : 'profile-child');
+  // 患者ラベルを更新
+  const _pid = localStorage.getItem('patientId');
+  const _pidEl = document.getElementById('patient-id-display');
+  if(_pidEl) _pidEl.textContent = type === 'adult_self' ? 'ご本人' : (_pid ? `診察券番号 ${_pid}` : '（取得中）');
+}
+
+/* ============================================================
    profileType：adult_self（成人本人）/ child_guardian（小児保護者）
    将来的にはログイン時に選択・DB保存する想定。当面は localStorage で管理。
    ============================================================ */
-const PROFILE_TYPE = localStorage.getItem('profileType') || 'child_guardian';
+let PROFILE_TYPE = localStorage.getItem('profileType') || '';
 
 /* ============================================================
    定数・データ
@@ -919,7 +958,14 @@ function init(){
   setTimeBar('med',snapped);
 
   // profileType を body クラスに反映（CSS 出し分け）
-  document.body.classList.add(PROFILE_TYPE === 'adult_self' ? 'profile-adult' : 'profile-child');
+  // 未設定の場合はオーバーレイで選択させる
+  if(!PROFILE_TYPE){
+    document.getElementById('profile-overlay').style.display = 'flex';
+    // オーバーレイ表示中はデフォルトで child_guardian を仮適用（背景表示用）
+    document.body.classList.add('profile-child');
+  } else {
+    document.body.classList.add(PROFILE_TYPE === 'adult_self' ? 'profile-adult' : 'profile-child');
+  }
 
   // 患者切り替えバー：patientId と profileType に応じたラベルを表示
   const _pid = localStorage.getItem('patientId');
@@ -2184,7 +2230,10 @@ async function loadFromSupabase(){
     const result=await res.json();
     if(!result.ok)return;
     const records=result.records;
-    if(!records||!records.length)return;
+    if(!records||!records.length){
+      updateAvatar();
+      return;
+    }
     const serverMap={};
     records.forEach(row=>{if(row.client_id)serverMap[row.client_id]=row;});
     S.recs=S.recs.filter(r=>{
@@ -2213,6 +2262,8 @@ async function loadFromSupabase(){
       renderCard();
       if(S.histView==='tl')renderTL();
     }
+    // ロード完了後にアバターメッセージを更新（初回ロード時も含む）
+    updateAvatar();
   }catch(e){console.warn('Supabase load error:',e);}
 }
 
