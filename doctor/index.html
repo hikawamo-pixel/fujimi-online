@@ -263,130 +263,17 @@ function loadPatientsFromStorage() {
   } catch(e) { return null; }
 }
 
-const PATIENTS_DEFAULT = [
-  {
-    // ⑦ 診察券番号ベース
-    id: '00001',
-    patientKey: null, // TODO: Edge Function経由で取得したHMAC patient_keyを設定
-    diag: '慢性便秘症',
-    diaryStart: '2024-12-10',
-    lastVisit:  '2025-06-15',
-    currentVisit:'2025-07-15',
-    nextVisit:  '2025-08-15',   // 次回予定
-    control: 'fair', controlText: '比較的良好',
+// E2E用：モックデータなし。患者は loadByChartNumber() で都度追加する。
+// ※ loadPatientsFromStorage() を意図的に使わない。
+//    doctorPatients_v1 に古いデータが残っていても復元しないようにするため。
+//    E2E開始前にコンソールで以下を実行すること:
+//      localStorage.removeItem('doctorPatients_v1');
+//      localStorage.removeItem('doctorLastPatientId');
+//    ※ doctorSession はログイン維持に使うので削除しないこと
+const PATIENTS_DEFAULT = [];
+const PATIENTS = PATIENTS_DEFAULT;  // stale localStorage を復元しない
 
-    // ① 共有状態
-    shareInfo: {
-      lastSharedAt: '2025-07-14T20:31:00',
-      periodStart:  '2025-06-15',
-      periodEnd:    '2025-07-14',
-    },
-
-    // ② 処方履歴（期間・変更で管理）
-    rxHistory: [
-      { drug:'酸化マグネシウム', entries:[
-        { dose:'0.6g',  freq:'就寝前1回', start:'2024-12-24', end:'2025-01-06', days:14, pushed:true,  changeType:'new' },
-        { dose:'0.75g', freq:'就寝前1回', start:'2025-01-07', end:'2025-01-20', days:14, pushed:true,  changeType:'up'  },
-        { dose:'0.8g',  freq:'就寝前1回', start:'2025-01-21', end:'2025-03-17', days:56, pushed:true,  changeType:'up'  },
-      ]},
-      { drug:'モビコール', entries:[
-        { dose:'1.75包', freq:'1日1回朝', start:'2025-03-18', end:'2025-03-31', days:14, pushed:true,  changeType:'new' },
-        { dose:'2包',    freq:'1日1回朝', start:'2025-04-01', end:'2025-06-14', days:75, pushed:true,  changeType:'up'  },
-        { dose:'2包',    freq:'1日1回朝', start:'2025-06-15', end:'2025-07-14', days:30, pushed:true,  changeType:'same', current:false },
-        { dose:'2.25包', freq:'1日1回朝', start:'2025-07-15', end:'2025-08-13', days:30, pushed:false, changeType:'up',  current:true, note:'disimpaction後増量' },
-      ]},
-    ],
-
-    // アドヒアランス（前回受診期間30日）
-    adherence30: [1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,'c',1,1,'c',1],
-    skipCount:2, catchupCount:2,
-
-    visits: ['2024-12-24','2025-01-21','2025-03-18','2025-06-15','2025-07-15'],
-
-    bowelRecords: [
-      { date:'2025-06-16', amt:'S', stool:4, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-17', amt:'L', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-18', stool:null,strain:false,note:'なし', medAm:'ok',medNoon:'',medPm:'ok', src:'patient' },
-      { date:'2025-06-19', amt:'S', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-20', amt:'S', stool:4, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-21', stool:null,strain:false,note:'なし', medAm:'ok',medNoon:'',medPm:'ok', src:'patient' },
-      { date:'2025-06-22', amt:'S', stool:5, strain:true, pain:true, blood:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-23', amt:'L', stool:4, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-24', stool:null,strain:false,note:'なし', medAm:'ok',medNoon:'',medPm:'ok', src:'patient' },
-      { date:'2025-06-25', amt:'M', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-26', amt:'M', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-27', amt:'S', stool:4, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-28', stool:null,strain:false,note:'なし', medAm:'ok',medNoon:'',medPm:'ok', src:'patient' },
-      { date:'2025-06-29', amt:'L', stool:5, strain:true, pain:false, blood:true, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-06-30', amt:'M', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-01', amt:'S', stool:4, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-02', stool:null,strain:false,note:'なし', medAm:'ok',medNoon:'',medPm:'ok', src:'patient' },
-      { date:'2025-07-03', amt:'L', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-04', amt:'S', stool:4, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-05', amt:'L', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', supp:'坐', suppTime:20, src:'patient' },
-      { date:'2025-07-06', stool:null,strain:false,note:'スキップ', medAm:'skip',medNoon:'',medPm:'skip', skip:true, src:'patient' },
-      { date:'2025-07-07', amt:'M', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-08', stool:null,strain:false,note:'スキップ', medAm:'skip',medNoon:'',medPm:'skip', skip:true, src:'patient' },
-      { date:'2025-07-09', amt:'M', stool:4, strain:false, medAm:'ok', medNoon:'', medPm:'ok', medDoseAm:'2/3', supp:'坐', suppTime:21, src:'patient' },
-      { date:'2025-07-10', amt:'S', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-11', amt:'L', stool:4, strain:false, pain:true, blood:true, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-12', amt:'M', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-13', stool:null,strain:false,note:'なし', medAm:'ok',medNoon:'',medPm:'ok', src:'patient' },
-      { date:'2025-07-14', amt:'L', stool:5, strain:false, medAm:'ok', medNoon:'', medPm:'ok', src:'patient' },
-      { date:'2025-07-15', stool:null,strain:false,note:'受診日', src:'patient' },
-    ],
-
-    prevPeriod:{ totalDays:30, bowelDays:22, noStoolDays:8, strainDays:3, bristolAvg:4.2, bristolMode:4 },
-    currPeriod:{ totalDays:30, bowelDays:24, noStoolDays:3, strainDays:2, bristolAvg:4.7, bristolMode:5 },
-    bristolDist:{ 1:0,2:0,3:2,4:10,5:12,6:0,7:0 },
-
-    procedures:[{ date:'2025-07-15', type:'disimpaction', drug:'ビサコジル坐薬', note:'腹部便塊触知のため', src:'doctor' }],
-    notes:[
-      { date:'2025-07-15', text:'食事：糖質多め。玄米入りご飯を試している。', src:'patient' },
-      { date:'2025-06-15', text:'コントロール比較的良好。便は4-5、5中心。', src:'doctor' }
-    ]
-  },
-  {
-    id: '87654',
-    patientKey: null, // TODO: Edge Function経由で取得したHMAC patient_keyを設定
-    diag: 'IBS-C',
-    diaryStart: '2025-01-15',
-    lastVisit:  '2025-06-20',
-    currentVisit:'2025-07-15',
-    nextVisit:  '2025-08-20',
-    control: 'good', controlText: '良好',
-    shareInfo:{ lastSharedAt:'2025-07-14T22:10:00', periodStart:'2025-06-20', periodEnd:'2025-07-14' },
-    rxHistory:[
-      { drug:'リナクロチド', entries:[
-        { dose:'0.25mg', freq:'朝食30分前', start:'2025-01-15', end:'2025-07-14', days:30, pushed:true, changeType:'new', current:false },
-        { dose:'0.25mg', freq:'朝食30分前', start:'2025-07-15', end:'2025-08-13', days:30, pushed:false, changeType:'same', current:true },
-      ]},
-    ],
-    adherence30:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    skipCount:0, catchupCount:0,
-    visits:['2025-01-15','2025-03-01','2025-04-20','2025-06-20','2025-07-15'],
-    bowelRecords:[
-      { date:'2025-07-08', stool:4, strain:false, medAm:'ok',medNoon:'',medPm:'', src:'patient' },
-      { date:'2025-07-09', amt:'M', stool:3, strain:false, medAm:'ok',medNoon:'',medPm:'', src:'patient' },
-      { date:'2025-07-10', amt:'S', stool:4, strain:false, medAm:'ok',medNoon:'',medPm:'', src:'patient' },
-      { date:'2025-07-11', amt:'L', stool:4, strain:false, medAm:'ok',medNoon:'',medPm:'', src:'patient' },
-      { date:'2025-07-12', amt:'M', stool:5, strain:false, medAm:'ok',medNoon:'',medPm:'', src:'patient' },
-      { date:'2025-07-13', stool:4, strain:false, medAm:'ok',medNoon:'',medPm:'', src:'patient' },
-      { date:'2025-07-14', amt:'L', stool:4, strain:false, medAm:'ok',medNoon:'',medPm:'', src:'patient' },
-    ],
-    prevPeriod:{ totalDays:25, bowelDays:22, noStoolDays:3, strainDays:1, bristolAvg:3.8, bristolMode:4 },
-    currPeriod:{ totalDays:25, bowelDays:24, noStoolDays:1, strainDays:0, bristolAvg:4.0, bristolMode:4 },
-    bristolDist:{ 1:0,2:0,3:4,4:16,5:4,6:0,7:0 },
-    procedures:[],
-    notes:[{ date:'2025-07-15', text:'症状安定。継続処方。', src:'doctor' }]
-  }
-];
-
-// localStorageに保存済みがあれば復元、なければデフォルトを使用
-const _savedPatients = loadPatientsFromStorage();
-const PATIENTS = _savedPatients || PATIENTS_DEFAULT;
-
-let currentPt  = PATIENTS[0];
+let currentPt  = null;  // 患者未登録時はnull
 let currentTab = 'summary';
 
 function selectPatient(id) {
@@ -428,9 +315,12 @@ function medComp(v, dose){
 }
 
 function calcNextVisitDays(p){
+  if(!p.currentVisit || !p.nextVisit) return null;
   const s = new Date(p.currentVisit);
   const e = new Date(p.nextVisit);
-  return Math.round((e - s) / 86400000);
+  if(isNaN(s) || isNaN(e)) return null;
+  const days = Math.round((e - s) / 86400000);
+  return days > 0 ? days : null;
 }
 
 function getCurrentRx(p){
@@ -446,7 +336,7 @@ function rxAlertHTML(p){
   const rx = getCurrentRx(p);
   if(!rx) return '';
   const nextDays = calcNextVisitDays(p);
-  if(rx.days < nextDays){
+  if(nextDays !== null && rx.days < nextDays){
     const gap = nextDays - rx.days;
     return `<div class="alert alert-warn">
       <svg class="alert-icon" viewBox="0 0 16 16" fill="none"><polygon points="8,2 14,14 2,14" stroke="#854F0B" stroke-width="1.2" fill="none" stroke-linejoin="round"/><line x1="8" y1="6" x2="8" y2="10" stroke="#854F0B" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="12" r=".7" fill="#854F0B"/></svg>
@@ -459,8 +349,9 @@ function rxAlertHTML(p){
 // ① 共有状態バー
 function shareBarHTML(p){
   const si = p.shareInfo;
-  if(!si) return '';
+  if(!si || !si.lastSharedAt || !si.periodStart || !si.periodEnd) return '';
   const lastDt = new Date(si.lastSharedAt);
+  if(isNaN(lastDt)) return '';
   const lastStr = `${lastDt.getMonth()+1}/${lastDt.getDate()} ${String(lastDt.getHours()).padStart(2,'0')}:${String(lastDt.getMinutes()).padStart(2,'0')}`;
   return `<div class="share-bar">
     <div class="share-item"><div class="share-dot"></div><span>最終共有: <b>${lastStr}</b></span></div>
@@ -602,12 +493,12 @@ function renderPtList(list){
     if(p.control==='poor') badges.push('<span class="badge badge-red">要注意</span>');
     if(p.skipCount>0) badges.push(`<span class="badge badge-amber">スキップ${p.skipCount}日</span>`);
     if(rx && !rx.pushed) badges.push('<span class="badge badge-green">Push待ち</span>');
-    return `<div class="pt-item${p.id===currentPt.id?' active':''}" onclick="selectPatient('${p.id}')">
+    return `<div class="pt-item${currentPt && p.id===currentPt.id?' active':''}" onclick="selectPatient('${p.id}')">
       <div class="pt-id">${p.id}</div>
       <div class="pt-diag">${p.currentVisit}</div>
       ${badges.length?`<div class="pt-badges">${badges.join('')}</div>`:''}
     </div>`;
-  }).join('');
+  }).join('') || '<div style="padding:12px;color:var(--text3);font-size:12px;">患者を診察券番号で追加してください</div>';
 }
 
 function selectPt(id){ selectPatient(id); } // 後方互換ラッパー
@@ -672,7 +563,7 @@ async function loadByChartNumber() {
         currentVisit: new Date().toISOString().slice(0, 10),
         nextVisit: '',
         control: 'fair', controlText: '比較的良好',
-        shareInfo: { lastSharedAt: null, periodStart: null, periodEnd: null },
+        shareInfo: null,  // 共有前はnull（shareBarHTMLでガード済み）
         rxHistory: [],
         adherence30: [],
         skipCount: 0, catchupCount: 0,
@@ -1014,6 +905,7 @@ function renderPrescription(){
   const p=currentPt;
   const rx=getCurrentRx(p)||{drug:'',dose:'',doseValue:'',freq:'',days:30,start:p.currentVisit,note:''};
   const nextDays=calcNextVisitDays(p);
+  const nextDaysLabel = nextDays !== null ? `次回受診まで ${nextDays}日` : '次回受診日は未設定です';
   // フォーム入力欄には数値のみを使う（「朝1.75包」→「1.75」）
   const rxDoseValue = rx.doseValue ?? parseDoseNumber(rx.dose) ?? '';
 
@@ -1056,7 +948,7 @@ function renderPrescription(){
         <div class="form-group"><label>処方日数</label>
           <input type="number" id="rxDays" value="${rx.days}" min="1" max="180"
             oninput="checkRxDays(this.value,${nextDays})">
-          <div id="rxDaysHint" style="font-size:10px;color:var(--text2);margin-top:2px">次回受診まで ${nextDays}日</div>
+          <div id="rxDaysHint" style="font-size:10px;color:var(--text2);margin-top:2px">${nextDaysLabel}</div>
         </div>
       </div>
       <div class="form-row">
@@ -1151,11 +1043,16 @@ function renderPrescription(){
 
 function checkRxDays(val,nextDays){
   const hint=document.getElementById('rxDaysHint');
+  if(nextDays === null || nextDays === 'null') {
+    hint.textContent='次回受診日は未設定です';
+    return;
+  }
+  const nd=parseInt(nextDays)||0;
   const d=parseInt(val)||0;
-  if(d>0&&d<nextDays){
-    hint.innerHTML=`<span style="color:var(--amber)">⚠ 次回受診まで${nextDays}日 — 処方日数が不足しています（差${nextDays-d}日）</span>`;
+  if(d>0&&nd>0&&d<nd){
+    hint.innerHTML=`<span style="color:var(--amber)">⚠ 次回受診まで${nd}日 — 処方日数が不足しています（差${nd-d}日）</span>`;
   } else {
-    hint.textContent=`次回受診まで ${nextDays}日`;
+    hint.textContent=nd>0?`次回受診まで ${nd}日`:'次回受診日は未設定です';
   }
 }
 
@@ -1407,6 +1304,7 @@ function renderContent(){
 
 function renderAll(){
   renderPtList(PATIENTS);
+  if(!currentPt) return;
   renderTopbar();
   renderContent();
 }
@@ -1449,8 +1347,8 @@ function doctorLogout() {
 }
 
 // 現在選択中の患者（idは診察券番号、patientKeyはHMAC済みキー）
-let CURRENT_PATIENT_ID  = '00001';
-let CURRENT_PATIENT_KEY = null; // 患者選択時にpatientKeyをセット
+let CURRENT_PATIENT_ID  = null;  // E2E用：初期患者なし
+let CURRENT_PATIENT_KEY = null;
 
 // Supabase REST API ヘルパー（医師トークンを使用）
 async function supabaseFetch(table, params='') {
@@ -1472,7 +1370,7 @@ async function loadPatientRecords(patientId) {
 
   const patientKey = p.patientKey;
   if (!patientKey) {
-    showLoadStatus('patient_key未設定（モックデータを表示中）', 'warn');
+    showLoadStatus('patient_key未取得です。診察券番号を入力して表示してください。', 'warn');
     return;
   }
 
@@ -1484,7 +1382,7 @@ async function loadPatientRecords(patientId) {
     );
 
     if (!records || records.length === 0) {
-      showLoadStatus('共有記録がありません（モックデータを表示中）', 'warn');
+      showLoadStatus('共有記録がありません。患者アプリから医師へ共有後に再表示してください。', 'warn');
       return;
     }
 
@@ -1662,9 +1560,9 @@ async function loadPatientRecords(patientId) {
 
   } catch(e) {
     console.error('Supabase load error:', e);
-    // エラー時はモックデータで描画
+    // エラー時はそのまま描画（空リスト）
     renderAll();
-    showLoadStatus('データ読み込みエラー（モックデータを表示中）', 'error');
+    showLoadStatus('データ読み込みエラー。Supabase接続または権限を確認してください。', 'error');
   }
 }
 
@@ -1744,9 +1642,7 @@ function showLoadStatus(msg, type) {
   el.style.display = 'block';
 }
 
-// 初期化：モックデータで描画後、Supabaseからデータ取得
-// 初期描画はSupabaseデータ取得後に実行
-// 初期表示: まずモックデータで即時描画し、その後DBデータで上書き
+// 初期化：患者追加後にSupabaseからデータ取得
 
 // リロード後の選択患者を復元
 (function restoreLastPatient() {
@@ -1760,8 +1656,10 @@ function showLoadStatus(msg, type) {
 })();
 
 renderAll();
-loadPatientRecords(CURRENT_PATIENT_ID);
-loadPrescriptions(CURRENT_PATIENT_ID);
+if(currentPt) {
+  loadPatientRecords(CURRENT_PATIENT_ID);
+  loadPrescriptions(CURRENT_PATIENT_ID);
+}
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
