@@ -300,22 +300,22 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 <body>
 <!-- プロフィール選択オーバーレイ（初回ログイン時） -->
 <div id="profile-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;padding:24px;">
-  <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:380px;width:100%;text-align:center;">
-    <div style="font-size:22px;margin-bottom:10px;">📋</div>
-    <div style="font-size:16px;font-weight:500;color:#1a1a18;margin-bottom:8px;">記録をつける方を選んでください</div>
-    <div style="font-size:12px;color:#888780;margin-bottom:24px;">ログアウトまたは記録対象の切り替え時に、選び直せます</div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
+  <div style="background:#fff;border-radius:16px;padding:32px 26px;max-width:420px;width:100%;text-align:center;">
+    <div style="font-size:28px;margin-bottom:12px;">📋</div>
+    <div style="font-size:20px;font-weight:600;color:#1a1a18;margin-bottom:10px;">記録モードを選んでください</div>
+    <div style="font-size:14px;color:#888780;margin-bottom:26px;">選択後も記録上部にある「記録モード」欄で変更可能です</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
       <button onclick="selectProfile('adult_self')"
-        style="padding:16px;border-radius:12px;border:1.5px solid #1D9E75;background:#E1F5EE;cursor:pointer;font-size:14px;font-weight:500;color:#085041;text-align:left;">
-        <div style="font-size:20px;margin-bottom:4px;">🧑</div>
-        ご本人の記録をつける
-        <div style="font-size:11px;color:#0F6E56;margin-top:3px;font-weight:400;">成人の方・ご自身で記録する場合</div>
+        style="padding:20px;border-radius:12px;border:1.5px solid #1D9E75;background:#E1F5EE;cursor:pointer;font-size:17px;font-weight:600;color:#085041;text-align:left;">
+        <div style="font-size:26px;margin-bottom:6px;">📝</div>
+        通常の記録
+        <div style="font-size:13px;color:#0F6E56;margin-top:5px;font-weight:400;line-height:1.6;">Bristol scaleで記録します。成人の方、大きなお子さん、本人が便の状態を確認できる場合はこちら。</div>
       </button>
       <button onclick="selectProfile('child_guardian')"
-        style="padding:16px;border-radius:12px;border:1.5px solid #185FA5;background:#E6F1FB;cursor:pointer;font-size:14px;font-weight:500;color:#0C447C;text-align:left;">
-        <div style="font-size:20px;margin-bottom:4px;">👨‍👩‍👧</div>
-        お子さんの記録をつける
-        <div style="font-size:11px;color:#185FA5;margin-top:3px;font-weight:400;">保護者の方・お子さんの記録を管理する場合</div>
+        style="padding:20px;border-radius:12px;border:1.5px solid #185FA5;background:#E6F1FB;cursor:pointer;font-size:17px;font-weight:600;color:#0C447C;text-align:left;">
+        <div style="font-size:26px;margin-bottom:6px;">🧸</div>
+        小さなお子さん向けの記録
+        <div style="font-size:13px;color:#185FA5;margin-top:5px;font-weight:400;line-height:1.6;">おむつ・簡易入力を使えます。保育園などでBristol scaleが分からない場合にも使えます。</div>
       </button>
     </div>
   </div>
@@ -345,9 +345,13 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 </div>
 
 <!-- 患者切り替えバー（複数患者対応）-->
-<div id="patient-switch-bar" style="background:#f0ede6;border-bottom:0.5px solid rgba(0,0,0,0.12);padding:6px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-  <span style="font-size:11px;color:#5f5e5a;">
-    記録対象：<span id="patient-id-display" style="font-weight:500;font-family:monospace;color:#1a1a18;">—</span>
+<div id="patient-switch-bar" style="background:#f0ede6;border-bottom:0.5px solid rgba(0,0,0,0.12);padding:6px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+  <span style="font-size:11px;color:#5f5e5a;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span>記録対象：<span id="patient-id-display" style="font-weight:500;font-family:monospace;color:#1a1a18;">—</span></span>
+    <span style="color:#b4b2a9;">|</span>
+    <span>記録モード：<span id="mode-display" style="font-weight:500;color:#1a1a18;">—</span>
+      <button onclick="changeProfile()" style="margin-left:4px;padding:1px 7px;border-radius:5px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:10px;color:#5f5e5a;">変更</button>
+    </span>
   </span>
   <!-- child_guardian 用ボタン -->
   <button class="child-only" onclick="switchPatient()" style="flex-shrink:0;padding:4px 10px;border-radius:6px;border:0.5px solid #b4b2a9;background:#fff;cursor:pointer;font-size:10px;color:#5f5e5a;white-space:nowrap;">
@@ -851,6 +855,30 @@ async function switchPatient(){
 /* ============================================================
    プロフィール選択
    ============================================================ */
+// 内部値 → 表示名（profileType は「記録UIモード」を表す）
+function modeLabel(type){
+  return type === 'adult_self' ? '通常の記録' : '小さなお子さん向けの記録';
+}
+
+// 記録対象バーの記録モード表示を更新
+function updateModeDisplay(type){
+  const el=document.getElementById('mode-display');
+  if(el) el.textContent = modeLabel(type);
+}
+
+// 記録モード変更（変更ボタン）
+function changeProfile(){
+  if(S.editingId){
+    alert('記録を編集中は、記録モードを変更できません。\n編集を保存またはキャンセルしてから変更してください。');
+    return;
+  }
+  if(!confirm(
+    '記録モードを変更しますか？\n' +
+    '通常は初回設定後に変更する必要はありません。'
+  )) return;
+  document.getElementById('profile-overlay').style.display = 'flex';
+}
+
 function selectProfile(type){
   PROFILE_TYPE = type;
   localStorage.setItem('profileType', type);
@@ -858,7 +886,7 @@ function selectProfile(type){
   // body クラスを更新
   document.body.classList.remove('profile-adult','profile-child');
   document.body.classList.add(type === 'adult_self' ? 'profile-adult' : 'profile-child');
-  // adult_self ではおむつ機能を使わないので状態をクリア
+  // adult_self（通常の記録）ではおむつ機能を使わないので状態をクリア
   if(type === 'adult_self'){
     S.isOmutsu = false;
     localStorage.removeItem('omutsuDefault');
@@ -869,6 +897,11 @@ function selectProfile(type){
   const _pid = localStorage.getItem('patientId');
   const _pidEl = document.getElementById('patient-id-display');
   if(_pidEl) _pidEl.textContent = type === 'adult_self' ? 'ご本人' : (_pid ? `診察券番号 ${_pid}` : '（取得中）');
+  // 記録モード表示を更新
+  updateModeDisplay(type);
+  // 古いUI状態（おむつ中の行表示など）が残らないようフォームをリセット
+  // S.isOmutsu は上で設定済みなので、resetToiletForm が正しい表示状態に整える
+  resetToiletForm(false);
 }
 
 /* ============================================================
@@ -985,6 +1018,8 @@ function init(){
       _pidEl.textContent = _pid ? `診察券番号 ${_pid}` : '（取得中）';
     }
   }
+  // 記録モード表示（未設定時は選択後に updateModeDisplay で設定される）
+  if(PROFILE_TYPE) updateModeDisplay(PROFILE_TYPE);
 
   // おむつ中デフォルト復元（child_guardian のみ。adult_self では使わない）
   if(PROFILE_TYPE === 'child_guardian' && localStorage.getItem('omutsuDefault') === 'true'){
