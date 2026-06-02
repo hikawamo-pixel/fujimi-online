@@ -386,7 +386,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 
   <!-- おむつ中のお知らせ -->
   <div class="omutsu-notice child-only" id="omutsu-notice">
-    おむつ中モードです。トイレへの移動はなく、排便の有無から記録できます。
+    おむつ中モードです。おむつ内の排便の有無から記録できます。
   </div>
 
   <!-- STEP1：行った／行かなかった（おむつ中は非表示） -->
@@ -651,7 +651,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         </div>
       </div>
     </div>
-    <div class="sec">
+    <div class="sec" id="stool-res-block">
       <div class="sec-lbl">排便後の感覚（すっきり感）</div>
       <div class="res-row">
         <div class="res-btn" id="res-btn-0" onclick="pickRes(0,this)">
@@ -1208,6 +1208,8 @@ function applyOmutsuStoolMode(isOmutsu){
   // 通常モードへの復帰時は stool-disim-block の再表示のみ行い、
   // detail の show/hide は setStoolDisim() に委ねる
   document.getElementById('stool-omutsu-note-block').style.display=isOmutsu?'block':'none';
+  // おむつ中は「排便後の感覚」を非表示（評価不可）
+  document.getElementById('stool-res-block').style.display=isOmutsu?'none':'block';
 }
 
 
@@ -1409,7 +1411,7 @@ function saveStool(){
     timeSlot:document.getElementById('stool-time').value,
     meal:S.isOmutsu?null:S.meal,
     amt:S.amt||null,
-    res:S.res!==null?['すっきり','残っている感じ','不明'][S.res]:null,
+    res:(!S.isOmutsu && S.res!==null)?['すっきり','残っている感じ','不明'][S.res]:null,
     strain:S.strain, pain:S.pain, blood:S.blood,
     note:omutsuNote||undefined,
     clientId:isNew?crypto.randomUUID():(S.recs.find(x=>x.id===S.editingId)?.clientId||crypto.randomUUID()),
