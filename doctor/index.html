@@ -12,6 +12,13 @@
   □ 2. PATIENTS_DEFAULT配列のモックデータ（00001・87654）を削除する
 
   □ 3. RLSポリシーの最終確認
+
+  □ 4. patient_events の RLS 強化（重要）
+        現状は暫定: SELECT USING(true) / INSERT WITH CHECK(source='doctor')
+        → anon key でも source='doctor' として insert できてしまう。
+        本番では create-visit-event Edge Function を作成し、
+        service role で insert/upsert する設計に変更すること。
+        医師UIからの直接 REST insert を廃止する。
   ================================================================
 -->
 <html lang="ja">
@@ -1249,6 +1256,50 @@ async function saveRx(mode){
       push:    `「${drug} ${dose}」を確定し、患者アプリへPush送信しました。`,
     };
     alert(msgs[mode]);
+
+    // ── Push時のみ受診イベントを記録（医師起点）──
+    if (mode === 'push') {
+      try {
+        const doctorNoteVisible = !!(note && note.trim());
+        // 受診日: currentPt.currentVisit があればそれ、なければJSTの今日
+        // （処方開始日ではない。翌日開始処方でも受診マークは受診日に出す）
+        const jstToday = (() => {
+          const n = new Date();
+          const jst = new Date(n.getTime() + 9*60*60*1000);
+          return jst.toISOString().slice(0,10);
+        })();
+        const visitDate = (currentPtObj && currentPtObj.currentVisit) || jstToday;
+        const eventPayload = {
+          patient_key:  patientKey,
+          event_type:   'visit',
+          event_date:   visitDate,
+          source:       'doctor',
+          metadata: {
+            prescription_pushed: true,
+            doctor_note_visible: doctorNoteVisible,
+          },
+        };
+        const evRes = await fetch(`${SUPABASE_URL}/rest/v1/patient_events?on_conflict=patient_key,event_date,event_type`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${token}`,
+            // 同一患者・同一日・同一種別は upsert（重複受診イベントを作らない）
+            'Prefer': 'resolution=merge-duplicates,return=minimal',
+          },
+          body: JSON.stringify(eventPayload),
+        });
+        if (!evRes.ok) {
+          console.warn('[saveRx] 受診イベント記録に失敗:', evRes.status, await evRes.text());
+        } else {
+          console.log('[saveRx] 受診イベント記録:', visitDate);
+        }
+      } catch(evErr) {
+        // 受診イベント失敗は処方Push自体を妨げない
+        console.warn('[saveRx] 受診イベント記録エラー:', evErr);
+      }
+    }
 
     // 内服履歴を再読み込み
     await loadPrescriptions(CURRENT_PATIENT_ID);
