@@ -141,6 +141,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .eval-good{background:var(--green-light);color:var(--green)}
 .eval-fair{background:var(--amber-light);color:var(--amber)}
 .eval-poor{background:var(--red-light);color:var(--red)}
+.eval-none{background:var(--surface2);color:var(--text2)}
 
 /* Rx history horiz */
 .rx-history-block{margin-bottom:18px}
@@ -501,6 +502,7 @@ function renderPtList(list){
     const rx = getCurrentRx(p);
     const badges=[];
     if(p.control==='poor') badges.push('<span class="badge badge-red">要注意</span>');
+    if(p.control==='before_treatment') badges.push('<span class="badge badge-green">初回</span>');
     if(p.skipCount>0) badges.push(`<span class="badge badge-amber">スキップ${p.skipCount}日</span>`);
     if(rx && !rx.pushed) badges.push('<span class="badge badge-green">Push待ち</span>');
     return `<div class="pt-item${currentPt && p.id===currentPt.id?' active':''}" onclick="selectPatient('${p.id}')">
@@ -572,7 +574,7 @@ async function loadByChartNumber() {
         lastVisit: new Date().toISOString().slice(0, 10),
         currentVisit: new Date().toISOString().slice(0, 10),
         nextVisit: '',
-        control: 'fair', controlText: '比較的良好',
+        control: 'before_treatment', controlText: '内服開始前',
         shareInfo: null,  // 共有前はnull（shareBarHTMLでガード済み）
         rxHistory: [],
         adherence30: [],
@@ -639,9 +641,13 @@ function renderSummary(){
   html += rxAlertHTML(p);
 
   // コントロール評価
-  const evalCls=p.control==='good'?'eval-good':p.control==='fair'?'eval-fair':p.control==='moderate'?'eval-fair':'eval-poor';
-  const evalIcon=p.control==='good'?'◎':p.control==='fair'?'○':p.control==='moderate'?'▲':'△';
-  html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${p.controlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">${p.lastVisit} → 今回: ${p.currentVisit}</span></div>`;
+  const evalCls=p.control==='before_treatment'?'eval-none':p.control==='good'?'eval-good':p.control==='fair'?'eval-fair':p.control==='moderate'?'eval-fair':'eval-poor';
+  const evalIcon=p.control==='before_treatment'?'—':p.control==='good'?'◎':p.control==='fair'?'○':p.control==='moderate'?'▲':'△';
+  if(p.control === 'before_treatment'){
+    html+=`<div class="eval-block eval-none">—&nbsp;<b>内服開始前（コントロール評価なし）</b><span style="margin-left:auto;font-size:11px;opacity:.7">初回処方</span></div>`;
+  } else {
+    html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${p.controlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">${p.lastVisit} → 今回: ${p.currentVisit}</span></div>`;
+  }
 
   // サマリー数値
   const diffTag=(val,goodDir)=>{
@@ -735,8 +741,8 @@ function renderSummary(){
     <div class="rx-timeline">`;
   recentSegs.forEach(({drug,e},i)=>{
     const isCurrent=e.current;
-    const changeLabel=e.changeType==='new'?'開始':e.changeType==='up'?'増量':e.changeType==='same'?'継続':'変更';
-    const changeCls=e.changeType==='up'?'rx-up':e.changeType==='new'?'rx-new':'';
+    const changeLabel=e.changeType==='new_start'?'新規開始':e.changeType==='new'?'開始':e.changeType==='up'?'増量':e.changeType==='same'?'継続':'変更';
+    const changeCls=e.changeType==='up'?'rx-up':e.changeType==='new_start'||e.changeType==='new'?'rx-new':'';
     html+=`<div class="rx-segment${isCurrent?' current':''}">
       <div>
         <span class="rx-drug" style="font-size:11px">${drug}</span>
@@ -865,7 +871,7 @@ function renderRxHistory(){
       const bg=isCur?'#EAF3DE':'#E6F1FB';
       const bc=isCur?'#97C459':'#85B7EB';
       const tc=isCur?'#27500A':'#0C447C';
-      const changeLabel=e.changeType==='new'?'開始':e.changeType==='up'?'↑増量':e.changeType==='same'?'→継続':'変更';
+      const changeLabel=e.changeType==='new_start'?'▶新規開始':e.changeType==='new'?'開始':e.changeType==='up'?'↑増量':e.changeType==='same'?'→継続':'変更';
       const pushBadge=e.pushed?'':'<div style="font-size:8px;color:var(--green);margin-top:1px">Push待</div>';
       html+=`<div class="rx-seg-block">
         <div style="font-size:8px;color:var(--text3);margin-bottom:2px">${changeLabel}</div>
@@ -978,6 +984,7 @@ function renderPrescription(){
       <div class="form-group" style="margin-bottom:10px">
         <label>変更区分</label>
         <select id="rxChangeType">
+          <option value="new_start">新規開始</option>
           <option value="same" selected>継続（用量変更なし）</option>
           <option value="up">増量</option>
           <option value="down">減量</option>
@@ -998,6 +1005,7 @@ function renderPrescription(){
         <div class="form-group">
           <label>コントロール評価</label>
           <select id="rxControl">
+            <option value="before_treatment" ${p.control==='before_treatment'?'selected':''}>内服開始前</option>
             <option value="good" ${p.control==='good'?'selected':''}>良好</option>
             <option value="fair" ${p.control==='fair'?'selected':''}>比較的良好</option>
             <option value="moderate" ${p.control==='moderate'?'selected':''}>Moderate</option>
@@ -1123,7 +1131,7 @@ function buildKarteText(p){
 
   return `日誌開始 ${p.diaryStart}〜。診断・治療開始 ${p.visits[0]}〜前回受診 ${p.lastVisit}。
 ${rxLine}　処方期間${rx?rx.days:'—'}日
-アドヒアランス: スキップ${p.skipCount}日${p.catchupCount>0?`・追いかけ${p.catchupCount}日`:''}
+${p.control==='before_treatment'?'内服開始前のため、内服記録はありません。':p.skipCount===0&&p.catchupCount===0&&p.adherence30.length===0?'内服状況は記録されていません。':`アドヒアランス: スキップ${p.skipCount}日${p.catchupCount>0?`・追いかけ${p.catchupCount}日`:''}`}
 排便頻度: 排便なし${noStoolDays}日。怒責${p.currPeriod.strainDays}日。
 坐薬・浣腸使用回数: 坐薬${suppCount}　浣腸${eneCount}　使用すべきタイミング${shouldUseDays}（自動）
 便性: ブリストル平均${p.currPeriod.bristolAvg.toFixed(1)}（最頻値${p.currPeriod.bristolMode}型）
@@ -1155,7 +1163,7 @@ async function saveRx(mode){
   const timing = document.getElementById('rxTiming').value;
   const note   = document.getElementById('rxNote').value;
   const control= document.getElementById('rxControl').value;
-  const controlMap = {good:'良好', fair:'比較的良好', moderate:'Moderate', poor:'不良'};
+  const controlMap = {before_treatment:'内服開始前', good:'良好', fair:'比較的良好', moderate:'Moderate', poor:'不良'};
 
   if (!drug || !dose) { alert('薬剤名と用量を入力してください'); return; }
 
