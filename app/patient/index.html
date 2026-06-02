@@ -101,8 +101,8 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .timebar-track{position:relative;height:28px;background:#f5f5f2;border-radius:8px;border:0.5px solid #b4b2a9;cursor:pointer;user-select:none;}
 .timebar-fill{position:absolute;left:0;top:0;bottom:0;background:#E1F5EE;border-radius:8px;pointer-events:none;}
 .timebar-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;background:#1D9E75;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);pointer-events:none;}
-.timebar-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:500;color:#1a1a18;pointer-events:none;white-space:nowrap;}
-.timebar-ticks{display:flex;justify-content:space-between;font-size:9px;color:#b4b2a9;margin-top:2px;padding:0 2px;}
+.timebar-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:15px;font-weight:700;color:#085041;pointer-events:none;white-space:nowrap;}
+.timebar-ticks{display:flex;justify-content:space-between;font-size:11px;color:#888780;margin-top:2px;padding:0 2px;}
 
 /* 排便量 */
 .amt-row{display:flex;gap:8px;}
@@ -176,7 +176,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 /* ===== 追加内服トグル・infoモーダル ===== */
 .extra-dose-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 0 2px;}
 .extra-dose-label{font-size:13px;color:#1a1a18;flex:1;}
-.info-btn{width:18px;height:18px;border-radius:50%;border:1.5px solid #B4B2A9;background:#F5F5F2;color:#5f5e5a;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;}
+.info-btn{width:20px;height:20px;border-radius:50%;border:2px solid #1D9E75;background:#E1F5EE;color:#085041;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;}
 .info-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:flex-end;justify-content:center;}
 .info-modal.show{display:flex;}
 .info-card{background:#fff;border-radius:16px 16px 0 0;padding:20px 18px 30px;width:100%;max-width:480px;animation:slideUp .25s ease;}
@@ -701,10 +701,19 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
     <span>の記録</span>
   </div>
   <!-- 処方情報 -->
-  <div id="rx-info-bar" style="display:none;margin:10px 14px 0;padding:10px 14px;background:#E1F5EE;border-radius:10px;border:0.5px solid #1D9E75;">
-    <div style="font-size:10px;font-weight:500;color:#085041;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;">医師からの処方</div>
-    <div id="rx-info-content" style="font-size:13px;font-weight:500;color:#085041;"></div>
-    <div id="rx-info-sub" style="font-size:11px;color:#0F6E56;margin-top:2px;"></div>
+  <div id="rx-info-bar" style="display:none;margin:10px 14px 0;">
+    <!-- 処方バー -->
+    <div style="padding:10px 14px;background:#E1F5EE;border-radius:10px 10px 0 0;border:0.5px solid #1D9E75;border-bottom:none;">
+      <div style="font-size:10px;font-weight:500;color:#085041;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;">医師からの処方</div>
+      <div id="rx-info-content" style="font-size:14px;font-weight:600;color:#085041;"></div>
+      <div id="rx-info-sub" style="font-size:12px;color:#0F6E56;margin-top:3px;"></div>
+      <div id="rx-info-date" style="font-size:11px;color:#3D8A6E;margin-top:3px;"></div>
+    </div>
+    <!-- 医師からのメッセージ（処方メモとは分離） -->
+    <div id="rx-doctor-msg-bar" style="display:none;padding:8px 14px;background:#FFF8EF;border-radius:0 0 10px 10px;border:0.5px solid #BA7517;border-top:none;">
+      <div style="font-size:10px;font-weight:500;color:#633806;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">医師からのメッセージ</div>
+      <div id="rx-doctor-msg" style="font-size:12px;color:#633806;line-height:1.6;"></div>
+    </div>
   </div>
   <div class="sec">
     <div class="sec-lbl">内服時刻</div>
@@ -2550,10 +2559,24 @@ async function loadPrescription(){
       freqText=meta.freq||'';
       noteText=meta.note||'';
     }catch{
-      // 旧形式（平文）はそのまま表示
       noteText=rx.notes||'';
     }
-    sub.textContent=[freqText, noteText].filter(Boolean).join('　');
+    sub.textContent=freqText||'';
+    // 処方開始日
+    const dateEl=document.getElementById('rx-info-date');
+    if(dateEl&&rx.prescribed_at){
+      const d=new Date(rx.prescribed_at);
+      dateEl.textContent=`（${d.getMonth()+1}月${d.getDate()}日〜）`;
+    }
+    // 医師メモは「医師からのメッセージ」として処方とは別に表示
+    const msgBar=document.getElementById('rx-doctor-msg-bar');
+    const msgEl=document.getElementById('rx-doctor-msg');
+    if(msgBar&&msgEl&&noteText){
+      msgEl.textContent=noteText;
+      msgBar.style.display='block';
+    } else if(msgBar){
+      msgBar.style.display='none';
+    }
     console.log('[loadPrescription] 処方バー表示:', content.textContent);
     bar.style.display='block';
   }catch(e){console.error('[loadPrescription] エラー:',e);}
