@@ -785,8 +785,10 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         <option value="0">すべて</option>
       </select>
       <button onclick="shareToDoctor()" id="share-btn" style="padding:7px 16px;border-radius:20px;border:none;background:#1D9E75;color:#fff;font-size:12px;font-weight:500;cursor:pointer;">医師へ共有</button>
+      <button onclick="checkVisitContent()" id="check-visit-btn" style="padding:7px 16px;border-radius:20px;border:0.5px solid #1D9E75;background:#fff;color:#0F6E56;font-size:12px;font-weight:500;cursor:pointer;">受診内容を確認</button>
     </div>
     <div id="share-status" style="margin-top:8px;font-size:12px;display:none;"></div>
+    <div id="visit-check-status" style="margin-top:8px;font-size:12px;display:none;"></div>
   </div>
   <div class="hist-wrap">
   <div class="hist-sticky-header">
@@ -980,6 +982,7 @@ let S={
   meal:null, amt:null, res:null, dur:null,
   strain:false, pain:false, blood:false,
   stoolDisimUsed:null, stoolDisimType:null,
+  visitDates:new Set(),  // 受診イベント日（医師Push由来）
   // 内服
   comp:null, pico:false, emTypes:{},
   // 共通
@@ -1973,9 +1976,11 @@ function renderCard(){
     const bowelCount=bowelRecs.length;
 
     const hasOmutsu=all.some(r=>r.omutsu||r.subType==='omutsu_no_stool');
-    return `<div class="diary-spread${hasOmutsu?' omutsu-day-card':''}">
-      <div class="spread-hdr">
-        <span class="spread-date">${ds}${hasOmutsu?' <span style="font-size:10px;color:#BA7517;margin-left:4px;">🧷おむつ中</span>':''}</span>
+    const isVisitDay=S.visitDates&&S.visitDates.has(d);
+    const visitTag=isVisitDay?' <span style="font-size:10px;color:#6B4FA0;background:#EFEAF7;border:0.5px solid #B9A6DE;border-radius:6px;padding:1px 7px;margin-left:6px;">🏥 受診</span>':'';
+    return `<div class="diary-spread${hasOmutsu?' omutsu-day-card':''}"${isVisitDay?' style="border-color:#B9A6DE;"':''}>
+      <div class="spread-hdr"${isVisitDay?' style="background:#F7F4FC;"':''}>
+        <span class="spread-date">${ds}${visitTag}${hasOmutsu?' <span style="font-size:10px;color:#BA7517;margin-left:4px;">🧷おむつ中</span>':''}</span>
         <span class="spread-count">排便 ${bowelCount}回　内服 ${meds.length}回${absents.length?'　記録'+absents.length+'件':''}</span>
       </div>
       ${absents.map(absentHTML).join('')}
@@ -2026,7 +2031,7 @@ function renderTL(){
     <div class="tl-legend-item"><span style="font-size:10px;color:#BA7517;">⏸</span><span>我慢/行かなかった</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;">🧷</span><span>おむつ中</span></div>
   </div>
-  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>追=追加内服（飲み忘れ分）　ピコ=ピコスルファート　青字=臨時薬<br>マーカー下の棒=排便にかかった時間（長いほど時間がかかった）</div>
+  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>追=追加内服（飲み忘れ分）　ピコ=ピコスルファート　青字=臨時薬<br>🏥受診=医師が処方を更新した受診日　マーカー下の棒=排便にかかった時間（長いほど時間がかかった）</div>
   <div class="tl-outer"><table class="tl-table"><thead><tr>
     <th class="th-date">日付</th>
     <th class="th-med"><div class="th-med-inner"><div class="th-med-slot">朝</div><div class="th-med-slot">昼</div><div class="th-med-slot">晩</div></div></th>
@@ -2116,7 +2121,7 @@ function renderTL(){
     }
 
     html+=`<tr style="background:${rowBg};">
-      <td class="td-date"><div class="td-date-main">${dateMain}</div><div class="td-date-day">${dateDay}</div></td>
+      <td class="td-date"${S.visitDates&&S.visitDates.has(d)?' style="background:#F7F4FC;"':''}><div class="td-date-main">${dateMain}</div><div class="td-date-day">${dateDay}</div>${S.visitDates&&S.visitDates.has(d)?'<div style="font-size:8px;color:#6B4FA0;font-weight:600;margin-top:1px;">🏥受診</div>':''}</td>
       <td class="td-med">
         <div class="med-inner">
           <div class="med-slot">${slotHTML(medAm)}</div>
@@ -2349,6 +2354,8 @@ const FN_GET=SUPABASE_URL+'/functions/v1/get-bowel-records';
 const FN_SHARE=SUPABASE_URL+'/functions/v1/share-to-doctor';
 const FN_DELETE=SUPABASE_URL+'/functions/v1/delete-bowel-record';
 const FN_RX=SUPABASE_URL+'/functions/v1/get-prescription';
+// 受診イベント取得用（REST直接、patient_events テーブル）
+const REST_VISIT_EVENTS=SUPABASE_URL+'/rest/v1/patient_events';
 
 function edgeFnHeaders(){return{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};}
 
@@ -2490,6 +2497,32 @@ function serverRowToLocal(row){
 /* ============================================================
    医師へ共有
    ============================================================ */
+// 受診内容を確認：最新処方・医師メモ・受診イベントを再取得して再描画
+async function checkVisitContent(){
+  const btn = document.getElementById('check-visit-btn');
+  const status = document.getElementById('visit-check-status');
+  btn.disabled = true; btn.textContent = '確認中…';
+  status.style.display = 'block'; status.style.color = '#5f5e5a';
+  status.textContent = '受診内容を確認しています…';
+  try{
+    await Promise.all([
+      loadFromSupabase(),
+      loadPrescription(),
+      loadVisitEvents(),
+    ]);
+    renderCard();
+    if(S.histView === 'tl') renderTL();
+    status.style.color = '#0F6E56';
+    status.textContent = '受診内容を確認しました';
+  }catch(e){
+    console.error('[checkVisitContent] エラー:', e);
+    status.style.color = '#A32D2D';
+    status.textContent = '受診内容を確認できませんでした。通信状況を確認して、もう一度お試しください';
+  }finally{
+    btn.disabled = false; btn.textContent = '受診内容を確認';
+  }
+}
+
 async function shareToDoctor(){
   if(!PATIENT_KEY){alert('ログインが必要です。最初からやり直してください。');return;}
   const btn=document.getElementById('share-btn');
@@ -2526,6 +2559,23 @@ async function shareToDoctor(){
 /* ============================================================
    処方情報取得
    ============================================================ */
+// 受診イベント（医師Push由来）を取得して S.visitEvents に格納
+async function loadVisitEvents(){
+  if(!PATIENT_KEY) return;
+  try{
+    const url = `${REST_VISIT_EVENTS}?patient_key=eq.${encodeURIComponent(PATIENT_KEY)}&event_type=eq.visit&select=event_date,metadata,source&order=event_date.desc`;
+    const res = await fetch(url, {
+      method:'GET',
+      headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY },
+    });
+    if(!res.ok){ console.warn('[loadVisitEvents] HTTP error:', res.status); return; }
+    const rows = await res.json();
+    // 受診日のセットを作る（カード/TL表示用）
+    S.visitDates = new Set((rows||[]).map(r => r.event_date));
+    console.log('[loadVisitEvents] 受診日:', [...S.visitDates]);
+  }catch(e){ console.warn('[loadVisitEvents] エラー:', e); }
+}
+
 async function loadPrescription(){
   if(!PATIENT_KEY){
     console.warn('[loadPrescription] PATIENT_KEY が null です。ログインし直してください。');
@@ -2590,6 +2640,7 @@ async function loadPrescription(){
    ============================================================ */
 init();
 loadPrescription();
+loadVisitEvents();
 loadFromSupabase();
 </script>
 </body>
