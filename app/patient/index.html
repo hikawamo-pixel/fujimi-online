@@ -173,6 +173,19 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .popup-btn.primary:hover{background:#C8EEE1;}
 .popup-btn-icon{font-size:16px;width:24px;text-align:center;flex-shrink:0;}
 
+/* ===== 追加内服トグル・infoモーダル ===== */
+.extra-dose-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 0 2px;}
+.extra-dose-label{font-size:13px;color:#1a1a18;flex:1;}
+.info-btn{width:18px;height:18px;border-radius:50%;border:1.5px solid #B4B2A9;background:#F5F5F2;color:#5f5e5a;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;}
+.info-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:flex-end;justify-content:center;}
+.info-modal.show{display:flex;}
+.info-card{background:#fff;border-radius:16px 16px 0 0;padding:20px 18px 30px;width:100%;max-width:480px;animation:slideUp .25s ease;}
+.info-card-title{font-size:14px;font-weight:600;color:#1a1a18;margin-bottom:12px;}
+.info-card-body{font-size:13px;color:#3a3a38;line-height:1.7;margin-bottom:16px;}
+.info-card-body p{margin:0 0 10px;}
+.info-card-body .eg{font-size:12px;color:#5f5e5a;background:#f5f5f2;border-radius:8px;padding:8px 10px;margin:6px 0 10px;}
+.info-close-btn{width:100%;padding:12px;border-radius:10px;border:0.5px solid #b4b2a9;background:#fff;font-size:13px;cursor:pointer;}
+
 /* ===== 内服記録タブ ===== */
 .med-block{background:#f5f5f2;border-radius:10px;padding:12px 14px;margin-bottom:10px;}
 .med-block-title{font-size:12px;font-weight:500;color:#1a1a18;margin-bottom:10px;}
@@ -183,7 +196,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .comp-btn.on-missed{background:#FCEBEB;border-color:#A32D2D;color:#501313;font-weight:500;}
 /* ステートアイコン（選択時のみ表示） */
 .stool-btn.on-yes::before{content:"✅ ";}
-.stool-btn.on-no::before{content:"⬜ ";}
+.stool-btn.on-no::before{content:"✅ ";}
 /* おむつ中の記録はカード背景を薄橙に */
 .omutsu-day-card{background:#FFF8EF !important;}
 /* 履歴タブ内 カード/TL切り替えをsticky */
@@ -277,6 +290,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .med-comp.low{color:#D85A30;}
 .med-comp.none{color:#888780;}
 .pico-txt{font-size:7px;color:#185FA5;margin-top:2px;line-height:1;text-align:center;}
+.tl-extra{font-size:7px;color:#854F0B;font-weight:700;text-align:center;line-height:1;margin-top:1px;}
 .emerg-row{font-size:7px;color:#185FA5;text-align:center;padding:2px 1px;border-top:0.5px solid rgba(0,0,0,0.12);line-height:1.5;}
 .td-tl{padding:0;vertical-align:middle;height:52px;}
 .tl-inner{position:relative;height:52px;width:100%;}
@@ -480,7 +494,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <!-- 排便あり -->
   <div class="stool-sec" id="stool-sec">
     <!-- Bristol / 簡易 -->
-    <div class="sec">
+    <div class="sec" id="stool-mode-tabs">
       <div class="input-mode-tabs">
         <div class="imt-btn on" id="imt-bristol" onclick="setInputMode('bristol')">Bristol scale</div>
         <div class="imt-btn child-only" id="imt-simple" onclick="setInputMode('simple')">簡易入力</div>
@@ -715,6 +729,12 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         <div class="comp-btn" onclick="pickComp(this,'飲めなかった')">飲めなかった</div>
         <div class="comp-btn" onclick="pickComp(this,'忘れた')">忘れた</div>
       </div>
+      <!-- 追加内服（飲み忘れ分） -->
+      <div class="extra-dose-row">
+        <span class="extra-dose-label">追加内服（飲み忘れ分）</span>
+        <button class="info-btn" onclick="showExtraDoseInfo()" aria-label="説明を見る">ⓘ</button>
+        <button class="sw" id="sw-extra-dose" onclick="togExtraDose()"></button>
+      </div>
       <div class="pico-row">
         <span class="pico-label">ピコスルファートも使用中</span>
         <button class="sw" id="sw-pico" onclick="togPico()"></button>
@@ -774,20 +794,21 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <div class="popup-card">
     <div class="popup-title">記録を保存しました ✓</div>
     <div class="popup-summary" id="popup-summary">—</div>
-    <div class="popup-actions">
-      <button class="popup-btn primary" onclick="popupAction('done')">
-        <span class="popup-btn-icon">✅</span>確認して終了
-      </button>
-      <button class="popup-btn" onclick="popupAction('another')">
-        <span class="popup-btn-icon">🚽</span>確認して別のトイレ記録をつける
-      </button>
-      <button class="popup-btn" onclick="popupAction('med')">
-        <span class="popup-btn-icon">💊</span>確認して内服記録をつける
-      </button>
-      <button class="popup-btn" onclick="popupAction('edit')">
-        <span class="popup-btn-icon">✏️</span>記録を修正する
-      </button>
+    <div class="popup-actions" id="popup-actions"><!-- JS で生成 --></div>
+  </div>
+</div>
+
+<!-- 追加内服 説明モーダル -->
+<div class="info-modal" id="extra-dose-modal" onclick="hideExtraDoseInfo(event)">
+  <div class="info-card">
+    <div class="info-card-title">追加内服（飲み忘れ分）とは？</div>
+    <div class="info-card-body">
+      <p>いつもの分を<b>遅れて飲んだだけ</b>の場合は、追加内服ではありません。</p>
+      <div class="eg">例：朝飲む予定だった分を夕方に飲んだ場合<br>→ 通常の内服として記録してください。</div>
+      <p>前回または前日の飲み忘れ分を、<b>今日の分とは別に</b>追加で飲んだ場合だけチェックします。</p>
+      <div class="eg">例：朝の通常分を飲み、さらに前日の飲み忘れ分も同じ時間に飲んだ場合<br>→ 通常分を1回記録し、追加分はもう一度記録して「追加内服（飲み忘れ分）」にチェックしてください。</div>
     </div>
+    <button class="info-close-btn" onclick="hideExtraDoseInfo()">閉じる</button>
   </div>
 </div>
 
@@ -849,7 +870,8 @@ async function switchPatient(){
   localStorage.removeItem('bj14');
   localStorage.removeItem('omutsuDefault');
   localStorage.removeItem('profileType');
-  location.href = '/';
+  // Yoyakuruログイン起点へ（callback.htmlのPATIENT_APP='/app/patient'と一致させる）
+  location.href = '/app/patient';
 }
 
 /* ============================================================
@@ -1127,7 +1149,7 @@ function saveOmutsuNoStool(){
   };
   commitRecord(r);
   const summary=`📅 ${fmtDate(r.date)}　🐣 おむつ中${note?'\n'+note:''}`;
-  showPopup(summary,r.id);
+  showPopup(summary, r.id, 'toilet');
 }
 
 /* ============================================================
@@ -1158,7 +1180,9 @@ function setStool(had){
     if(had===true){
       // おむつ用UI調整
       applyOmutsuStoolMode(true);
-      window.scrollTo({top:document.getElementById('stool-sec').offsetTop-80,behavior:'smooth'});
+      const modeTabEl=document.getElementById('stool-mode-tabs');
+      const target=modeTabEl||document.getElementById('stool-sec');
+      window.scrollTo({top:target.offsetTop-60,behavior:'smooth'});
     }
   } else {
     document.getElementById('omutsu-no-stool-sec').style.display='none';
@@ -1166,7 +1190,9 @@ function setStool(had){
     document.getElementById('stool-sec').style.display=had===true?'block':'none';
     if(had===true){
       applyOmutsuStoolMode(false);
-      window.scrollTo({top:document.getElementById('stool-sec').offsetTop-80,behavior:'smooth'});
+      const modeTabEl2=document.getElementById('stool-mode-tabs');
+      const target2=modeTabEl2||document.getElementById('stool-sec');
+      window.scrollTo({top:target2.offsetTop-60,behavior:'smooth'});
     }
   }
 }
@@ -1198,15 +1224,11 @@ function setStoolDisim(used){
 function applyOmutsuStoolMode(isOmutsu){
   document.getElementById('stool-time-lbl').textContent=isOmutsu?'排便/確認時刻':'排便時刻';
   document.getElementById('stool-meal-block').style.display=isOmutsu?'none':'block';
-  document.getElementById('stool-disim-block').style.display=isOmutsu?'none':'block';
+  // おむつ中でも坐薬・浣腸は使用可能なので stool-disim-block は常に表示
   // stool-disim-detail は classList.show で管理（style.display を直接固定しない）
-  if(isOmutsu){
-    document.getElementById('stool-disim-detail').classList.remove('show');
-    // おむつ中は坐薬なしを強制セット（バリデーション対象外）
-    S.stoolDisimUsed=false;
+  if(!isOmutsu){
+    // 通常モードへの復帰時は detail の show/hide を setStoolDisim() に委ねる
   }
-  // 通常モードへの復帰時は stool-disim-block の再表示のみ行い、
-  // detail の show/hide は setStoolDisim() に委ねる
   document.getElementById('stool-omutsu-note-block').style.display=isOmutsu?'block':'none';
   // おむつ中は「排便後の感覚」を非表示（評価不可）
   document.getElementById('stool-res-block').style.display=isOmutsu?'none':'block';
@@ -1322,6 +1344,22 @@ function togPico(){
   document.getElementById('sw-pico').classList.toggle('on',S.pico);
   document.getElementById('pico-input').classList.toggle('show',S.pico);
 }
+
+function togExtraDose(){
+  S.extraDose=!S.extraDose;
+  document.getElementById('sw-extra-dose').classList.toggle('on',S.extraDose);
+}
+
+function showExtraDoseInfo(){
+  document.getElementById('extra-dose-modal').classList.add('show');
+}
+
+function hideExtraDoseInfo(e){
+  // モーダル外タップ or 閉じるボタン
+  if(!e||e.target===document.getElementById('extra-dose-modal')){
+    document.getElementById('extra-dose-modal').classList.remove('show');
+  }
+}
 function togEm(type,el){
   S.emTypes[type]=!S.emTypes[type];
   el.classList.toggle('on',S.emTypes[type]);
@@ -1349,7 +1387,7 @@ function saveNoToilet(){
   };
   commitRecord(r);
   const summary=`📅 ${fmtDate(r.date)}　行かなかった（${reason}）${note?'\n'+note:''}`;
-  showPopup(summary,r.id);
+  showPopup(summary, r.id, 'toilet');
 }
 
 /* ============================================================
@@ -1376,7 +1414,7 @@ function saveToiletNoStool(){
   commitRecord(r);
   const disimStr=S.tnsDisimUsed?`　💊${S.tnsDisimType==='supp'?`坐薬${disimCount||''}個`:`浣腸${disimMl||''}mL`}`:'';
   const summary=`📅 ${fmtDate(r.date)}　排便なし（トイレ）${disimStr}${timeSlot?'　⏰'+timeSlot:''}`;
-  showPopup(summary,r.id);
+  showPopup(summary, r.id, 'toilet');
 }
 
 /* ============================================================
@@ -1388,14 +1426,16 @@ function saveStool(){
     document.getElementById('b-info').innerHTML='<span style="color:#A32D2D;font-size:12px;">便の性状を選んでください</span>';
     return;
   }
-  // おむつ中でない場合のみ坐薬バリデーション
-  if(!S.isOmutsu){
+  // 坐薬バリデーション（おむつ中は未選択=false として扱う）
+  if(S.isOmutsu){
+    if(S.stoolDisimUsed===null) S.stoolDisimUsed=false;  // 未選択は「使用なし」扱い
+  } else {
     if(S.stoolDisimUsed===null){alert('坐薬・浣腸の使用有無を選んでください');return;}
     if(S.stoolDisimUsed&&!S.stoolDisimType){alert('坐薬または浣腸を選んでください');return;}
   }
   const isNew=!S.editingId;
-  const disimCount=!S.isOmutsu&&S.stoolDisimUsed&&S.stoolDisimType==='supp'?parseFloat(document.getElementById('stool-supp-count').value)||null:null;
-  const disimMl=!S.isOmutsu&&S.stoolDisimUsed&&S.stoolDisimType==='kan'?parseFloat(document.getElementById('stool-kan-ml').value)||null:null;
+  const disimCount=S.stoolDisimUsed&&S.stoolDisimType==='supp'?parseFloat(document.getElementById('stool-supp-count').value)||null:null;
+  const disimMl=S.stoolDisimUsed&&S.stoolDisimType==='kan'?parseFloat(document.getElementById('stool-kan-ml').value)||null:null;
   const omutsuNote=S.isOmutsu?document.getElementById('stool-omutsu-note').value:'';
   const r={
     id:S.editingId||Date.now(),
@@ -1403,10 +1443,10 @@ function saveStool(){
     date:S.recDate,
     bowelMovement:true,
     omutsu:S.isOmutsu||false,
-    disimUsed:S.isOmutsu?false:S.stoolDisimUsed,
-    disimType:S.isOmutsu?null:S.stoolDisimType,
+    disimUsed:S.stoolDisimUsed,
+    disimType:S.stoolDisimType,
     disimCount, disimMl,
-    dur:S.stoolDisimUsed&&!S.isOmutsu?null:S.dur,
+    dur:S.dur,
     stoolLabel:stool.label, stoolMode:stool.mode,
     timeSlot:document.getElementById('stool-time').value,
     meal:S.isOmutsu?null:S.meal,
@@ -1426,7 +1466,7 @@ function saveStool(){
   if(r.amt)chips.push(r.amt);
   if(r.res)chips.push(r.res);
   const summary=`📅 ${fmtDate(r.date)}　${stool.label}${chips.length?'\n'+chips.join('　'):''}`;
-  showPopup(summary,r.id);
+  showPopup(summary, r.id, 'toilet');
 }
 
 /* ============================================================
@@ -1444,6 +1484,7 @@ function saveMed(){
     timeSlot:document.getElementById('med-time').value,
     comp:S.comp, pico:S.pico,
     picoDrops:S.pico?document.getElementById('pico-drops').value:'',
+    extraDose:S.extraDose||false,
     em:Object.keys(em).length?em:null,
     recordedAt:new Date().toISOString(),
     _synced:false,
@@ -1451,9 +1492,11 @@ function saveMed(){
   if(isMissed) r.missedReason=S.comp;
   S.recs.unshift(r);
   persist();
-  flashBtn('med-btn','保存しました ✓');
-  resetMed();
   updateAvatar();
+  const compLabel = r.comp || '';
+  const summary = `💊 ${r.date}　${compLabel}${r.extraDose?'　追加内服':''}${r.pico?'　ピコ'+r.picoDrops+'滴':''}`;
+  resetMed();  // summary 作成後・showPopup 前にリセット（extraDose 含む全フィールドをクリア）
+  showPopup(summary, r.id, 'med');
 }
 
 /* ============================================================
@@ -1475,36 +1518,84 @@ function commitRecord(r){
 /* ============================================================
    POPUP
    ============================================================ */
-function showPopup(summary,recordId){
-  document.getElementById('popup-summary').textContent=summary;
+function showPopup(summary, recordId, recordType){
+  document.getElementById('popup-summary').textContent = summary;
+  S.lastSavedId   = recordId;
+  S.lastSavedType = recordType || 'toilet';  // 'toilet' | 'med'
+
+  // ボタンを recordType に応じて生成
+  const acts = document.getElementById('popup-actions');
+  if(recordType === 'med'){
+    acts.innerHTML = `
+      <button class="popup-btn primary" onclick="popupAction('done')">
+        <span class="popup-btn-icon">✅</span>記録を終了する
+      </button>
+      <button class="popup-btn" onclick="popupAction('toilet')">
+        <span class="popup-btn-icon">🚽</span>トイレ・排便記録をつける
+      </button>
+      <button class="popup-btn" onclick="popupAction('another-med')">
+        <span class="popup-btn-icon">💊</span>別の内服記録をつける
+      </button>`;
+    // 内服編集は editRec が med 未対応のため非表示
+  } else {
+    acts.innerHTML = `
+      <button class="popup-btn primary" onclick="popupAction('done')">
+        <span class="popup-btn-icon">✅</span>記録を終了する
+      </button>
+      <button class="popup-btn" onclick="popupAction('another')">
+        <span class="popup-btn-icon">🚽</span>別のトイレ・排便記録をつける
+      </button>
+      <button class="popup-btn" onclick="popupAction('med')">
+        <span class="popup-btn-icon">💊</span>内服記録をつける
+      </button>
+      <button class="popup-btn" onclick="popupAction('edit')">
+        <span class="popup-btn-icon">✏️</span>記録を修正する
+      </button>`;
+  }
   document.getElementById('popup-overlay').classList.add('show');
-  S.lastSavedId=recordId;
 }
 
 function popupAction(action){
   document.getElementById('popup-overlay').classList.remove('show');
-  if(action==='done'){
-    // 完全初期化して最上部へ
+  const isMed = S.lastSavedType === 'med';
+
+  if(action === 'done'){
+    if(isMed){
+      resetMed();
+      window.scrollTo({top:0, behavior:'smooth'});
+    } else {
+      resetToiletForm(false);
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+  } else if(action === 'another'){
+    // トイレ記録をもう1件（同日付）
+    const keepDate = S.recDate;
     resetToiletForm(false);
-    window.scrollTo({top:0,behavior:'smooth'});
-  } else if(action==='another'){
-    // 同日付でフォームをリセット、トイレ記録入力を促す
-    const keepDate=S.recDate;
+    S.recDate = keepDate;
+    document.getElementById('rec-date-sel').value = keepDate;
+    document.getElementById('med-date-sel').value = keepDate;
+    window.scrollTo({top: document.getElementById('went-row').offsetTop > 0
+      ? document.getElementById('went-row').offsetTop - 80
+      : document.getElementById('stool-row').offsetTop - 80, behavior:'smooth'});
+
+  } else if(action === 'another-med'){
+    // 内服記録をもう1件（同日付）
+    const keepDate = S.recDate;
+    resetMed();
+    S.recDate = keepDate;
+    document.getElementById('med-date-sel').value = keepDate;
+    window.scrollTo({top: document.getElementById('tab-med').offsetTop - 80, behavior:'smooth'});
+
+  } else if(action === 'med'){
     resetToiletForm(false);
-    // 日付は維持
-    S.recDate=keepDate;
-    document.getElementById('rec-date-sel').value=keepDate;
-    document.getElementById('med-date-sel').value=keepDate;
-    // トイレ記録タブを確実に表示し、入力促進のため went-row / stool-row を適切に表示
-    // おむつ中モードならそのまま stool-row を表示、通常なら went-row を表示
-    // (resetToiletForm が S.isOmutsu に基づいて正しく設定済み)
-    window.scrollTo({top:document.getElementById('went-row').offsetTop>0
-      ?document.getElementById('went-row').offsetTop-80
-      :document.getElementById('stool-row').offsetTop-80, behavior:'smooth'});
-  } else if(action==='med'){
-    resetToiletForm(false);
-    goTab('med',document.getElementById('nav-med'));
-  } else if(action==='edit'){
+    goTab('med', document.getElementById('nav-med'));
+
+  } else if(action === 'toilet'){
+    resetMed();
+    goTab('toilet', document.getElementById('nav-toilet'));
+
+  } else if(action === 'edit'){
     editRec(S.lastSavedId);
   }
 }
@@ -1680,7 +1771,8 @@ function resetToiletForm(fullReset=true){
 }
 
 function resetMed(){
-  S.comp=null;S.pico=false;S.emTypes={};
+  S.comp=null;S.pico=false;S.emTypes={};S.extraDose=false;
+  document.getElementById('sw-extra-dose')?.classList.remove('on');
   document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on','on-missed'));
   document.getElementById('sw-pico').classList.remove('on');
   document.getElementById('pico-input').classList.remove('show');
@@ -1847,6 +1939,7 @@ function renderCard(){
     function medHTML(r){
       const lines=[];
       if(r.comp)lines.push(r.comp);
+      if(r.extraDose)lines.push('<span style="color:#854F0B;font-weight:600;">追加内服（飲み忘れ分）</span>');
       if(r.pico&&r.picoDrops)lines.push(`ピコ${r.picoDrops}滴`);
       if(r.em?.mobi)lines.push('モビコール倍量');
       if(r.em?.other)lines.push(r.em.other.text||'その他');
@@ -1922,7 +2015,7 @@ function renderTL(){
     <div class="tl-legend-item"><span style="font-size:10px;color:#BA7517;">⏸</span><span>我慢/行かなかった</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;">🧷</span><span>おむつ中</span></div>
   </div>
-  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>ピコ=ピコスルファート　青字=臨時薬</div>
+  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>追=追加内服（飲み忘れ分）　ピコ=ピコスルファート　青字=臨時薬</div>
   <div class="tl-outer"><table class="tl-table"><thead><tr>
     <th class="th-date">日付</th>
     <th class="th-med"><div class="th-med-inner"><div class="th-med-slot">朝</div><div class="th-med-slot">昼</div><div class="th-med-slot">晩</div></div></th>
@@ -1947,10 +2040,11 @@ function renderTL(){
 
     function slotHTML(med){
       if(!med)return '<div class="med-slot-empty"></div>';
-      const cs=compSym(med.comp);
+      const cs=compSym(med.comp, med.extraDose);
       // comp未選択でも記録があれば「−」で示す
       const sym=cs.s||'−';
       let h=`<span class="med-comp ${cs.c||'partial'}" style="${cs.c?'':'color:#b4b2a9;'}">${sym}</span>`;
+      if(cs.extra)h+=`<span class="tl-extra">${cs.extra}</span>`;
       if(med.pico&&med.picoDrops)h+=`<span class="pico-txt">ピコ${med.picoDrops}滴</span>`;
       else if(med.pico)h+=`<span class="pico-txt">ピコ○</span>`;
       return h;
@@ -2072,6 +2166,7 @@ function persist(){
 function buildMetadata(r){
   const m={};
   if(r.comp)                 m.comp=r.comp;
+  if(r.extraDose)            m.extra_dose=true;
   if(r.missedReason)         m.missed_reason=r.missedReason;
   if(r.omutsu)               m.omutsu=true;
   if(r.subType)              m.sub_type=r.subType;
@@ -2375,6 +2470,7 @@ function serverRowToLocal(row){
     missedReason:     meta.missed_reason||null,
     pico:             row.pico_drops!=null,
     picoDrops:        row.pico_drops,
+    extraDose:        meta.extra_dose===true,
     recordedAt:       row.recorded_at,
   };
 }
@@ -2419,12 +2515,23 @@ async function shareToDoctor(){
    処方情報取得
    ============================================================ */
 async function loadPrescription(){
-  if(!PATIENT_KEY)return;
+  if(!PATIENT_KEY){
+    console.warn('[loadPrescription] PATIENT_KEY が null です。ログインし直してください。');
+    return;
+  }
   try{
+    console.log('[loadPrescription] 取得開始 patient_key:', PATIENT_KEY.slice(0,8)+'…');
     const res=await fetch(FN_RX,{method:'POST',headers:edgeFnHeaders(),body:JSON.stringify({patient_key:PATIENT_KEY})});
-    if(!res.ok)return;
+    if(!res.ok){
+      console.warn('[loadPrescription] HTTP error:', res.status);
+      return;
+    }
     const result=await res.json();
-    if(!result.ok||!result.prescription)return;
+    console.log('[loadPrescription] レスポンス:', JSON.stringify(result).slice(0,200));
+    if(!result.ok||!result.prescription){
+      console.warn('[loadPrescription] 処方なし or ok:false', result);
+      return;
+    }
     const rx=result.prescription;
     const bar=document.getElementById('rx-info-bar');
     const content=document.getElementById('rx-info-content');
@@ -2447,8 +2554,9 @@ async function loadPrescription(){
       noteText=rx.notes||'';
     }
     sub.textContent=[freqText, noteText].filter(Boolean).join('　');
+    console.log('[loadPrescription] 処方バー表示:', content.textContent);
     bar.style.display='block';
-  }catch(e){console.error('loadPrescription error:',e);}
+  }catch(e){console.error('[loadPrescription] エラー:',e);}
 }
 
 /* ============================================================
