@@ -424,6 +424,13 @@ function tlRowHTML(r, idx){
     const biOmutsu= (bi.metadata?.omutsu === true) || r.isOmutsu;
     const biLabel = (bi.metadata?.stool_label_full) || bi.stool_label || (bi.bristol_scale ? String(bi.bristol_scale) : null) || r.stoolLabel || r.stool || '?';
     const biAmt  = bi.amount || null;
+    // 量表示を3段階に集約（医師UI向け）
+    const biAmtLabel = (a => {
+      if(!a) return null;
+      if(a==='XS'||a==='S') return '少';
+      if(a==='XL'||a==='L') return '多';
+      return 'ふつう';  // M、やや少な目、やや多め含む
+    })(biAmt);
     const omutsuDot = biOmutsu
       ? `<span style="position:absolute;top:-5px;left:-6px;font-size:8px;line-height:1;">🧷</span>`
       : '';
@@ -431,7 +438,7 @@ function tlRowHTML(r, idx){
       <div style="position:relative;width:20px;height:20px;border-radius:50%;background:#E6F1FB;border:1.5px solid ${bord};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${bc}">
         ${biLabel}
         ${shoulder?`<span style="position:absolute;top:-5px;right:-5px;font-size:7px;font-weight:700;color:#A32D2D;line-height:1">${shoulder}</span>`:''}
-        ${biAmt?`<span style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:7px;color:var(--text3);line-height:1">${biAmt}</span>`:''}
+        ${biAmtLabel?`<span style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:500;color:var(--text2);line-height:1;white-space:nowrap">${biAmtLabel}</span>`:''}
         ${omutsuDot}
       </div>
     </div>`;
