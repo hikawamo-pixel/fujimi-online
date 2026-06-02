@@ -82,9 +82,9 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
 .bi:hover{border-color:#1D9E75;}
 .bi.on{background:#E1F5EE;border:1.5px solid #1D9E75;}
 .bi.chained{background:#f0faf6;border:1px dashed #5DCAA5;}
-.bi-num{font-size:11px;font-weight:500;color:#5f5e5a;}
+.bi-num{font-size:13px;font-weight:600;color:#3a3a38;}
 .bi-svg{width:36px;height:28px;margin:2px 0;}
-.bi-word{font-size:8.5px;color:#888780;text-align:center;line-height:1.25;}
+.bi-word{font-size:10px;color:#5f5e5a;text-align:center;line-height:1.25;}
 .simple-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
 .si{border-radius:8px;border:0.5px solid rgba(0,0,0,0.12);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:10px 4px 8px;background:#fff;transition:all .15s;gap:4px;}
 .si:hover{border-color:#1D9E75;}
@@ -704,10 +704,12 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <div id="rx-info-bar" style="display:none;margin:10px 14px 0;">
     <!-- 処方バー -->
     <div style="padding:10px 14px;background:#E1F5EE;border-radius:10px 10px 0 0;border:0.5px solid #1D9E75;border-bottom:none;">
-      <div style="font-size:10px;font-weight:500;color:#085041;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;">医師からの処方</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:10px;font-weight:500;color:#085041;letter-spacing:.06em;text-transform:uppercase;">医師からの処方</div>
+        <div id="rx-info-date" style="font-size:11px;color:#3D8A6E;"></div>
+      </div>
       <div id="rx-info-content" style="font-size:14px;font-weight:600;color:#085041;"></div>
       <div id="rx-info-sub" style="font-size:12px;color:#0F6E56;margin-top:3px;"></div>
-      <div id="rx-info-date" style="font-size:11px;color:#3D8A6E;margin-top:3px;"></div>
     </div>
     <!-- 医師からのメッセージ（処方メモとは分離） -->
     <div id="rx-doctor-msg-bar" style="display:none;padding:8px 14px;background:#FFF8EF;border-radius:0 0 10px 10px;border:0.5px solid #BA7517;border-top:none;">
@@ -1191,7 +1193,7 @@ function setStool(had){
       applyOmutsuStoolMode(true);
       const modeTabEl=document.getElementById('stool-mode-tabs');
       const target=modeTabEl||document.getElementById('stool-sec');
-      window.scrollTo({top:target.offsetTop-60,behavior:'smooth'});
+      window.scrollTo({top:target.offsetTop-20,behavior:'smooth'});
     }
   } else {
     document.getElementById('omutsu-no-stool-sec').style.display='none';
@@ -1201,7 +1203,7 @@ function setStool(had){
       applyOmutsuStoolMode(false);
       const modeTabEl2=document.getElementById('stool-mode-tabs');
       const target2=modeTabEl2||document.getElementById('stool-sec');
-      window.scrollTo({top:target2.offsetTop-60,behavior:'smooth'});
+      window.scrollTo({top:target2.offsetTop-20,behavior:'smooth'});
     }
   }
 }
@@ -2024,7 +2026,7 @@ function renderTL(){
     <div class="tl-legend-item"><span style="font-size:10px;color:#BA7517;">⏸</span><span>我慢/行かなかった</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;">🧷</span><span>おむつ中</span></div>
   </div>
-  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>追=追加内服（飲み忘れ分）　ピコ=ピコスルファート　青字=臨時薬</div>
+  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>追=追加内服（飲み忘れ分）　ピコ=ピコスルファート　青字=臨時薬<br>マーカー下の棒=排便にかかった時間（長いほど時間がかかった）</div>
   <div class="tl-outer"><table class="tl-table"><thead><tr>
     <th class="th-date">日付</th>
     <th class="th-med"><div class="th-med-inner"><div class="th-med-slot">朝</div><div class="th-med-slot">昼</div><div class="th-med-slot">晩</div></div></th>
@@ -2107,9 +2109,10 @@ function renderTL(){
       tlHTML+=`<div class="tns-mark" style="left:${pct}%;">□</div>`;
     });
 
-    // おむつ中マーカー（TL左端に表示）
-    if(hasOmutsuNoStool){
-      tlHTML+=`<div style="position:absolute;left:2%;top:50%;transform:translateY(-50%);font-size:12px;line-height:1;" title="おむつ中">🧷</div>`;
+    // おむつ中排便なしマーカー（TL左端に表示）
+    // bowelRecsがある日はマーカー自体におむつドットが付くので独立🧷は出さない
+    if(hasOmutsuNoStool && !hasBowel){
+      tlHTML+=`<div style="position:absolute;left:2%;top:50%;transform:translateY(-50%);font-size:12px;line-height:1;" title="おむつ中（排便なし）">🧷</div>`;
     }
 
     html+=`<tr style="background:${rowBg};">
