@@ -800,11 +800,15 @@ function renderSummary(){
 
 // 直近タイムライン（概要用）
 function renderRecentTimeline(p){
-  const visit=new Date(p.currentVisit);
-  const lastVisit=new Date(p.lastVisit);
+  // 直近2週: 実データ最新日から遡って14日分（受診日で切らない）
+  const endDate=new Date(p.dataLatestDate||p.currentVisit);
+  const startDate=new Date(endDate); startDate.setDate(startDate.getDate()-13);
+  // 実データ最古日より前には遡らない
+  const oldest=new Date(p.dataOldestDate||p.lastVisit);
+  if(startDate<oldest) startDate.setTime(oldest.getTime());
   const days=[];
-  const cur=new Date(lastVisit);
-  while(cur<=visit){ days.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate()+1); }
+  const cur=new Date(startDate);
+  while(cur<=endDate){ days.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate()+1); }
 
   let html=`<div class="tl-wrap"><table class="tl-table">
   <thead><tr>
@@ -835,7 +839,8 @@ function renderRecentTimeline(p){
 function renderRecords(){
   const p=currentPt;
   const allDates=[];
-  const last=new Date(p.lastVisit), cur2=new Date(p.currentVisit);
+  // 全記録: 実データの最古日〜最新日（受診日で切らない）
+  const last=new Date(p.dataOldestDate||p.lastVisit), cur2=new Date(p.dataLatestDate||p.currentVisit);
   const d=new Date(last);
   while(d<=cur2){ allDates.push(d.toISOString().split('T')[0]); d.setDate(d.getDate()+1); }
 
@@ -957,6 +962,10 @@ function renderPrescription(){
   html+=`<div class="card" style="margin-bottom:14px">
     <div class="form-section">
       <div class="form-section-title">診察所見</div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>今回受診日</label>
+        <input type="date" id="visitDate" value="${p.workingRx?.visitDate || p.currentVisit || p.dataLatestDate || new Date(Date.now()+9*3600*1000).toISOString().slice(0,10)}">
+      </div>
       <div class="form-group" style="margin-bottom:10px">
         <label>腹部・直腸所見</label>
         <select id="rxExam">
@@ -1237,6 +1246,7 @@ async function saveRx(mode){
   const freq   = document.getElementById('rxFreq').value;
   const days   = parseInt(document.getElementById('rxDays').value) || 30;
   const start  = document.getElementById('rxStart').value;
+  const visitDate = document.getElementById('visitDate')?.value || '';  // 今回受診日（処方開始日とは別）
   const end    = document.getElementById('rxEnd').value;
   const change = document.getElementById('rxChangeType').value;
   const timing = document.getElementById('rxTiming').value;
@@ -1266,7 +1276,8 @@ async function saveRx(mode){
         doseUnit,
         freq,
         days,
-        start,
+        start,          // 処方開始日
+        visitDate,      // 今回受診日
         note,
         changeType: change,
         confirmed: mode === 'confirm',
@@ -1349,18 +1360,18 @@ async function saveRx(mode){
     if (mode === 'push') {
       try {
         const doctorNoteVisible = !!(note && note.trim());
-        // 受診日: currentPt.currentVisit があればそれ、なければJSTの今日
-        // （処方開始日ではない。翌日開始処方でも受診マークは受診日に出す）
+        // 受診日は専用入力欄(visitDate)から取得。処方開始日(start)とは別物。
         const jstToday = (() => {
           const n = new Date();
           const jst = new Date(n.getTime() + 9*60*60*1000);
           return jst.toISOString().slice(0,10);
         })();
-        const visitDate = (currentPtObj && currentPtObj.currentVisit) || jstToday;
+        // visitDate は冒頭で取得済み。workingRx → currentVisit → today の順でフォールバック
+        const visitDateForEvent = visitDate || currentPtObj?.workingRx?.visitDate || currentPtObj?.currentVisit || jstToday;
         const eventPayload = {
           patient_key:  patientKey,
           event_type:   'visit',
-          event_date:   visitDate,
+          event_date:   visitDateForEvent,
           source:       'doctor',
           metadata: {
             prescription_pushed: true,
@@ -1393,7 +1404,9 @@ async function saveRx(mode){
     const pPush = PATIENTS.find(pt => pt.id === CURRENT_PATIENT_ID);
     if (pPush) delete pPush.workingRx;
 
-    // 内服履歴を再読み込み（is_active=true の最新処方を current として反映）
+    // 内服履歴と受診イベントを再読み込み
+    // loadPatientRecords で patient_events を再取得し p.visits / 受診マークを更新
+    await loadPatientRecords(CURRENT_PATIENT_ID);
     await loadPrescriptions(CURRENT_PATIENT_ID);
 
   } catch(e) {
@@ -1766,6 +1779,9 @@ async function loadPatientRecords(patientId) {
     // 前回受診日: 受診イベントの1つ前 → なければデータ最古日
     p.currentVisit = currentVisitDate || (bowelRows.length > 0 ? bowelRows[0].date : p.currentVisit);
     p.lastVisit    = prevVisitDate    || (bowelRows.length > 0 ? bowelRows[bowelRows.length - 1].date : p.lastVisit);
+    // 記録一覧・タイムライン描画用: 実データの最古日〜最新日（受診日で切らない）
+    p.dataLatestDate = bowelRows.length > 0 ? bowelRows[0].date : p.currentVisit;
+    p.dataOldestDate = bowelRows.length > 0 ? bowelRows[bowelRows.length - 1].date : p.lastVisit;
 
     // currRows = 前回受診日以降〜今回受診日まで（前回受診からの集計）
     // 前回受診日がある場合はそれ以降に絞る。なければ全件。
