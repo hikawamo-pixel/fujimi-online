@@ -1198,13 +1198,8 @@ function setStool(had){
     document.getElementById('tns-sec').style.display='none';
     document.getElementById('stool-sec').style.display=had===true?'block':'none';
     if(had===true){
-      // おむつ用UI調整
+      // おむつ用UI調整（スクロールはしない：選択欄が隠れないように）
       applyOmutsuStoolMode(true);
-      requestAnimationFrame(()=>{
-        const target=document.getElementById('stool-mode-tabs')||document.getElementById('stool-sec');
-        const top=target.getBoundingClientRect().top+window.pageYOffset-70;
-        window.scrollTo({top,behavior:'smooth'});
-      });
     }
   } else {
     document.getElementById('omutsu-no-stool-sec').style.display='none';
@@ -1212,11 +1207,7 @@ function setStool(had){
     document.getElementById('stool-sec').style.display=had===true?'block':'none';
     if(had===true){
       applyOmutsuStoolMode(false);
-      requestAnimationFrame(()=>{
-        const target=document.getElementById('stool-mode-tabs')||document.getElementById('stool-sec');
-        const top=target.getBoundingClientRect().top+window.pageYOffset-70;
-        window.scrollTo({top,behavior:'smooth'});
-      });
+      // スクロールはしない（Bristol/簡易入力タブが隠れないように）
     }
   }
 }
@@ -1613,7 +1604,7 @@ function popupAction(action){
     resetMed();
     S.recDate = keepDate;
     document.getElementById('med-date-sel').value = keepDate;
-    window.scrollTo({top: document.getElementById('tab-med').offsetTop - 80, behavior:'smooth'});
+    window.scrollTo({top:0, behavior:'smooth'});
 
   } else if(action === 'med'){
     resetToiletForm(false);
@@ -1829,6 +1820,8 @@ function goTab(name,el){
   if(el)el.classList.add('on');
   S.navTab=name;
   if(name==='hist'){renderCard();if(S.histView==='tl')renderTL();}
+  // タブ切り替え時は必ずトップへ（Landing時に全体が見えるように）
+  window.scrollTo({top:0,behavior:'auto'});
 }
 
 /* ============================================================
@@ -2627,16 +2620,18 @@ async function loadPrescription(){
     if(rx.dose_evening!=null)doseParts.push(`夕 ${rx.dose_evening}`);
     const doseStr=doseParts.join('　')+(rx.dose_unit?` ${rx.dose_unit}`:'');
     content.textContent=`${rx.drug_name}　${doseStr}`;
-    // notes は JSON 構造（{freq, note, raw_dose}）または平文（旧形式）を許容
-    let freqText='', noteText='';
+    // notes は JSON 構造（{freq, note, raw_dose, days}）または平文（旧形式）を許容
+    let freqText='', noteText='', daysText='';
     try{
       const meta=JSON.parse(rx.notes||'{}');
       freqText=meta.freq||'';
       noteText=meta.note||'';
+      if(meta.days!=null) daysText=`${meta.days}日分`;
     }catch{
       noteText=rx.notes||'';
     }
-    sub.textContent=freqText||'';
+    // freq と days を並べて表示（「1日1回朝　10日分」）
+    sub.textContent=[freqText, daysText].filter(Boolean).join('　');
     // 処方開始日
     const dateEl=document.getElementById('rx-info-date');
     if(dateEl&&rx.prescribed_at){
