@@ -342,7 +342,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <!-- ヘッダー -->
   <div class="hdr">
     <div class="hdr-top">
-      <span class="hdr-title">排便日誌</span>
+      <span class="hdr-title" style="display:inline-flex;align-items:center;gap:7px;"><img src="data:image/png;base64,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" alt="" style="width:24px;height:23px;">排便日誌</span>
       <span class="hdr-date" id="hdr-date"></span>
     </div>
     <div class="av-bar">
@@ -622,6 +622,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
               <div class="dur-chip" onclick="pickDur(this,'1分未満')">1分未満</div>
               <div class="dur-chip" onclick="pickDur(this,'1〜10分')">1〜10分</div>
               <div class="dur-chip" onclick="pickDur(this,'10分以上')">10分以上</div>
+              <div class="dur-chip" onclick="pickDur(this,'不明')">不明</div>
             </div>
           </div>
         </div>
@@ -703,7 +704,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
   <!-- 処方情報 -->
   <div id="rx-info-bar" style="display:none;margin:10px 14px 0;">
     <!-- 処方バー -->
-    <div style="padding:10px 14px;background:#E1F5EE;border-radius:10px 10px 0 0;border:0.5px solid #1D9E75;border-bottom:none;">
+    <div id="rx-info-box" style="padding:10px 14px;background:#E1F5EE;border-radius:10px;border:0.5px solid #1D9E75;">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
         <div style="font-size:10px;font-weight:500;color:#085041;letter-spacing:.06em;text-transform:uppercase;">医師からの処方</div>
         <div id="rx-info-date" style="font-size:11px;color:#3D8A6E;"></div>
@@ -716,6 +717,11 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
       <div style="font-size:10px;font-weight:500;color:#633806;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">医師からのメッセージ</div>
       <div id="rx-doctor-msg" style="font-size:12px;color:#633806;line-height:1.6;"></div>
     </div>
+  </div>
+  <!-- 受診を記録・処方を反映（内服タブ版）-->
+  <div style="margin:8px 14px 0;text-align:center;">
+    <button onclick="refreshVisitContent('check-visit-btn-med','visit-check-status-med')" id="check-visit-btn-med" style="padding:7px 18px;border-radius:20px;border:0.5px solid #1D9E75;background:#fff;color:#0F6E56;font-size:12px;font-weight:500;cursor:pointer;">受診を記録・処方を反映</button>
+    <div id="visit-check-status-med" style="margin-top:6px;font-size:12px;display:none;"></div>
   </div>
   <div class="sec">
     <div class="sec-lbl">内服時刻</div>
@@ -785,7 +791,7 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
         <option value="0">すべて</option>
       </select>
       <button onclick="shareToDoctor()" id="share-btn" style="padding:7px 16px;border-radius:20px;border:none;background:#1D9E75;color:#fff;font-size:12px;font-weight:500;cursor:pointer;">医師へ共有</button>
-      <button onclick="checkVisitContent()" id="check-visit-btn" style="padding:7px 16px;border-radius:20px;border:0.5px solid #1D9E75;background:#fff;color:#0F6E56;font-size:12px;font-weight:500;cursor:pointer;">受診内容を確認</button>
+      <button onclick="refreshVisitContent('check-visit-btn','visit-check-status')" id="check-visit-btn" style="padding:7px 16px;border-radius:20px;border:0.5px solid #1D9E75;background:#fff;color:#0F6E56;font-size:12px;font-weight:500;cursor:pointer;">受診を記録・処方を反映</button>
     </div>
     <div id="share-status" style="margin-top:8px;font-size:12px;display:none;"></div>
     <div id="visit-check-status" style="margin-top:8px;font-size:12px;display:none;"></div>
@@ -1194,9 +1200,11 @@ function setStool(had){
     if(had===true){
       // おむつ用UI調整
       applyOmutsuStoolMode(true);
-      const modeTabEl=document.getElementById('stool-mode-tabs');
-      const target=modeTabEl||document.getElementById('stool-sec');
-      window.scrollTo({top:target.offsetTop-20,behavior:'smooth'});
+      requestAnimationFrame(()=>{
+        const target=document.getElementById('stool-mode-tabs')||document.getElementById('stool-sec');
+        const top=target.getBoundingClientRect().top+window.pageYOffset-70;
+        window.scrollTo({top,behavior:'smooth'});
+      });
     }
   } else {
     document.getElementById('omutsu-no-stool-sec').style.display='none';
@@ -1204,9 +1212,11 @@ function setStool(had){
     document.getElementById('stool-sec').style.display=had===true?'block':'none';
     if(had===true){
       applyOmutsuStoolMode(false);
-      const modeTabEl2=document.getElementById('stool-mode-tabs');
-      const target2=modeTabEl2||document.getElementById('stool-sec');
-      window.scrollTo({top:target2.offsetTop-20,behavior:'smooth'});
+      requestAnimationFrame(()=>{
+        const target=document.getElementById('stool-mode-tabs')||document.getElementById('stool-sec');
+        const top=target.getBoundingClientRect().top+window.pageYOffset-70;
+        window.scrollTo({top,behavior:'smooth'});
+      });
     }
   }
 }
@@ -1231,17 +1241,21 @@ function setStoolDisim(used){
   document.getElementById('stool-disim-no').className='disim-tog'+(used===false?' on-no':'');
   document.getElementById('stool-disim-yes').className='disim-tog'+(used===true?' on-yes':'');
   document.getElementById('stool-disim-detail').classList.toggle('show',used===true);
-  // 自然排便のみ所要時間を表示
-  document.getElementById('dur-block').style.display=used===false?'block':'none';
+  // 自然排便（坐薬・浣腸なし）かつ通常モードのみ所要時間を表示
+  document.getElementById('dur-block').style.display=(used===false && !S.isOmutsu)?'block':'none';
 }
 /* おむつモード時のstool-sec表示切替 */
 function applyOmutsuStoolMode(isOmutsu){
   document.getElementById('stool-time-lbl').textContent=isOmutsu?'排便/確認時刻':'排便時刻';
   document.getElementById('stool-meal-block').style.display=isOmutsu?'none':'block';
-  // おむつ中でも坐薬・浣腸は使用可能なので stool-disim-block は常に表示
-  // stool-disim-detail は classList.show で管理（style.display を直接固定しない）
-  if(!isOmutsu){
-    // 通常モードへの復帰時は detail の show/hide を setStoolDisim() に委ねる
+  // おむつ中でも坐薬・浣腸は使うので stool-disim-block は常に表示
+  document.getElementById('stool-disim-block').style.display='block';
+  // おむつ中は所要時間ブロックを非表示（いきみ時間が把握しにくいため）
+  // 通常モードでは setStoolDisim() が「使用なし」のときのみ表示する
+  const durBlock=document.getElementById('dur-block');
+  if(durBlock){
+    durBlock.style.display = isOmutsu ? 'none'
+      : (S.stoolDisimUsed===false ? 'block' : 'none');
   }
   document.getElementById('stool-omutsu-note-block').style.display=isOmutsu?'block':'none';
   // おむつ中は「排便後の感覚」を非表示（評価不可）
@@ -1460,7 +1474,7 @@ function saveStool(){
     disimUsed:S.stoolDisimUsed,
     disimType:S.stoolDisimType,
     disimCount, disimMl,
-    dur:S.dur,
+    dur:S.isOmutsu?null:S.dur,
     stoolLabel:stool.label, stoolMode:stool.mode,
     timeSlot:document.getElementById('stool-time').value,
     meal:S.isOmutsu?null:S.meal,
@@ -1780,8 +1794,11 @@ function resetToiletForm(fullReset=true){
   document.getElementById('dur-block').style.display='block';
   document.getElementById('stool-meal-block').style.display='block';
   document.getElementById('stool-disim-block').style.display='block';
+  document.getElementById('stool-res-block').style.display='block';
   document.getElementById('stool-time-lbl').textContent='排便時刻';
   setInputMode('bristol');
+  // おむつ中なら所要時間・食事・排便後感覚を再度非表示にする
+  if(S.isOmutsu) applyOmutsuStoolMode(true);
 }
 
 function resetMed(){
@@ -1977,7 +1994,7 @@ function renderCard(){
 
     const hasOmutsu=all.some(r=>r.omutsu||r.subType==='omutsu_no_stool');
     const isVisitDay=S.visitDates&&S.visitDates.has(d);
-    const visitTag=isVisitDay?' <span style="font-size:10px;color:#6B4FA0;background:#EFEAF7;border:0.5px solid #B9A6DE;border-radius:6px;padding:1px 7px;margin-left:6px;">🏥 受診</span>':'';
+    const visitTag=isVisitDay?' <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#6B4FA0;background:#EFEAF7;border:0.5px solid #B9A6DE;border-radius:6px;padding:1px 7px;margin-left:6px;"><img src="'+CLINIC_LOGO+'" alt="" style="width:13px;height:12px;">受診</span>':'';
     return `<div class="diary-spread${hasOmutsu?' omutsu-day-card':''}"${isVisitDay?' style="border-color:#B9A6DE;"':''}>
       <div class="spread-hdr"${isVisitDay?' style="background:#F7F4FC;"':''}>
         <span class="spread-date">${ds}${visitTag}${hasOmutsu?' <span style="font-size:10px;color:#BA7517;margin-left:4px;">🧷おむつ中</span>':''}</span>
@@ -2031,7 +2048,7 @@ function renderTL(){
     <div class="tl-legend-item"><span style="font-size:10px;color:#BA7517;">⏸</span><span>我慢/行かなかった</span></div>
     <div class="tl-legend-item"><span style="font-size:10px;">🧷</span><span>おむつ中</span></div>
   </div>
-  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>追=追加内服（飲み忘れ分）　ピコ=ピコスルファート　青字=臨時薬<br>🏥受診=医師が処方を更新した受診日　マーカー下の棒=排便にかかった時間（長いほど時間がかかった）</div>
+  <div class="tl-note">内服欄：○全量　△2/3以上　▽1/2程度　▲1/3以下<br>追=追加内服（飲み忘れ分）　ピコ=ピコスルファート　青字=臨時薬<br>受診マーク=医師が処方を更新した受診日　マーカー下の棒=排便にかかった時間（長いほど時間がかかった）</div>
   <div class="tl-outer"><table class="tl-table"><thead><tr>
     <th class="th-date">日付</th>
     <th class="th-med"><div class="th-med-inner"><div class="th-med-slot">朝</div><div class="th-med-slot">昼</div><div class="th-med-slot">晩</div></div></th>
@@ -2121,7 +2138,7 @@ function renderTL(){
     }
 
     html+=`<tr style="background:${rowBg};">
-      <td class="td-date"${S.visitDates&&S.visitDates.has(d)?' style="background:#F7F4FC;"':''}><div class="td-date-main">${dateMain}</div><div class="td-date-day">${dateDay}</div>${S.visitDates&&S.visitDates.has(d)?'<div style="font-size:8px;color:#6B4FA0;font-weight:600;margin-top:1px;">🏥受診</div>':''}</td>
+      <td class="td-date"${S.visitDates&&S.visitDates.has(d)?' style="background:#F7F4FC;"':''}><div class="td-date-main">${dateMain}</div><div class="td-date-day">${dateDay}</div>${S.visitDates&&S.visitDates.has(d)?'<div style="margin-top:2px;display:flex;flex-direction:column;align-items:center;"><img src="'+CLINIC_LOGO+'" alt="" style="width:14px;height:13px;"><span style="font-size:7px;color:#6B4FA0;font-weight:600;">受診</span></div>':''}</td>
       <td class="td-med">
         <div class="med-inner">
           <div class="med-slot">${slotHTML(medAm)}</div>
@@ -2196,6 +2213,7 @@ function buildMetadata(r){
   if(r.stoolLabel&&(r.stoolLabel.includes('→')||r.stoolMode==='simple'))
                               m.stool_label_full=r.stoolLabel;
   if(r.stoolMode)            m.stool_mode=r.stoolMode;
+  if(r.dur)                  m.dur_label=r.dur;  // 所要時間ラベル（「不明」含む。durationMinは数値のみ）
   return Object.keys(m).length?m:null;
 }
 
@@ -2359,6 +2377,8 @@ const REST_VISIT_EVENTS=SUPABASE_URL+'/rest/v1/patient_events';
 
 function edgeFnHeaders(){return{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};}
 
+const CLINIC_LOGO='data:image/png;base64,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';
+
 const PATIENT_KEY=(()=>{
   const k=localStorage.getItem('patientKey');
   if(k)return k;
@@ -2473,7 +2493,7 @@ function serverRowToLocal(row){
     stoolLabel,
     stoolMode,
     amt:              ({'XS':'少ない','S':'やや少な目','M':'ふつう','L':'やや多め','XL':'多い'})[row.amount]||null,
-    dur:              row.duration_min?`${row.duration_min}分以内`:null,
+    dur:              meta.dur_label||(row.duration_min?`${row.duration_min}分以内`:null),
     timeSlot:         row.defec_time?.slice(0,5)||null,
     res:              row.sensation||null,
     strain:           row.symptom_strain||false,
@@ -2497,31 +2517,33 @@ function serverRowToLocal(row){
 /* ============================================================
    医師へ共有
    ============================================================ */
-// 受診内容を確認：最新処方・医師メモ・受診イベントを再取得して再描画
-async function checkVisitContent(){
-  const btn = document.getElementById('check-visit-btn');
-  const status = document.getElementById('visit-check-status');
-  btn.disabled = true; btn.textContent = '確認中…';
-  status.style.display = 'block'; status.style.color = '#5f5e5a';
-  status.textContent = '受診内容を確認しています…';
+// 受診を記録・処方を反映：医師Push由来の受診イベント・処方・医師メモを再取得して反映
+// ※ 患者はイベントを作成しない。サーバ上の内容を取得して画面へ反映するだけ。
+async function refreshVisitContent(btnId, statusId){
+  const btn = btnId ? document.getElementById(btnId) : null;
+  const status = statusId ? document.getElementById(statusId) : null;
+  const origLabel = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '反映中…'; }
+  if(status){ status.style.display='block'; status.style.color='#5f5e5a'; status.textContent='受診内容を反映しています…'; }
   try{
     await Promise.all([
       loadFromSupabase(),
       loadPrescription(),
       loadVisitEvents(),
     ]);
+    updateAvatar();
     renderCard();
     if(S.histView === 'tl') renderTL();
-    status.style.color = '#0F6E56';
-    status.textContent = '受診内容を確認しました';
+    if(status){ status.style.color='#0F6E56'; status.textContent='受診内容を反映しました'; }
   }catch(e){
-    console.error('[checkVisitContent] エラー:', e);
-    status.style.color = '#A32D2D';
-    status.textContent = '受診内容を確認できませんでした。通信状況を確認して、もう一度お試しください';
+    console.error('[refreshVisitContent] エラー:', e);
+    if(status){ status.style.color='#A32D2D'; status.textContent='受診内容を反映できませんでした。通信状況を確認して、もう一度お試しください'; }
   }finally{
-    btn.disabled = false; btn.textContent = '受診内容を確認';
+    if(btn){ btn.disabled=false; btn.textContent=origLabel||'受診を記録・処方を反映'; }
   }
 }
+// 後方互換
+async function checkVisitContent(){ return refreshVisitContent('check-visit-btn','visit-check-status'); }
 
 async function shareToDoctor(){
   if(!PATIENT_KEY){alert('ログインが必要です。最初からやり直してください。');return;}
@@ -2624,11 +2646,16 @@ async function loadPrescription(){
     // 医師メモは「医師からのメッセージ」として処方とは別に表示
     const msgBar=document.getElementById('rx-doctor-msg-bar');
     const msgEl=document.getElementById('rx-doctor-msg');
+    const rxBox=document.getElementById('rx-info-box');
     if(msgBar&&msgEl&&noteText){
       msgEl.textContent=noteText;
       msgBar.style.display='block';
+      // メッセージありなら処方バー下角を直角に
+      if(rxBox){rxBox.style.borderRadius='10px 10px 0 0';rxBox.style.borderBottom='none';}
     } else if(msgBar){
       msgBar.style.display='none';
+      // メッセージなしなら処方バー単独で全角丸
+      if(rxBox){rxBox.style.borderRadius='10px';rxBox.style.borderBottom='0.5px solid #1D9E75';}
     }
     console.log('[loadPrescription] 処方バー表示:', content.textContent);
     bar.style.display='block';
