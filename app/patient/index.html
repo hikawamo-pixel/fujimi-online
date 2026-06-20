@@ -2621,22 +2621,31 @@ async function loadPrescription(){
     const doseStr=doseParts.join('　')+(rx.dose_unit?` ${rx.dose_unit}`:'');
     content.textContent=`${rx.drug_name}　${doseStr}`;
     // notes は JSON 構造（{freq, note, raw_dose, days}）または平文（旧形式）を許容
-    let freqText='', noteText='', daysText='';
+    let freqText='', noteText='', daysText='', startDate='';
     try{
       const meta=JSON.parse(rx.notes||'{}');
       freqText=meta.freq||'';
       noteText=meta.note||'';
       if(meta.days!=null) daysText=`${meta.days}日分`;
+      if(meta.start_date) startDate=meta.start_date;
     }catch{
       noteText=rx.notes||'';
     }
     // freq と days を並べて表示（「1日1回朝　10日分」）
     sub.textContent=[freqText, daysText].filter(Boolean).join('　');
-    // 処方開始日
+    // 処方開始日: 医師が指定した start_date を優先（なければ prescribed_at）
     const dateEl=document.getElementById('rx-info-date');
-    if(dateEl&&rx.prescribed_at){
-      const d=new Date(rx.prescribed_at);
-      dateEl.textContent=`（${d.getMonth()+1}月${d.getDate()}日〜）`;
+    if(dateEl){
+      let dispDate=null;
+      if(startDate){
+        // 'YYYY-MM-DD' をそのままパース（ローカル日付扱い）
+        const parts=startDate.split('-');
+        if(parts.length===3) dispDate=new Date(+parts[0], +parts[1]-1, +parts[2]);
+      }
+      if(!dispDate && rx.prescribed_at) dispDate=new Date(rx.prescribed_at);
+      if(dispDate && !isNaN(dispDate)){
+        dateEl.textContent=`（${dispDate.getMonth()+1}月${dispDate.getDate()}日〜）`;
+      }
     }
     // 医師メモは「医師からのメッセージ」として処方とは別に表示
     const msgBar=document.getElementById('rx-doctor-msg-bar');
