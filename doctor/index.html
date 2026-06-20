@@ -1127,7 +1127,10 @@ function buildKarteText(p){
   })();
 
   // 坐薬・浣腸集計（前回受診〜今回受診）
-  const recs=p.bowelRecords.filter(r=>r.date>=p.lastVisit&&r.date<=p.currentVisit);
+  // currRows と同じ期間: 前回受診イベントがあれば「前回受診より後〜今回受診」、なければ全件
+  const recs=p.hasPrevVisitEvent
+    ? p.bowelRecords.filter(r => r.date > p.lastVisit && r.date <= p.currentVisit)
+    : p.bowelRecords;
   const suppCount=recs.filter(r=>r.supp==='坐').length;
   const eneCount =recs.filter(r=>r.supp==='浣').length;
   const noStoolDays=p.currPeriod.noStoolDays;
@@ -1307,7 +1310,7 @@ async function saveRx(mode){
     dose_evening: null,
     dose_unit:    doseUnit,
     // notes は JSON 構造で保存（freq と note を分離して再表示時に崩れないようにする）
-    notes:        JSON.stringify({ freq, note: note||'', raw_dose: dose||'', days: days }),
+    notes:        JSON.stringify({ freq, note: note||'', raw_dose: dose||'', days: days, start_date: start||'' }),
     is_active:    mode === 'push',
     prescribed_at: new Date().toISOString(),
     prescribed_by: DOCTOR_EMAIL || 'doctor',
@@ -1578,6 +1581,22 @@ async function loadPatientRecords(patientId) {
       return;
     }
 
+    // 受診イベント（visit）を取得して受診日リストを作る（前回受診〜今回受診の集計に使う）
+    let visitDatesDesc = [];
+    try {
+      const visitEvents = await supabaseFetch(
+        'patient_events',
+        `patient_key=eq.${patientKey}&event_type=eq.visit&order=event_date.desc&limit=50`
+      );
+      visitDatesDesc = (visitEvents || []).map(v => v.event_date).filter(Boolean);
+    } catch(ve) {
+      console.warn('[loadPatientRecords] 受診イベント取得失敗:', ve);
+    }
+    // 今回受診日 = 最新の受診日、前回受診日 = その1つ前
+    const currentVisitDate = visitDatesDesc[0] || null;
+    const prevVisitDate    = visitDatesDesc[1] || null;
+    p.visits = [...visitDatesDesc].reverse();  // 古い順
+
     // 最終共有日時・共有期間を更新
     const latestRecord  = records[0];
     const oldestRecord  = records[records.length - 1];
@@ -1742,16 +1761,24 @@ async function loadPatientRecords(patientId) {
                bristolAvg, bristolMode, suppCount, skipCount, catchupCount };
     }
 
-    // 共有期間全体を currPeriod として設定
-    // lastVisit以降を current、それ以前を prev として分割
-    // 実データの最初の日付をlastVisitとして使用
-    const lastVisitDate = bowelRows.length > 0
-      ? bowelRows[bowelRows.length - 1].date
-      : p.lastVisit;
-    p.lastVisit = lastVisitDate;
-    p.currentVisit = bowelRows.length > 0 ? bowelRows[0].date : p.currentVisit;
-    const currRows = bowelRows;
-    const prevRows = [];
+    // 受診日に基づき期間を設定
+    // 今回受診日: 受診イベントの最新 → なければデータ最新日
+    // 前回受診日: 受診イベントの1つ前 → なければデータ最古日
+    p.currentVisit = currentVisitDate || (bowelRows.length > 0 ? bowelRows[0].date : p.currentVisit);
+    p.lastVisit    = prevVisitDate    || (bowelRows.length > 0 ? bowelRows[bowelRows.length - 1].date : p.lastVisit);
+
+    // currRows = 前回受診日以降〜今回受診日まで（前回受診からの集計）
+    // 前回受診日がある場合はそれ以降に絞る。なければ全件。
+    const currRows = prevVisitDate
+      ? bowelRows.filter(r => r.date > prevVisitDate && r.date <= p.currentVisit)
+      : bowelRows;
+    // prevRows = 前々回受診〜前回受診（比較用）。受診履歴が3件以上あれば算出。
+    const prevPrevVisitDate = visitDatesDesc[2] || null;
+    const prevRows = (prevVisitDate && prevPrevVisitDate)
+      ? bowelRows.filter(r => r.date > prevPrevVisitDate && r.date <= prevVisitDate)
+      : [];
+    // 前回受診イベントが存在するか（buildKarteText の集計期間判定に使う）
+    p.hasPrevVisitEvent = !!prevVisitDate;
 
     if (currRows.length > 0) {
       p.currPeriod = calcPeriodStats(currRows);
@@ -1789,7 +1816,12 @@ async function loadPatientRecords(patientId) {
       [r.medAm, r.medPm, r.medNoon].some(v => v && partialPattern.test(v))
     ).length;
     // extraDoseCount: metadata.extra_dose===true の件数（日数ではなく回数）
-    p.extraDoseCount = records.filter(r => r.metadata?.extra_dose === true).length;
+    // 追加内服は他項目と同じ期間（前回受診日より後〜今回受診日まで）で「回数」集計
+    const currRecordRows = records.filter(r => {
+      const d = dateKeyJST(r);
+      return prevVisitDate ? (d > prevVisitDate && d <= p.currentVisit) : true;
+    });
+    p.extraDoseCount = currRecordRows.filter(r => r.metadata?.extra_dose === true).length;
     // prescribedDays: 内服記録が何らかある日（null でない日）
     p.prescribedDays = p.adherence30.filter(v => v !== null).length;
 
@@ -1829,12 +1861,13 @@ async function loadPrescriptions(patientId) {
       if (!drugMap[key]) drugMap[key] = [];
 
       // notes は JSON 構造（新形式）または平文（旧形式）を許容
-      let parsedFreq = '', parsedNote = '', parsedDays = 30;
+      let parsedFreq = '', parsedNote = '', parsedDays = 30, parsedStartDate = '';
       try {
         const rxMeta = JSON.parse(rx.notes || '{}');
         parsedFreq = rxMeta.freq || '';
         parsedNote = rxMeta.note || '';
         if (rxMeta.days != null) parsedDays = parseInt(rxMeta.days) || 30;
+        parsedStartDate = rxMeta.start_date || '';
       } catch {
         // 旧形式（平文）：全体を clinical note として扱い freq には入れない
         parsedNote = rx.notes || '';
@@ -1854,7 +1887,7 @@ async function loadPrescriptions(patientId) {
         doseUnit:  rx.dose_unit || '',
         freq:      parsedFreq,  // 用法（「1日1回朝」）— notes から分離、蓄積しない
         note:      parsedNote,  // 医師メモのみ
-        start:     rx.prescribed_at?.slice(0, 10) || '',
+        start:     parsedStartDate || rx.prescribed_at?.slice(0, 10) || '',
         end:       '',
         days:      parsedDays,
         pushed:    rx.is_active,
