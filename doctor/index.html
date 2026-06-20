@@ -935,7 +935,8 @@ function renderRxHistory(){
 // ── 処方・評価タブ ──────────────────────────────────────────────
 function renderPrescription(){
   const p=currentPt;
-  const rx=getCurrentRx(p)||{drug:'',dose:'',doseValue:'',freq:'',days:30,start:p.currentVisit,note:''};
+  // 優先順: workingRx（今回の確定/下書き） → 現在のactive処方 → 空デフォルト
+  const rx=p.workingRx||getCurrentRx(p)||{drug:'',dose:'',doseValue:'',freq:'',days:30,start:p.currentVisit,note:''};
   const nextDays=calcNextVisitDays(p);
   const nextDaysLabel = nextDays !== null ? `次回受診まで ${nextDays}日` : '次回受診日は未設定です';
   // フォーム入力欄には数値のみを使う（「朝1.75包」→「1.75」）
@@ -1091,8 +1092,35 @@ function checkRxDays(val,nextDays){
 }
 
 function buildKarteText(p){
-  const rx=getCurrentRx(p);
-  const rxLine=p.rxHistory.map(d=>d.drug+' '+d.entries.map(e=>e.dose+'('+e.days+'日)').join('→')).join('\n');
+  // 今回診療で確定した処方（workingRx）を優先。なければ現在のactive処方
+  const rx=p.workingRx||getCurrentRx(p);
+  // 処方行: 履歴（直近のみ）→【今回】処方
+  // workingRx があれば「今回」はそれ（未Push確定/下書き）、なければ現在のactive処方
+  const rxLine=(()=>{
+    const lines=p.rxHistory.map(d=>{
+      const entries=d.entries;
+      const curIdx=entries.findIndex(e=>e.current);
+      const histStart=Math.max(0, (curIdx<0?entries.length:curIdx)-3);
+      const histEntries=entries.slice(histStart, curIdx<0?entries.length:curIdx);
+      const histStr=histEntries.map(e=>e.dose+'('+e.days+'日)').join('→');
+      const cur=curIdx>=0?entries[curIdx]:null;
+      // workingRx があり同じ薬剤なら「今回」は workingRx を優先
+      const wr=p.workingRx;
+      let curStr='';
+      if(wr && wr.drug===d.drug){
+        curStr=`【今回】${wr.dose}（${wr.days}日）`;
+      } else if(cur){
+        curStr=`【今回】${cur.dose}（${cur.days}日）`;
+      }
+      return d.drug+' '+[histStr, curStr].filter(Boolean).join(' → ');
+    });
+    // workingRx の薬剤が rxHistory に無い（全くの新規処方）場合は独立行で追加
+    const wr=p.workingRx;
+    if(wr && !p.rxHistory.some(d=>d.drug===wr.drug)){
+      lines.push(`${wr.drug} 【今回】${wr.dose}（${wr.days}日）`);
+    }
+    return lines.join('\n');
+  })();
 
   // 坐薬・浣腸集計（前回受診〜今回受診）
   const recs=p.bowelRecords.filter(r=>r.date>=p.lastVisit&&r.date<=p.currentVisit);
@@ -1145,7 +1173,7 @@ function buildKarteText(p){
   const procText = procType==='disimpaction' ? 'ビサコジル坐薬 Disimpaction 帰宅後' :
                    procType==='other' ? (document.getElementById('rxNote')?.value||'その他処置') : '';
 
-  return `日誌開始 ${p.diaryStart}〜。診断・治療開始 ${p.visits[0]}〜前回受診 ${p.lastVisit}。
+  return `日誌開始 ${p.diaryStart||'—'}〜。診断・治療開始 ${p.visits[0]||'—'}〜前回受診 ${p.lastVisit||'—'}。
 ${rxLine}　処方期間${rx?rx.days:'—'}日
 ${(()=>{
   if(p.control==='before_treatment') return '内服開始前のため、内服記録はありません。';
@@ -1178,6 +1206,24 @@ function toggleProcNote(val){
   }
 }
 
+// 過去のactive処方をfalse化する（Push前に呼ぶ）
+async function deactivatePreviousActivePrescriptions(patientKey, token){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/prescriptions?patient_key=eq.${encodeURIComponent(patientKey)}&is_active=eq.true`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify({ is_active: false }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('過去active処方の無効化に失敗: ' + err);
+  }
+}
+
 async function saveRx(mode){
   const drug   = document.getElementById('rxDrug').value;
   const dose   = document.getElementById('rxDose').value;
@@ -1193,16 +1239,44 @@ async function saveRx(mode){
 
   if (!drug || !dose) { alert('薬剤名と用量を入力してください'); return; }
 
-  const status = mode === 'push' ? 'pushed' : mode === 'confirm' ? 'confirmed' : 'draft';
-
-  // 用量は必ず数値に変換（「朝1.75」「1.75包」などの文字列をnumericカラムに直接送らない）
+  // 用量は必ず数値に変換
   const doseNumber = parseDoseNumber(dose);
-  // 単位は dose → freq → 薬剤名 の順で補完
   const doseUnit   = parseDoseUnit(dose) || parseDoseUnit(freq) || defaultDoseUnitByDrug(drug);
+  // 表示用ラベル（「朝1.25包」など）— 入力された dose をそのまま使う
+  const doseLabel  = dose;
 
-  // patient_keyを現在の患者から取得
   const currentPtObj = PATIENTS.find(pt => pt.id === CURRENT_PATIENT_ID);
   const patientKey = currentPtObj?.patientKey;
+
+  // ── draft / confirm はDB保存せず workingRx に保持（患者UIに反映しない）──
+  if (mode === 'draft' || mode === 'confirm') {
+    const p = currentPtObj;
+    if (p) {
+      p.workingRx = {
+        drug,
+        dose: doseLabel,
+        doseValue: String(doseNumber ?? dose),
+        doseUnit,
+        freq,
+        days,
+        start,
+        note,
+        changeType: change,
+        confirmed: mode === 'confirm',
+        pushed: false,
+        source: mode,
+      };
+      p.control = control;
+      p.controlText = controlMap[control] || control;
+    }
+    alert(mode === 'confirm'
+      ? `「${drug} ${doseLabel}」を診療記録として確定しました。`
+      : '下書き保存しました。');
+    renderContent();
+    return;
+  }
+
+  // ── 以降は push のみ ──
   if (!patientKey) {
     alert('patient_keyが未設定です。患者データを確認してください。');
     return;
@@ -1219,7 +1293,7 @@ async function saveRx(mode){
     dose_evening: null,
     dose_unit:    doseUnit,
     // notes は JSON 構造で保存（freq と note を分離して再表示時に崩れないようにする）
-    notes:        JSON.stringify({ freq, note: note||'', raw_dose: dose||'' }),
+    notes:        JSON.stringify({ freq, note: note||'', raw_dose: dose||'', days: days }),
     is_active:    mode === 'push',
     prescribed_at: new Date().toISOString(),
     prescribed_by: DOCTOR_EMAIL || 'doctor',
@@ -1227,6 +1301,8 @@ async function saveRx(mode){
 
   try {
     const token = DOCTOR_TOKEN || SUPABASE_KEY;
+    // Push前に同じ患者の過去 active 処方を false 化（複数activeを防ぐ）
+    await deactivatePreviousActivePrescriptions(patientKey, token);
     const res = await fetch(`${SUPABASE_URL}/rest/v1/prescriptions`, {
       method: 'POST',
       headers: {
@@ -1250,12 +1326,7 @@ async function saveRx(mode){
       p.controlText = controlMap[control] || control;
     }
 
-    const msgs = {
-      draft:   `「${drug} ${dose}」を下書き保存しました。`,
-      confirm: `「${drug} ${dose}」を診療記録として確定しました。`,
-      push:    `「${drug} ${dose}」を確定し、患者アプリへPush送信しました。`,
-    };
-    alert(msgs[mode]);
+    alert(`「${drug} ${doseLabel}」を確定し、患者アプリへPush送信しました。`);
 
     // ── Push時のみ受診イベントを記録（医師起点）──
     if (mode === 'push') {
@@ -1301,7 +1372,11 @@ async function saveRx(mode){
       }
     }
 
-    // 内服履歴を再読み込み
+    // Push成功後: DB上のactive処方が正になるので workingRx をクリア
+    const pPush = PATIENTS.find(pt => pt.id === CURRENT_PATIENT_ID);
+    if (pPush) delete pPush.workingRx;
+
+    // 内服履歴を再読み込み（is_active=true の最新処方を current として反映）
     await loadPrescriptions(CURRENT_PATIENT_ID);
 
   } catch(e) {
@@ -1725,11 +1800,12 @@ async function loadPrescriptions(patientId) {
       if (!drugMap[key]) drugMap[key] = [];
 
       // notes は JSON 構造（新形式）または平文（旧形式）を許容
-      let parsedFreq = '', parsedNote = '';
+      let parsedFreq = '', parsedNote = '', parsedDays = 30;
       try {
         const rxMeta = JSON.parse(rx.notes || '{}');
         parsedFreq = rxMeta.freq || '';
         parsedNote = rxMeta.note || '';
+        if (rxMeta.days != null) parsedDays = parseInt(rxMeta.days) || 30;
       } catch {
         // 旧形式（平文）：全体を clinical note として扱い freq には入れない
         parsedNote = rx.notes || '';
@@ -1751,7 +1827,7 @@ async function loadPrescriptions(patientId) {
         note:      parsedNote,  // 医師メモのみ
         start:     rx.prescribed_at?.slice(0, 10) || '',
         end:       '',
-        days:      30,
+        days:      parsedDays,
         pushed:    rx.is_active,
         changeType:'same',
         current:   false, // 後で最後の1件をtrueに
