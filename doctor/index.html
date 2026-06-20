@@ -964,7 +964,8 @@ function renderPrescription(){
       <div class="form-section-title">診察所見</div>
       <div class="form-group" style="margin-bottom:10px">
         <label>今回受診日</label>
-        <input type="date" id="visitDate" value="${p.workingRx?.visitDate || p.currentVisit || p.dataLatestDate || new Date(Date.now()+9*3600*1000).toISOString().slice(0,10)}">
+        <input type="date" id="visitDate" value="${p.workingRx?.visitDate || new Date(Date.now()+9*3600*1000).toISOString().slice(0,10)}">
+        <span style="font-size:10px;color:var(--text3)">※処方Pushで、この日付に患者アプリの受診マークが付きます</span>
       </div>
       <div class="form-group" style="margin-bottom:10px">
         <label>腹部・直腸所見</label>
@@ -1390,13 +1391,24 @@ async function saveRx(mode){
           body: JSON.stringify(eventPayload),
         });
         if (!evRes.ok) {
-          console.warn('[saveRx] 受診イベント記録に失敗:', evRes.status, await evRes.text());
+          const evErrText = await evRes.text();
+          console.warn('[saveRx] 受診イベント記録に失敗:', evRes.status, evErrText);
+          alert(
+            '処方はPushされましたが、受診マークの記録に失敗しました。\n' +
+            '患者画面に受診マークが付かない可能性があります。\n\n' +
+            evErrText
+          );
         } else {
-          console.log('[saveRx] 受診イベント記録:', visitDate);
+          console.log('[saveRx] 受診イベント記録:', visitDateForEvent);
         }
       } catch(evErr) {
-        // 受診イベント失敗は処方Push自体を妨げない
+        // 受診イベント失敗は処方Push自体を妨げない（処方は既に保存済み）
         console.warn('[saveRx] 受診イベント記録エラー:', evErr);
+        alert(
+          '処方はPushされましたが、受診マークの記録に失敗しました。\n' +
+          '患者画面に受診マークが付かない可能性があります。\n\n' +
+          (evErr?.message || evErr)
+        );
       }
     }
 
