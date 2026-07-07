@@ -1001,6 +1001,15 @@ try{S.recs=JSON.parse(localStorage.getItem('bj14')||'[]');}catch(e){}
    初期化
    ============================================================ */
 function toDS(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+// recorded_at（timestamptz, サーバはUTCで返す）からJST基準の日付キー(YYYY-MM-DD)を得る共通関数
+// 医師UI側にも同名・同ロジックの関数があるので、修正時は両方に反映すること
+function jstDateFromISO(iso){
+  if(!iso) return '';
+  const utcMs = new Date(iso).getTime();
+  if(isNaN(utcMs)) return '';
+  const jstMs = utcMs + 9*60*60*1000;
+  return new Date(jstMs).toISOString().slice(0,10);
+}
 
 function init(){
   const now=new Date();
@@ -2475,7 +2484,7 @@ function serverRowToLocal(row){
     type:   row.record_type==='med'?'med':row.record_type==='gu'?'gu':isAbsent?'absent':'rec',
     subType,
     omutsu:           meta.omutsu||false,
-    date:             row.recorded_at?.slice(0,10)||'',
+    date:             jstDateFromISO(row.recorded_at),
     bowelMovement,
     reason:           meta.reason||null,
     note:             meta.note||null,
