@@ -303,6 +303,15 @@ function selectPatient(id) {
 // ── ヘルパー ─────────────────────────────────────────────────
 const DOW = ['日','月','火','水','木','金','土'];
 
+// recorded_at（timestamptz, サーバはUTCで返す）からJST基準の日付キー(YYYY-MM-DD)を得る共通関数
+// 患者UI側にも同名・同ロジックの関数があるので、修正時は両方に反映すること
+function jstDateFromISO(iso){
+  if(!iso) return '';
+  const utcMs = new Date(iso).getTime();
+  if(isNaN(utcMs)) return '';
+  const jstMs = utcMs + 9*60*60*1000;
+  return new Date(jstMs).toISOString().slice(0,10);
+}
 function bristolColor(n){
   if(n<=2) return '#E24B4A';
   if(n<=4) return '#639922';
@@ -339,6 +348,69 @@ function getCurrentRx(p){
     if(cur) return {drug:drug.drug, ...cur};
   }
   return null;
+}
+
+// 'YYYY-MM-DD' の startInclusive <= d < endExclusive の暦日配列を作る（記録の有無に関わらない）
+function dateRangeExclusiveEnd(startInclusiveStr, endExclusiveStr){
+  const days=[];
+  if(!startInclusiveStr || !endExclusiveStr) return days;
+  let cur = new Date(startInclusiveStr+'T00:00:00Z');
+  const end = new Date(endExclusiveStr+'T00:00:00Z');
+  if(isNaN(cur) || isNaN(end)) return days;
+  while(cur < end){
+    days.push(cur.toISOString().slice(0,10));
+    cur.setUTCDate(cur.getUTCDate()+1);
+  }
+  return days;
+}
+
+// 日数を週/月単位の大まかな表記にする（4週未満→W、それ以上→M）。カルテの慣例表記(2w/3M等)に合わせる。
+function formatDurationWeeksMonths(days){
+  if(!days || days<=0) return '';
+  if(days<28) return `${Math.max(1,Math.round(days/7))}W`;
+  return `${Math.max(1,Math.round(days/30))}M`;
+}
+
+// 治療経過（全薬剤・全処方をまとめて時系列に、同一用量が続く区間は1つに統合）
+// 各区間の期間は「処方日数の合計」ではなく「来院日（開始日）ベースの経過日数」で算出する
+function buildTreatmentCourseLine(p){
+  const allEntries=[];
+  (p.rxHistory||[]).forEach(d=>d.entries.forEach(e=>{
+    if(e.start) allEntries.push({drug:d.drug, dose:e.dose, start:e.start});
+  }));
+  allEntries.sort((a,b)=>a.start.localeCompare(b.start));
+  if(!allEntries.length) return '—';
+
+  // 同一薬剤・同一用量が連続する場合は1区間にまとめる（開始日は最初の登場日を保持）
+  const merged=[];
+  allEntries.forEach(e=>{
+    const last=merged[merged.length-1];
+    if(last && last.drug===e.drug && last.dose===e.dose) return; // 継続として統合
+    merged.push({drug:e.drug, dose:e.dose, start:e.start});
+  });
+
+  const todayStr = new Date().toISOString().slice(0,10);
+  const lastAnchor = p.currentVisit || todayStr;
+  return merged.map((seg,i)=>{
+    const nextStart = merged[i+1]?.start || lastAnchor;
+    const days = Math.max(0, Math.round((new Date(nextStart+'T00:00:00Z') - new Date(seg.start+'T00:00:00Z'))/86400000));
+    const durLabel = formatDurationWeeksMonths(days);
+    return `${seg.drug}${seg.dose}${durLabel?`（${durLabel}）`:''}`;
+  }).join('→');
+}
+
+// アドヒアランスサマリー文（概要タブ・カルテ記載プレビュー共通）
+// 「期間の全暦日中、記録のある日数」「スキップ」「追加内服」を示す。記録なしの日はスキップ判定の対象外。
+function adherenceSummaryText(p){
+  if(p.control==='before_treatment') return '内服開始前のため、内服記録はありません。';
+  const total = p.periodTotalDays||0;
+  if(total<=0) return '内服状況は記録されていません。';
+  const rec = p.periodRecordedDays||0, sd = p.skipDays||0;
+  const part = p.partialDays||0, ex = p.extraDoseCount||0;
+  const parts = [`${total}日中記録${rec}日、スキップ${sd}日`];
+  if(part>0) parts.push(`部分内服${part}日`);
+  if(ex>0)   parts.push(`追加内服${ex}回`);
+  return `アドヒアランス: ${parts.join('、')}。`;
 }
 
 // ② 処方日数 < 次回受診間隔 アラート
@@ -587,6 +659,9 @@ async function loadByChartNumber() {
         patientKey,
         diag: '',
         diaryStart: '',
+        diagnosisDate: '',
+        treatmentEndDate: '',
+        treatmentEndUnknown: false,
         lastVisit: new Date().toISOString().slice(0, 10),
         currentVisit: new Date().toISOString().slice(0, 10),
         nextVisit: '',
@@ -752,6 +827,11 @@ function renderSummary(){
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="card-label" style="margin-bottom:0">処方状況</div>
       <button class="btn-ghost" onclick="switchTab('rxhistory',document.querySelectorAll('.tab')[2])">全履歴→</button>
+    </div>
+    <div style="font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+      <div>日誌開始：${p.diaryStart||'—'}　診断日：${p.diagnosisDate||'—'}　治療開始：${p.diagnosisDate||'—'}　前回受診：${p.lastVisit||'—'}${p.treatmentEndDate?`　治療終了：${p.treatmentEndDate}${p.treatmentEndUnknown?'（中断・詳細不明）':''}`:''}</div>
+      <div style="margin-top:3px">治療経過：${buildTreatmentCourseLine(p)}</div>
+      <div style="margin-top:3px">${adherenceSummaryText(p)}</div>
     </div>
     ${hiddenCount>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:5px;padding-left:13px">… 他${hiddenCount}件</div>`:''}
     <div class="rx-timeline">`;
@@ -967,6 +1047,22 @@ function renderPrescription(){
         <input type="date" id="visitDate" value="${p.workingRx?.visitDate || new Date(Date.now()+9*3600*1000).toISOString().slice(0,10)}">
         <span style="font-size:10px;color:var(--text3)">※処方Pushで、この日付に患者アプリの受診マークが付きます</span>
       </div>
+      <div class="form-group" style="margin-bottom:10px;padding:8px;background:var(--surface2);border-radius:6px">
+        <label>診断日（＝治療開始日。処方開始日とは別。一度保存すると編集ロックされます）</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" id="rxDiagDate" value="${p.diagnosisDate||''}" ${p.diagnosisDate&&!p._diagDateUnlocked?'disabled':''} style="max-width:170px">
+          ${p.diagnosisDate&&!p._diagDateUnlocked?`<button type="button" class="btn-ghost" onclick="unlockDiagDate()">🔓編集</button>`:`<button type="button" class="btn" onclick="saveDiagnosisDate()">診断日を保存</button>`}
+        </div>
+        <label style="margin-top:8px">治療終了日（中断・終了時のみ入力。詳細不明の中断は日付未定でもチェックのみで保存可）</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" id="rxTreatmentEndDate" value="${p.treatmentEndDate||''}" style="max-width:170px">
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400">
+            <input type="checkbox" id="rxTreatmentEndUnknown" ${p.treatmentEndUnknown?'checked':''} style="width:auto"> 詳細不明の中断
+          </label>
+          <button type="button" class="btn" onclick="saveTreatmentEnd()">治療終了を保存</button>
+        </div>
+        ${p.treatmentEndDate?`<span style="font-size:10px;color:var(--red)">現在の登録：${p.treatmentEndDate}${p.treatmentEndUnknown?'（詳細不明の中断）':''}　解除する場合は日付欄を空にして保存してください</span>`:''}
+      </div>
       <div class="form-group" style="margin-bottom:10px">
         <label>腹部・直腸所見</label>
         <select id="rxExam">
@@ -1108,8 +1204,7 @@ function checkRxDays(val,nextDays){
 function buildKarteText(p){
   // 今回診療で確定した処方（workingRx）を優先。なければ現在のactive処方
   const rx=p.workingRx||getCurrentRx(p);
-  // 処方行: 履歴（直近のみ）→【今回】処方
-  // workingRx があれば「今回」はそれ（未Push確定/下書き）、なければ現在のactive処方
+  // 処方行: 過去の処方履歴のみ（直近数件）。今回分は下の「処方:」行に既に出るため、ここでは重複させない。
   const rxLine=(()=>{
     const lines=p.rxHistory.map(d=>{
       const entries=d.entries;
@@ -1117,29 +1212,15 @@ function buildKarteText(p){
       const histStart=Math.max(0, (curIdx<0?entries.length:curIdx)-3);
       const histEntries=entries.slice(histStart, curIdx<0?entries.length:curIdx);
       const histStr=histEntries.map(e=>e.dose+'('+e.days+'日)').join('→');
-      const cur=curIdx>=0?entries[curIdx]:null;
-      // workingRx があり同じ薬剤なら「今回」は workingRx を優先
-      const wr=p.workingRx;
-      let curStr='';
-      if(wr && wr.drug===d.drug){
-        curStr=`【今回】${wr.dose}（${wr.days}日）`;
-      } else if(cur){
-        curStr=`【今回】${cur.dose}（${cur.days}日）`;
-      }
-      return d.drug+' '+[histStr, curStr].filter(Boolean).join(' → ');
-    });
-    // workingRx の薬剤が rxHistory に無い（全くの新規処方）場合は独立行で追加
-    const wr=p.workingRx;
-    if(wr && !p.rxHistory.some(d=>d.drug===wr.drug)){
-      lines.push(`${wr.drug} 【今回】${wr.dose}（${wr.days}日）`);
-    }
+      return histStr ? d.drug+' '+histStr : null;
+    }).filter(Boolean);
     return lines.join('\n');
   })();
 
-  // 坐薬・浣腸集計（前回受診〜今回受診）
-  // currRows と同じ期間: 前回受診イベントがあれば「前回受診より後〜今回受診」、なければ全件
+  // 坐薬・浣腸集計（前回受診〜今回受診の前日）
+  // currRows と同じ期間: 前回受診イベントがあれば「前回受診日〜今回受診日前日」、なければ全件
   const recs=p.hasPrevVisitEvent
-    ? p.bowelRecords.filter(r => r.date > p.lastVisit && r.date <= p.currentVisit)
+    ? p.bowelRecords.filter(r => r.date >= p.lastVisit && r.date < p.currentVisit)
     : p.bowelRecords;
   const suppCount=recs.filter(r=>r.supp==='坐').length;
   const eneCount =recs.filter(r=>r.supp==='浣').length;
@@ -1190,19 +1271,10 @@ function buildKarteText(p){
   const procText = procType==='disimpaction' ? 'ビサコジル坐薬 Disimpaction 帰宅後' :
                    procType==='other' ? (document.getElementById('rxNote')?.value||'その他処置') : '';
 
-  return `日誌開始 ${p.diaryStart||'—'}〜。診断・治療開始 ${p.visits[0]||'—'}〜前回受診 ${p.lastVisit||'—'}。
-${rxLine}　処方期間${rx?rx.days:'—'}日
-${(()=>{
-  if(p.control==='before_treatment') return '内服開始前のため、内服記録はありません。';
-  const hasRecord = p.adherence30 && p.adherence30.some(v => v !== null && v !== undefined);
-  if(!hasRecord) return '内服状況は記録されていません。';
-  const pd = p.prescribedDays||0, td = p.takenDays||0, sd = p.skipDays||0;
-  const part = p.partialDays||0, ex = p.extraDoseCount||0;
-  const parts = [`記録${pd}日中、内服${td}日、スキップ${sd}日`];
-  if(part>0) parts.push(`部分内服${part}日`);
-  if(ex>0)   parts.push(`追加内服（飲み忘れ分）${ex}回`);
-  return `アドヒアランス: ${parts.join('、')}。`;
-})()}
+  return `日誌開始 ${p.diaryStart||'—'}〜。診断日 ${p.diagnosisDate||'—'}　治療開始 ${p.diagnosisDate||p.visits[0]||'—'}〜前回受診 ${p.lastVisit||'—'}。${p.treatmentEndDate?`\n治療終了 ${p.treatmentEndDate}${p.treatmentEndUnknown?'（中断・詳細不明）':''}`:''}
+記録: 記録なしの日 ${p.periodNoRecordDays||0}日
+${rxLine?rxLine+'\n':''}処方期間${rx?rx.days:'—'}日
+${adherenceSummaryText(p)}
 排便頻度: 排便なし${noStoolDays}日。怒責${p.currPeriod.strainDays}日。
 坐薬・浣腸使用回数: 坐薬${suppCount}　浣腸${eneCount}　使用すべきタイミング${shouldUseDays}（自動）
 便性: ブリストル平均${p.currPeriod.bristolAvg.toFixed(1)}（最頻値${p.currPeriod.bristolMode}型）
@@ -1220,6 +1292,105 @@ function toggleProcNote(val){
   if(val==='other'){
     const note=document.getElementById('rxNote');
     if(note){ note.focus(); note.placeholder='処置内容を記載してください'; }
+  }
+}
+
+// 診断日入力欄のロックを解除（誤入力の訂正用）
+function unlockDiagDate(){
+  const p=currentPt;
+  if(p) p._diagDateUnlocked=true;
+  renderContent();
+  setTimeout(()=>{
+    const i2=document.getElementById('rxDiagDate');
+    if(i2){ i2.disabled=false; i2.focus(); }
+  },0);
+}
+
+// 診断日（＝治療開始日）を patient_events に保存する。一度保存すると入力欄はグレーアウトする。
+async function saveDiagnosisDate(){
+  const val=document.getElementById('rxDiagDate')?.value;
+  if(!val){ alert('診断日を入力してください'); return; }
+  const p=currentPt;
+  const patientKey=p?.patientKey;
+  if(!patientKey){ alert('patient_keyが未設定です。患者データを確認してください。'); return; }
+  if(!ensureValidSession()){
+    alert('ログインの有効期限が切れました。お手数ですが、もう一度ログインしてから再入力してください。');
+    localStorage.removeItem('doctorSession');
+    location.href = '/doctor_login';
+    return;
+  }
+  try{
+    const headers={
+      'Content-Type':'application/json',
+      'apikey':SUPABASE_KEY,
+      'Authorization':`Bearer ${DOCTOR_TOKEN}`,
+    };
+    // 既存の診断イベントを削除してから1件だけ登録する（複数登録・不整合を防ぐ）
+    await fetch(`${SUPABASE_URL}/rest/v1/patient_events?patient_key=eq.${encodeURIComponent(patientKey)}&event_type=eq.diagnosis`, {
+      method:'DELETE', headers:{...headers,'Prefer':'return=minimal'},
+    });
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/patient_events`, {
+      method:'POST',
+      headers:{...headers,'Prefer':'return=minimal'},
+      body:JSON.stringify({ patient_key:patientKey, event_type:'diagnosis', event_date:val, source:'doctor', metadata:{} }),
+    });
+    if(!res.ok) throw new Error(await res.text());
+    p.diagnosisDate=val;
+    p._diagDateUnlocked=false;
+    alert('診断日を保存しました。');
+    renderContent();
+  }catch(e){
+    console.error('saveDiagnosisDate error:', e);
+    alert('診断日の保存に失敗しました。通信状況を確認して、もう一度お試しください。\n'+e.message);
+  }
+}
+
+// 治療終了日を patient_events に保存する。日付を空にして保存すると解除（治療継続中に戻す）。
+async function saveTreatmentEnd(){
+  const val=document.getElementById('rxTreatmentEndDate')?.value||'';
+  const unknown=!!document.getElementById('rxTreatmentEndUnknown')?.checked;
+  const p=currentPt;
+  const patientKey=p?.patientKey;
+  if(!patientKey){ alert('patient_keyが未設定です。患者データを確認してください。'); return; }
+  if(!val && !unknown){
+    if(!confirm('治療終了日を未設定にします（治療継続中として扱われます）。よろしいですか？')) return;
+  }
+  if(!ensureValidSession()){
+    alert('ログインの有効期限が切れました。お手数ですが、もう一度ログインしてから再入力してください。');
+    localStorage.removeItem('doctorSession');
+    location.href = '/doctor_login';
+    return;
+  }
+  try{
+    const headers={
+      'Content-Type':'application/json',
+      'apikey':SUPABASE_KEY,
+      'Authorization':`Bearer ${DOCTOR_TOKEN}`,
+    };
+    // 既存の治療終了イベントを削除
+    await fetch(`${SUPABASE_URL}/rest/v1/patient_events?patient_key=eq.${encodeURIComponent(patientKey)}&event_type=eq.treatment_end`, {
+      method:'DELETE', headers:{...headers,'Prefer':'return=minimal'},
+    });
+    if(val || unknown){
+      // 日付未定の「詳細不明の中断」は暫定的に今日の日付で記録し、metadataで区別する
+      const eventDate = val || new Date(Date.now()+9*3600*1000).toISOString().slice(0,10);
+      const res=await fetch(`${SUPABASE_URL}/rest/v1/patient_events`, {
+        method:'POST',
+        headers:{...headers,'Prefer':'return=minimal'},
+        body:JSON.stringify({ patient_key:patientKey, event_type:'treatment_end', event_date:eventDate, source:'doctor', metadata:{ reason: unknown?'unknown_dropout':'completed', date_unknown: !val } }),
+      });
+      if(!res.ok) throw new Error(await res.text());
+      p.treatmentEndDate=eventDate;
+      p.treatmentEndUnknown=unknown;
+    } else {
+      p.treatmentEndDate='';
+      p.treatmentEndUnknown=false;
+    }
+    alert(val||unknown?'治療終了を保存しました。':'治療終了を解除しました。');
+    renderContent();
+  }catch(e){
+    console.error('saveTreatmentEnd error:', e);
+    alert('治療終了の保存に失敗しました。通信状況を確認して、もう一度お試しください。\n'+e.message);
   }
 }
 
@@ -1606,27 +1777,52 @@ async function loadPatientRecords(patientId) {
       return;
     }
 
-    // 受診イベント（visit）を取得して受診日リストを作る（前回受診〜今回受診の集計に使う）
+    // 受診・診断・治療終了イベントを一括取得（前回受診〜今回受診の集計、診断日・治療終了日の表示に使う）
     let visitDatesDesc = [];
+    let diagnosisEvents = [];
+    let treatmentEndEvents = [];
     try {
-      const visitEvents = await supabaseFetch(
+      const allEvents = await supabaseFetch(
         'patient_events',
-        `patient_key=eq.${patientKey}&event_type=eq.visit&order=event_date.desc&limit=50`
+        `patient_key=eq.${patientKey}&event_type=in.(visit,diagnosis,treatment_end)&order=event_date.desc&limit=100`
       );
-      visitDatesDesc = (visitEvents || []).map(v => v.event_date).filter(Boolean);
+      visitDatesDesc     = (allEvents || []).filter(v => v.event_type === 'visit').map(v => v.event_date).filter(Boolean);
+      diagnosisEvents     = (allEvents || []).filter(v => v.event_type === 'diagnosis');
+      treatmentEndEvents  = (allEvents || []).filter(v => v.event_type === 'treatment_end');
     } catch(ve) {
-      console.warn('[loadPatientRecords] 受診イベント取得失敗:', ve);
+      console.warn('[loadPatientRecords] イベント取得失敗:', ve);
     }
     // 今回受診日 = 最新の受診日、前回受診日 = その1つ前
     const currentVisitDate = visitDatesDesc[0] || null;
     const prevVisitDate    = visitDatesDesc[1] || null;
     p.visits = [...visitDatesDesc].reverse();  // 古い順
 
+    // 診断日（＝治療開始日。最も古い診断イベントを正とする）・治療終了日（最新の終了イベント）
+    if (diagnosisEvents.length) {
+      const oldestDiag = [...diagnosisEvents].sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
+      p.diagnosisDate = oldestDiag.event_date;
+      p._diagDateUnlocked = false;
+    }
+    if (treatmentEndEvents.length) {
+      const latestEnd = [...treatmentEndEvents].sort((a,b)=>b.event_date.localeCompare(a.event_date))[0];
+      p.treatmentEndDate = latestEnd.event_date;
+      p.treatmentEndUnknown = latestEnd.metadata?.reason === 'unknown_dropout';
+    } else {
+      p.treatmentEndDate = '';
+      p.treatmentEndUnknown = false;
+    }
+
     // 最終共有日時・共有期間を更新
     const latestRecord  = records[0];
     const oldestRecord  = records[records.length - 1];
-    const latestDate    = latestRecord.recorded_at?.slice(0, 10) || '';
-    const oldestDate    = oldestRecord.recorded_at?.slice(0, 10) || '';
+    const latestDate    = jstDateFromISO(latestRecord.recorded_at);
+    const oldestDate    = jstDateFromISO(oldestRecord.recorded_at);
+
+    // 日誌開始日：この日誌で最初に記録がついた日。取得済みの値より古い記録が見つかれば更新する
+    // （shared_bowel_recordsの取得件数上限=200のため、単発の読み込みだけでは真の最古日を保証できない点に留意）
+    if (oldestDate) {
+      p.diaryStart = (p.diaryStart && p.diaryStart < oldestDate) ? p.diaryStart : oldestDate;
+    }
 
     p.shareInfo = {
       lastSharedAt: latestRecord.shared_at,
@@ -1642,14 +1838,9 @@ async function loadPatientRecords(patientId) {
       return '';
     }
 
-    // JST基準で日付キーを作る（recorded_at はUTC。defec_time がある場合はそれを優先）
+    // JST基準で日付キーを作る（recorded_at はUTC。共通関数 jstDateFromISO を使用）
     function dateKeyJST(r) {
-      // defec_time が 'HH:MM:SS' 形式で存在する場合、recorded_at の日付 JST を基底に組み合わせる
-      // ただし recorded_at で JST日付を算出するのが基本
-      if (!r.recorded_at) return '';
-      const utcMs = new Date(r.recorded_at).getTime();
-      const jstMs = utcMs + 9 * 60 * 60 * 1000;
-      return new Date(jstMs).toISOString().slice(0, 10);
+      return jstDateFromISO(r?.recorded_at);
     }
 
     // 日付ごとにレコードをグループ化（JST基準）
@@ -1795,18 +1986,27 @@ async function loadPatientRecords(patientId) {
     p.dataLatestDate = bowelRows.length > 0 ? bowelRows[0].date : p.currentVisit;
     p.dataOldestDate = bowelRows.length > 0 ? bowelRows[bowelRows.length - 1].date : p.lastVisit;
 
-    // currRows = 前回受診日以降〜今回受診日まで（前回受診からの集計）
+    // currRows = 前回受診日〜今回受診日の前日まで（前回受診日を含み、今回受診日は含まない）
     // 前回受診日がある場合はそれ以降に絞る。なければ全件。
     const currRows = prevVisitDate
-      ? bowelRows.filter(r => r.date > prevVisitDate && r.date <= p.currentVisit)
+      ? bowelRows.filter(r => r.date >= prevVisitDate && r.date < p.currentVisit)
       : bowelRows;
-    // prevRows = 前々回受診〜前回受診（比較用）。受診履歴が3件以上あれば算出。
+    // prevRows = 前々回受診〜前回受診の前日（比較用）。受診履歴が3件以上あれば算出。
     const prevPrevVisitDate = visitDatesDesc[2] || null;
     const prevRows = (prevVisitDate && prevPrevVisitDate)
-      ? bowelRows.filter(r => r.date > prevPrevVisitDate && r.date <= prevVisitDate)
+      ? bowelRows.filter(r => r.date >= prevPrevVisitDate && r.date < prevVisitDate)
       : [];
     // 前回受診イベントが存在するか（buildKarteText の集計期間判定に使う）
     p.hasPrevVisitEvent = !!prevVisitDate;
+
+    // 集計期間の全暦日（記録の有無に関わらない。前回受診日〜今回受診日の前日）
+    // 「記録なしの日」を正しく数えるため、bowelRows（記録のある日のみ）とは別に暦日を作る
+    const periodDates = prevVisitDate
+      ? dateRangeExclusiveEnd(prevVisitDate, p.currentVisit)
+      : currRows.map(r => r.date);
+    p.periodTotalDays    = periodDates.length;
+    p.periodNoRecordDays = periodDates.filter(d => !byDate[d]).length;
+    p.periodRecordedDays = p.periodTotalDays - p.periodNoRecordDays;
 
     if (currRows.length > 0) {
       p.currPeriod = calcPeriodStats(currRows);
@@ -1847,7 +2047,7 @@ async function loadPatientRecords(patientId) {
     // 追加内服は他項目と同じ期間（前回受診日より後〜今回受診日まで）で「回数」集計
     const currRecordRows = records.filter(r => {
       const d = dateKeyJST(r);
-      return prevVisitDate ? (d > prevVisitDate && d <= p.currentVisit) : true;
+      return prevVisitDate ? (d >= prevVisitDate && d < p.currentVisit) : true;
     });
     p.extraDoseCount = currRecordRows.filter(r => r.metadata?.extra_dose === true).length;
     // prescribedDays: 内服記録が何らかある日（null でない日）
