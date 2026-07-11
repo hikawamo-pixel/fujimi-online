@@ -368,11 +368,11 @@ function dateRangeExclusiveEnd(startInclusiveStr, endExclusiveStr){
   return days;
 }
 
-// 日数を週/月単位の大まかな表記にする（4週未満→W、それ以上→M）。カルテの慣例表記(2w/3M等)に合わせる。
+// 日数を週/月単位の大まかな表記にする。1週間未満（0〜6日）は表示を省略する。
 function formatDurationWeeksMonths(days){
-  if(!days || days<=0) return '';
-  if(days<28) return `${Math.max(1,Math.round(days/7))}W`;
-  return `${Math.max(1,Math.round(days/30))}M`;
+  if(!days || days<7) return '';
+  if(days<28) return `${Math.round(days/7)}W`;
+  return `${Math.round(days/30)}M`;
 }
 
 // 治療経過（全薬剤・全処方をまとめて時系列に、同一用量が続く区間は1つに統合）
@@ -402,10 +402,90 @@ function buildTreatmentCourseLine(p){
   }).join('→');
 }
 
+// 各行（日単位）からBristol値を全件抽出する。同日複数排便がある場合はその全件を数える。
+// row.bowelRecs（その日の生レコード全件）があればそちらを優先し、なければ代表値 row.stool を使う
+// （旧データ・簡易入力のフォールバック）。「4→5」等の遷移表記は、記録時点で最初の値のみが
+// bristol_scale に保存される仕様なので、ここでは追加のパースは行わない。
+function extractBristolValues(rows){
+  const vals=[];
+  (rows||[]).forEach(r=>{
+    if(r.bowelRecs && r.bowelRecs.length){
+      r.bowelRecs.forEach(br=>{ if(br && br.bristol_scale) vals.push(br.bristol_scale); });
+    } else if(r.stool){
+      vals.push(r.stool);
+    }
+  });
+  return vals;
+}
+
+// 期間統計の共通ヘルパー。概要タブ（renderSummary）とカルテ記載プレビュー（buildKarteText）の
+// 両方がこれを参照することで、集計ロジックの二重実装・不一致を防ぐ。
+// rows: 記録のある日のみの行配列（currRows等）。periodDates: 期間内の全暦日（記録有無に関わらない）。
+function buildPeriodStats(rows, periodDates){
+  rows = rows || [];
+  const hasCalendar = !!(periodDates && periodDates.length);
+  const rowByDate = {};
+  rows.forEach(r=>{ rowByDate[r.date]=r; });
+
+  const totalDays     = hasCalendar ? periodDates.length : rows.length;
+  const recordedDays  = rows.length;
+  const noRecordDays  = hasCalendar ? periodDates.filter(d=>!rowByDate[d]).length : 0;
+
+  // 排便日数：Bristol数値がなくても hasBowel（簡易入力含む）があれば排便あり
+  const bowelDays  = rows.filter(r => r.hasBowel || r.stool !== null).length;
+  // 排便なし日数：患者が明示的に「排便なし」と記録した日のみ数える。
+  // （内服記録だけあってトイレ記録がない日を「排便なし」と誤カウントしないため）
+  const noStoolDays= rows.filter(r =>
+    !r.hasBowel && (r.explicitNoStool || r.note === 'なし' || r.isToiletNoStool || r.isOmutsuNoStool)
+  ).length;
+  const strainDays = rows.filter(r => r.strain).length;
+
+  // Bristol平均・最頻値・分布：同日複数排便を含む全件から算出（カレンダー表示と一致させる）
+  const stools = extractBristolValues(rows);
+  const bristolAvg = stools.length
+    ? parseFloat((stools.reduce((a,b)=>a+b,0)/stools.length).toFixed(1))
+    : 0;
+  const freq = {};
+  stools.forEach(s=>{ freq[s]=(freq[s]||0)+1; });
+  const bristolMode = stools.length
+    ? parseInt(Object.keys(freq).sort((a,b)=>freq[b]-freq[a])[0])
+    : 0;
+  const bristolDist = {1:0,2:0,3:0,4:0,5:0,6:0,7:0};
+  stools.forEach(s=>{ if(bristolDist[s]!=null) bristolDist[s]++; });
+
+  const suppCount  = rows.filter(r => r.supp).length;
+  // スキップ日数：朝・昼・晩いずれかのスロットで skip が記録された日。
+  // p.skipDays（アドヒアランス集計）と同一定義にして、概要・患者リスト・内服履歴で一致させる。
+  const skipCount  = rows.filter(r =>
+    r.medAm === 'skip' || r.medNoon === 'skip' || r.medPm === 'skip'
+  ).length;
+  // 追いかけ飲み：前日skipで当日med ok
+  let catchupCount = 0;
+  rows.forEach((r,i) => {
+    if (i > 0 && rows[i-1].skip && (r.medAm==='ok'||r.medPm==='ok')) catchupCount++;
+  });
+
+  return { totalDays, recordedDays, noRecordDays, bowelDays, noStoolDays, strainDays,
+           bristolAvg, bristolMode, bristolDist, suppCount, skipCount, catchupCount };
+}
+
+// p.control（コントロール評価）はサーバに永続化されておらず、ページ再読み込みのたびに
+// 初期値 'before_treatment' に戻ってしまう既知の制約がある（次フェーズでvisit_evaluations等への
+// 永続化を検討）。そのため「内服開始前」の表示は p.control だけで判定せず、実際に処方履歴・
+// 診断日・内服記録が存在する場合はそれを優先する（誤って「内服開始前」と表示されるのを防ぐ）。
+function hasTreatmentHistory(p){
+  const hasRx = !!(p.rxHistory && p.rxHistory.some(d => d.entries && d.entries.length > 0));
+  const hasRecordedMed = (p.currPeriodRows||[]).some(r => r.medAm || r.medPm || r.medNoon);
+  return hasRx || !!p.diagnosisDate || (p.periodRecordedDays>0) || hasRecordedMed;
+}
+function isBeforeTreatmentDisplay(p){
+  return p.control==='before_treatment' && !hasTreatmentHistory(p);
+}
+
 // アドヒアランスサマリー文（概要タブ・カルテ記載プレビュー共通）
 // 「期間の全暦日中、記録のある日数」「スキップ」「追加内服」を示す。記録なしの日はスキップ判定の対象外。
 function adherenceSummaryText(p){
-  if(p.control==='before_treatment') return '内服開始前のため、内服記録はありません。';
+  if(isBeforeTreatmentDisplay(p)) return '内服開始前のため、内服記録はありません。';
   const total = p.periodTotalDays||0;
   if(total<=0) return '内服状況は記録されていません。';
   const rec = p.periodRecordedDays||0, sd = p.skipDays||0;
@@ -593,7 +673,7 @@ function renderPtList(list){
     const rx = getCurrentRx(p);
     const badges=[];
     if(p.control==='poor') badges.push('<span class="badge badge-red">要注意</span>');
-    if(p.control==='before_treatment') badges.push('<span class="badge badge-green">初回</span>');
+    if(isBeforeTreatmentDisplay(p)) badges.push('<span class="badge badge-green">初回</span>');
     if(p.skipCount>0) badges.push(`<span class="badge badge-amber">スキップ${p.skipCount}日</span>`);
     // Push待ちバッジは廃止（is_active=false=Push待ちは不正確）
     return `<div class="pt-item${currentPt && p.id===currentPt.id?' active':''}" onclick="selectPatient('${p.id}')">
@@ -672,11 +752,14 @@ async function loadByChartNumber() {
         shareInfo: null,  // 共有前はnull（shareBarHTMLでガード済み）
         rxHistory: [],
         adherence30: [],
+        currPeriodRows: [],
+        periodDates: [],
+        periodTotalDays: 0, periodNoRecordDays: 0, periodRecordedDays: 0,
         skipCount: 0, catchupCount: 0,
         visits: [],
         bowelRecords: [],
-        prevPeriod: { totalDays:0, bowelDays:0, noStoolDays:0, strainDays:0, bristolAvg:0, bristolMode:0 },
-        currPeriod: { totalDays:0, bowelDays:0, noStoolDays:0, strainDays:0, bristolAvg:0, bristolMode:0 },
+        prevPeriod: { totalDays:0, recordedDays:0, noRecordDays:0, bowelDays:0, noStoolDays:0, strainDays:0, bristolAvg:0, bristolMode:0, bristolDist:{1:0,2:0,3:0,4:0,5:0,6:0,7:0}, suppCount:0, skipCount:0, catchupCount:0 },
+        currPeriod: { totalDays:0, recordedDays:0, noRecordDays:0, bowelDays:0, noStoolDays:0, strainDays:0, bristolAvg:0, bristolMode:0, bristolDist:{1:0,2:0,3:0,4:0,5:0,6:0,7:0}, suppCount:0, skipCount:0, catchupCount:0 },
         bristolDist: {1:0,2:0,3:0,4:0,5:0,6:0,7:0},
         procedures: [], notes: [],
       };
@@ -735,12 +818,17 @@ function renderSummary(){
   html += rxAlertHTML(p);
 
   // コントロール評価
-  const evalCls=p.control==='before_treatment'?'eval-none':p.control==='good'?'eval-good':p.control==='fair'?'eval-fair':p.control==='moderate'?'eval-fair':'eval-poor';
-  const evalIcon=p.control==='before_treatment'?'—':p.control==='good'?'◎':p.control==='fair'?'○':p.control==='moderate'?'▲':'△';
-  if(p.control === 'before_treatment'){
+  const beforeTx = isBeforeTreatmentDisplay(p);
+  // p.control が 'before_treatment' のままでも実際は治療歴がある場合（未再評価）は「未評価」扱いにする
+  const staleBeforeTreatment = !beforeTx && p.control==='before_treatment';
+  const effControl = staleBeforeTreatment ? null : p.control;
+  const effControlText = staleBeforeTreatment ? '未評価' : p.controlText;
+  const evalCls=beforeTx?'eval-none':effControl==='good'?'eval-good':effControl==='fair'?'eval-fair':effControl==='moderate'?'eval-fair':effControl==='poor'?'eval-poor':'eval-fair';
+  const evalIcon=beforeTx?'—':effControl==='good'?'◎':effControl==='fair'?'○':effControl==='moderate'?'▲':effControl==='poor'?'△':'？';
+  if(beforeTx){
     html+=`<div class="eval-block eval-none">—&nbsp;<b>内服開始前（コントロール評価なし）</b><span style="margin-left:auto;font-size:11px;opacity:.7">初回処方</span></div>`;
   } else {
-    html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${p.controlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">${p.lastVisit} → 今回: ${p.currentVisit}</span></div>`;
+    html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${effControlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">${p.lastVisit} → 今回: ${p.currentVisit}</span></div>`;
   }
 
   // サマリー数値
@@ -750,13 +838,12 @@ function renderSummary(){
     const sign=val>0?'+':'';
     return `<span class="sum-diff ${better?'diff-better':'diff-worse'}">${sign}${val} 前回比</span>`;
   };
-  const isLowFreq=c.bowelDays<15;
   html+=`<div class="summary-grid">
     <div class="sum-card">
-      <div class="sum-label">${isLowFreq?'排便回数':'排便なし日数'}</div>
-      <div class="sum-main mono">${isLowFreq?c.bowelDays:c.noStoolDays}<span style="font-size:13px;color:var(--text2)"> / ${c.totalDays}日</span></div>
-      <div class="sum-sub">前回: ${isLowFreq?prev.bowelDays:prev.noStoolDays}日</div>
-      ${diffTag(isLowFreq?c.bowelDays-prev.bowelDays:c.noStoolDays-prev.noStoolDays,isLowFreq?'+':'-')}
+      <div class="sum-label">排便なし日数</div>
+      <div class="sum-main mono">${c.noStoolDays}<span style="font-size:13px;color:var(--text2)"> / ${c.totalDays}日</span></div>
+      <div class="sum-sub">記録なし ${c.noRecordDays}日　前回: ${prev.noStoolDays}日</div>
+      ${diffTag(c.noStoolDays-prev.noStoolDays,'-')}
     </div>
     <div class="sum-card">
       <div class="sum-label">怒責日数</div>
@@ -778,21 +865,25 @@ function renderSummary(){
   <div class="card">
     <div class="card-label">アドヒアランス（前回受診期間）</div>
     <div class="adh-row">`;
-  // 実データからアドヒアランスを生成
-  const adhData = p.bowelRecords.length > 0 ? p.bowelRecords : [];
-  if (adhData.length > 0) {
-    // bowelRecordsは降順なので昇順に並べ直す
-    const sorted = [...adhData].sort((a,b) => a.date.localeCompare(b.date));
-    sorted.forEach((r, i) => {
-      const hasMed = r.medAm === 'ok' || r.medPm === 'ok' || r.medNoon === 'ok';
-      const isSkip = r.skip || (r.medAm === 'skip' && r.medPm === 'skip');
-      const hasCatchup = i > 0 && sorted[i-1].skip && hasMed;
-      const hasDose23 = r.medAm === '2/3' || r.medPm === '2/3';
-      if (hasCatchup) html+=`<div class="adh-dot adh-catch" title="${r.date}（追いかけ）">2</div>`;
-      else if (isSkip) html+=`<div class="adh-dot adh-skip" title="${r.date}">✗</div>`;
-      else if (hasDose23) html+=`<div class="adh-dot adh-catch" title="${r.date}（2/3）">2/3</div>`;
-      else if (hasMed) html+=`<div class="adh-dot adh-ok" title="${r.date}">✓</div>`;
-      else html+=`<div class="adh-dot" style="background:var(--surface2);color:var(--text3)" title="${r.date}">—</div>`;
+  // 暦日ベースで期間内の全日を表示する（記録のない日も「—」として出す）。
+  // カルテ記載プレビューの「◯日中記録◯日、スキップ◯日、追加内服◯回」と一致させるため、
+  // 期間は p.periodDates、各日の中身は p.currPeriodRows（記録のある日のみ）から引く。
+  const adhRowByDate = {};
+  (p.currPeriodRows||[]).forEach(r=>{ adhRowByDate[r.date]=r; });
+  const adhDates = (p.periodDates && p.periodDates.length) ? p.periodDates : (p.currPeriodRows||[]).map(r=>r.date);
+  if (adhDates.length > 0) {
+    adhDates.forEach(date => {
+      const r = adhRowByDate[date];
+      if (!r) { html+=`<div class="adh-dot" style="background:var(--surface2);color:var(--text3)" title="${date}（記録なし）">—</div>`; return; }
+      const hasMed   = r.medAm === 'ok' || r.medPm === 'ok' || r.medNoon === 'ok';
+      const isSkip   = r.medAm === 'skip' || r.medNoon === 'skip' || r.medPm === 'skip';
+      const hasExtra = r.extraDoseAm || r.extraDoseNoon || r.extraDosePm;
+      const hasDose23= r.medAm === '2/3' || r.medPm === '2/3';
+      if (isSkip)          html+=`<div class="adh-dot adh-skip" title="${date}">✗</div>`;
+      else if (hasExtra)   html+=`<div class="adh-dot adh-catch" title="${date}（追加内服）">追</div>`;
+      else if (hasDose23)  html+=`<div class="adh-dot adh-catch" title="${date}（2/3）">2/3</div>`;
+      else if (hasMed)     html+=`<div class="adh-dot adh-ok" title="${date}">✓</div>`;
+      else                 html+=`<div class="adh-dot" style="background:var(--surface2);color:var(--text3)" title="${date}">—</div>`;
     });
   } else {
     p.adherence30.forEach((v,i)=>{
@@ -804,8 +895,8 @@ function renderSummary(){
   html+=`</div>
     <div style="display:flex;gap:10px;font-size:10px;color:var(--text2);margin-top:5px;flex-wrap:wrap">
       <span style="display:flex;align-items:center;gap:3px"><span style="width:9px;height:9px;background:var(--blue-light);border-radius:2px;display:inline-block"></span>服用</span>
-      <span style="display:flex;align-items:center;gap:3px"><span style="width:9px;height:9px;background:var(--red-light);border-radius:2px;display:inline-block"></span>スキップ ${p.skipCount}日</span>
-      <span style="display:flex;align-items:center;gap:3px"><span style="width:9px;height:9px;background:var(--amber-light);border-radius:2px;display:inline-block"></span>追いかけ ${p.catchupCount}日</span>
+      <span style="display:flex;align-items:center;gap:3px"><span style="width:9px;height:9px;background:var(--red-light);border-radius:2px;display:inline-block"></span>スキップ ${p.skipDays||0}日</span>
+      <span style="display:flex;align-items:center;gap:3px"><span style="width:9px;height:9px;background:var(--amber-light);border-radius:2px;display:inline-block"></span>追加内服 ${p.extraDoseCount||0}回</span>
     </div>
   </div>
   <div class="card">
@@ -1989,6 +2080,9 @@ async function loadPatientRecords(patientId) {
         extraDoseNoon,
         extraDosePm,
         note:       absentRec ? 'なし' : null,
+        // explicitNoStool: 患者が明示的に「排便なし」と記録した日のみ true。
+        // 内服記録だけある日（トイレ記録なし）を「排便なし」と数えないための判定に使う。
+        explicitNoStool: !!absentRec || isToiletNoStool || isOmutsuNoStool,
         skip:       !!(absentRec && medAm === 'skip'),
         picoDrops:  dayRecs.find((r)=>r.pico_drops)?.pico_drops || null,
         // ── v15 ──
@@ -2006,36 +2100,6 @@ async function loadPatientRecords(patientId) {
       p.bowelRecords = bowelRows;
     }
 
-    // ── 統計を実データから計算して上書き ──
-    function calcPeriodStats(rows) {
-      const totalDays  = rows.length;
-      // 排便日数：Bristol数値がなくても hasBowel（簡易入力含む）があれば排便あり
-      const bowelDays  = rows.filter(r => r.hasBowel || r.stool !== null).length;
-      const noStoolDays= rows.filter(r => !r.hasBowel && r.stool === null).length;
-      const strainDays = rows.filter(r => r.strain).length;
-      // Bristol平均・最頻値は数値がある行のみで計算
-      const numericRows = rows.filter(r => r.stool !== null);
-      const stools      = numericRows.map(r => r.stool).filter(Boolean);
-      const bristolAvg = stools.length
-        ? parseFloat((stools.reduce((a,b)=>a+b,0)/stools.length).toFixed(1))
-        : 0;
-      // 最頻値
-      const freq = {};
-      stools.forEach(s=>{ freq[s]=(freq[s]||0)+1; });
-      const bristolMode = stools.length
-        ? parseInt(Object.keys(freq).sort((a,b)=>freq[b]-freq[a])[0])
-        : 0;
-      const suppCount  = rows.filter(r => r.supp).length;
-      const skipCount  = rows.filter(r => r.skip).length;
-      // 追いかけ飲み：前日skipで当日med ok
-      let catchupCount = 0;
-      rows.forEach((r,i) => {
-        if (i > 0 && rows[i-1].skip && (r.medAm==='ok'||r.medPm==='ok')) catchupCount++;
-      });
-      return { totalDays, bowelDays, noStoolDays, strainDays,
-               bristolAvg, bristolMode, suppCount, skipCount, catchupCount };
-    }
-
     // 受診日に基づき期間を設定
     // 今回受診日: 受診イベントの最新 → なければデータ最新日
     // 前回受診日: 受診イベントの1つ前 → なければデータ最古日
@@ -2050,6 +2114,8 @@ async function loadPatientRecords(patientId) {
     const currRows = prevVisitDate
       ? bowelRows.filter(r => r.date >= prevVisitDate && r.date < p.currentVisit)
       : bowelRows;
+    // 概要タブのアドヒアランスカード（「前回受診期間」ラベル）用に、窓期間のrowsを保持しておく
+    p.currPeriodRows = currRows;
     // prevRows = 前々回受診〜前回受診の前日（比較用）。受診履歴が3件以上あれば算出。
     const prevPrevVisitDate = visitDatesDesc[2] || null;
     const prevRows = (prevVisitDate && prevPrevVisitDate)
@@ -2063,16 +2129,23 @@ async function loadPatientRecords(patientId) {
     const periodDates = prevVisitDate
       ? dateRangeExclusiveEnd(prevVisitDate, p.currentVisit)
       : currRows.map(r => r.date);
-    p.periodTotalDays    = periodDates.length;
-    p.periodNoRecordDays = periodDates.filter(d => !byDate[d]).length;
-    p.periodRecordedDays = p.periodTotalDays - p.periodNoRecordDays;
+    p.periodDates = periodDates;
 
-    if (currRows.length > 0) {
-      p.currPeriod = calcPeriodStats(currRows);
-    }
-    if (prevRows.length > 0) {
-      p.prevPeriod = calcPeriodStats(prevRows);
-    }
+    // 前々回〜前回の期間（比較用）の暦日
+    const periodDatesPrev = (prevVisitDate && prevPrevVisitDate)
+      ? dateRangeExclusiveEnd(prevPrevVisitDate, prevVisitDate)
+      : prevRows.map(r => r.date);
+
+    // 概要タブ・カルテ記載プレビュー共通の期間統計（buildPeriodStats）。
+    // ここで一度だけ計算し、両方の描画がこの値を参照することでロジックの不一致を防ぐ。
+    p.currPeriod = buildPeriodStats(currRows, periodDates);
+    p.prevPeriod = buildPeriodStats(prevRows, periodDatesPrev);
+
+    // トップレベルにも反映（既存コードとの互換のため）
+    p.periodTotalDays    = p.currPeriod.totalDays;
+    p.periodNoRecordDays = p.currPeriod.noRecordDays;
+    p.periodRecordedDays = p.currPeriod.recordedDays;
+    p.bristolDist         = p.currPeriod.bristolDist;
 
     // skipCount・catchupCount をトップレベルにも反映
     p.skipCount    = p.currPeriod.skipCount    || 0;
@@ -2093,10 +2166,9 @@ async function loadPatientRecords(patientId) {
     p.takenDays = currRows.filter(r =>
       r.medAm === 'ok' || r.medPm === 'ok' || r.medNoon === 'ok'
     ).length;
-    // skipDays: skip が記録された日
-    p.skipDays = currRows.filter(r =>
-      r.medAm === 'skip' || r.medPm === 'skip'
-    ).length;
+    // skipDays: skip が記録された日。buildPeriodStats() の skipCount と同一定義なのでそれを使う
+    // （p.skipCount も同じ値。概要・患者リスト・内服履歴で一致させるため単一のソースにする）
+    p.skipDays = p.currPeriod.skipCount || 0;
     // partialDays: 分数用量（2/3, 1/2, 1/3 等）が記録された日
     const partialPattern = /^\d\/\d$/;
     p.partialDays = currRows.filter(r =>
@@ -2111,11 +2183,6 @@ async function loadPatientRecords(patientId) {
     p.extraDoseCount = currRecordRows.filter(r => r.metadata?.extra_dose === true).length;
     // prescribedDays: 内服記録が何らかある日（null でない日）
     p.prescribedDays = p.adherence30.filter(v => v !== null).length;
-
-    // Bristol分布をカルテ用に更新
-    const bDist = {1:0,2:0,3:0,4:0,5:0,6:0,7:0};
-    currRows.forEach(r=>{ if(r.stool) bDist[r.stool]=(bDist[r.stool]||0)+1; });
-    p.bristolDist = bDist;
 
     renderAll();
     showLoadStatus(`✓ ${records.length}件の共有記録を読み込みました（${oldestDate} 〜 ${latestDate}）`, 'ok');
