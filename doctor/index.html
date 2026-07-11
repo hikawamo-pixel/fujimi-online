@@ -1136,6 +1136,8 @@ function renderRxHistory(){
 // ── 処方・評価タブ ──────────────────────────────────────────────
 function renderPrescription(){
   const p=currentPt;
+  // 治療終了日は保存後にロックする（診断日と同じ挙動）。🔓編集でロック解除。
+  const treatmentEndLocked = !!p.treatmentEndDate && !p._treatmentEndUnlocked;
   // 優先順: workingRx（今回の確定/下書き） → 現在のactive処方 → 空デフォルト
   const rx=p.workingRx||getCurrentRx(p)||{drug:'',dose:'',doseValue:'',freq:'',days:30,start:p.currentVisit,note:''};
   const nextDays=calcNextVisitDays(p);
@@ -1167,13 +1169,17 @@ function renderPrescription(){
         </div>
         <label style="margin-top:8px">治療終了日（中断・終了時のみ入力。詳細不明の中断は日付未定でもチェックのみで保存可）</label>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="date" id="rxTreatmentEndDate" value="${p.treatmentEndDate||''}" style="max-width:170px">
+          <input type="date" id="rxTreatmentEndDate" value="${p.treatmentEndDate||''}" ${treatmentEndLocked?'disabled':''} style="max-width:170px">
           <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400">
-            <input type="checkbox" id="rxTreatmentEndUnknown" ${p.treatmentEndUnknown?'checked':''} style="width:auto"> 詳細不明の中断
+            <input type="checkbox" id="rxTreatmentEndUnknown" ${p.treatmentEndUnknown?'checked':''} ${treatmentEndLocked?'disabled':''} style="width:auto"> 詳細不明の中断
           </label>
-          <button type="button" class="btn" onclick="saveTreatmentEnd()">治療終了を保存</button>
+          ${treatmentEndLocked
+            ? `<button type="button" class="btn-ghost" onclick="unlockTreatmentEnd()">🔓編集</button>`
+            : `<button type="button" class="btn" onclick="saveTreatmentEnd()">治療終了を保存</button>`}
         </div>
-        ${p.treatmentEndDate?`<span style="font-size:10px;color:var(--red)">現在の登録：${p.treatmentEndDate}${p.treatmentEndUnknown?'（詳細不明の中断）':''}　解除する場合は日付欄を空にして保存してください</span>`:''}
+        ${p.treatmentEndDate
+          ? `<span style="font-size:10px;color:var(--red)">現在の登録：${p.treatmentEndDate}${p.treatmentEndUnknown?'（詳細不明の中断）':''}${treatmentEndLocked?'　変更・解除するには🔓編集を押してください':'　解除する場合は日付欄を空にして保存してください'}</span>`
+          : ''}
       </div>
       <div class="form-group" style="margin-bottom:10px">
         <label>腹部・直腸所見</label>
@@ -1419,6 +1425,17 @@ function unlockDiagDate(){
   },0);
 }
 
+// 治療終了日入力欄のロックを解除（訂正・解除用）
+function unlockTreatmentEnd(){
+  const p=currentPt;
+  if(p) p._treatmentEndUnlocked=true;
+  renderContent();
+  setTimeout(()=>{
+    const i2=document.getElementById('rxTreatmentEndDate');
+    if(i2){ i2.disabled=false; i2.focus(); }
+  },0);
+}
+
 // patient_events に「1患者につき1件だけ」のイベント（diagnosis / treatment_end）を保存する共通関数。
 //
 // 【重要】patient_events には DELETE のRLSポリシーが存在しない。
@@ -1536,6 +1553,7 @@ async function saveTreatmentEnd(){
       if(!r.ok) throw new Error(r.detail);
       p.treatmentEndDate=eventDate;
       p.treatmentEndUnknown=unknown;
+      p._treatmentEndUnlocked=false;
       alert('治療終了を保存しました。');
     } else {
       // 解除：物理削除ができないため、cleared フラグを立てて論理削除する
@@ -1545,6 +1563,7 @@ async function saveTreatmentEnd(){
       if(!r.ok) throw new Error(r.detail);
       p.treatmentEndDate='';
       p.treatmentEndUnknown=false;
+      p._treatmentEndUnlocked=false;
       alert('治療終了を解除しました。');
     }
     renderContent();
@@ -1999,6 +2018,7 @@ async function loadPatientRecords(patientId) {
       p.treatmentEndDate = '';
       p.treatmentEndUnknown = false;
     }
+    p._treatmentEndUnlocked = false;
 
     // 最終共有日時・共有期間を更新
     const latestRecord  = records[0];
