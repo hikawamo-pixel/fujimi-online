@@ -1010,6 +1010,11 @@ function jstDateFromISO(iso){
   const jstMs = utcMs + 9*60*60*1000;
   return new Date(jstMs).toISOString().slice(0,10);
 }
+// JST基準の「今日」(YYYY-MM-DD) を返す共通関数。医師UI側にも同名・同ロジックの関数がある。
+// 端末のタイムゾーンに依存させたくない場面（サーバ側日付のフォールバック・共有完了表示など）で使う。
+function jstToday(){
+  return jstDateFromISO(new Date().toISOString());
+}
 
 function init(){
   const now=new Date();
@@ -2246,7 +2251,7 @@ function recToBowelRow(r){
   const durationMin=r.dur?(r.dur.match(/(\d+)/)?.[1]?parseInt(r.dur.match(/(\d+)/)[1]):null):null;
 
   const recordedAt=(()=>{
-    const dateStr=r.date||r.guDate||new Date().toISOString().slice(0,10);
+    const dateStr=r.date||r.guDate||jstToday();
     const timeStr=r.timeSlot||r.disimTime||r.guTime||'00:00';
     return `${dateStr}T${timeStr}:00+09:00`;
   })();
@@ -2317,7 +2322,7 @@ function recToRow(r,now){
   const defecTime=r.timeSlot||(isDisim?r.disimTime:null)||null;
 
   const sharedRecordedAt=(()=>{
-    const dateStr=r.date||r.guDate||(now||new Date()).toISOString().slice(0,10);
+    const dateStr=r.date||r.guDate||jstToday();
     const timeStr=r.timeSlot||r.disimTime||r.guTime||'00:00';
     return `${dateStr}T${timeStr}:00+09:00`;
   })();
@@ -2568,8 +2573,8 @@ async function shareToDoctor(){
     if(!shareRes.ok)throw new Error(await shareRes.text());
     const shareResult=await shareRes.json();
     if(!shareResult.ok)throw new Error(shareResult.reason||'share failed');
-    const shareStart=cutoff?cutoff.toISOString().slice(0,10):(S.recs[S.recs.length-1]?.date||'');
-    const shareEnd=now.toISOString().slice(0,10);
+    const shareStart=cutoff?jstDateFromISO(cutoff.toISOString()):(S.recs[S.recs.length-1]?.date||'');
+    const shareEnd=jstToday();
     status.style.color='#0F6E56';
     status.textContent=`✓ ${rows.length}件の記録を医師に共有しました（${shareStart} 〜 ${shareEnd}）`;
     btn.textContent='医師へ共有';btn.disabled=false;
@@ -2642,18 +2647,15 @@ async function loadPrescription(){
     }
     // freq と days を並べて表示（「1日1回朝　10日分」）
     sub.textContent=[freqText, daysText].filter(Boolean).join('　');
-    // 処方開始日: 医師が指定した start_date を優先（なければ prescribed_at）
+    // 処方開始日: 医師が指定した start_date を優先（なければ prescribed_at をJST基準で日付化）
     const dateEl=document.getElementById('rx-info-date');
     if(dateEl){
-      let dispDate=null;
-      if(startDate){
-        // 'YYYY-MM-DD' をそのままパース（ローカル日付扱い）
-        const parts=startDate.split('-');
-        if(parts.length===3) dispDate=new Date(+parts[0], +parts[1]-1, +parts[2]);
-      }
-      if(!dispDate && rx.prescribed_at) dispDate=new Date(rx.prescribed_at);
-      if(dispDate && !isNaN(dispDate)){
-        dateEl.textContent=`（${dispDate.getMonth()+1}月${dispDate.getDate()}日〜）`;
+      const dateKey = startDate || jstDateFromISO(rx.prescribed_at);
+      if(dateKey){
+        const parts=dateKey.split('-');
+        if(parts.length===3){
+          dateEl.textContent=`（${parseInt(parts[1],10)}月${parseInt(parts[2],10)}日〜）`;
+        }
       }
     }
     // 医師メモは「医師からのメッセージ」として処方とは別に表示
