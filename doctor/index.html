@@ -368,9 +368,12 @@ function dateRangeExclusiveEnd(startInclusiveStr, endExclusiveStr){
   return days;
 }
 
-// 日数を週/月単位の大まかな表記にする。1週間未満（0〜6日）は表示を省略する。
+// 日数を週/月単位の大まかな表記にする。
+// 1週間未満（1〜6日）は週で丸めると誤解を招くため「＊」で示し、凡例で「1週間未満」と補足する。
+// 同日中の処方変更（0日）は区間として意味がないので表示しない。
 function formatDurationWeeksMonths(days){
-  if(!days || days<7) return '';
+  if(!days || days<=0) return '';
+  if(days<7)  return '＊';
   if(days<28) return `${Math.round(days/7)}W`;
   return `${Math.round(days/30)}M`;
 }
@@ -915,6 +918,7 @@ function renderSummary(){
   p.rxHistory.forEach(drug=>drug.entries.forEach(e=>allSegs.push({drug:drug.drug,e})));
   const recentSegs=allSegs.slice(-3);
   const hiddenCount=allSegs.length-recentSegs.length;
+  const courseLine=buildTreatmentCourseLine(p);
 
   html+=`<div class="two-col">
   <div class="card">
@@ -924,7 +928,8 @@ function renderSummary(){
     </div>
     <div style="font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
       <div>日誌開始：${p.diaryStart||'—'}　診断日：${p.diagnosisDate||'—'}　治療開始：${p.diagnosisDate||'—'}　前回受診：${p.lastVisit||'—'}${p.treatmentEndDate?`　治療終了：${p.treatmentEndDate}${p.treatmentEndUnknown?'（中断・詳細不明）':''}`:''}</div>
-      <div style="margin-top:3px">治療経過：${buildTreatmentCourseLine(p)}</div>
+      <div style="margin-top:3px">治療経過：${courseLine}</div>
+      ${courseLine.includes('＊')?`<div style="font-size:10px;color:var(--text3)">＊＝1週間未満</div>`:''}
       <div style="margin-top:3px">${adherenceSummaryText(p)}</div>
     </div>
     ${hiddenCount>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:5px;padding-left:13px">… 他${hiddenCount}件</div>`:''}
@@ -1947,11 +1952,17 @@ async function loadPatientRecords(patientId) {
     const prevVisitDate    = visitDatesDesc[1] || null;
     p.visits = [...visitDatesDesc].reverse();  // 古い順
 
-    // 診断日（＝治療開始日。最も古い診断イベントを正とする）・治療終了日（最新の終了イベント）
+    // 診断日（＝治療開始日）。診断イベントは常に1件だけになるよう保存時にクリーンアップしているが、
+    // クリーンアップDELETEがRLS等で失敗すると古い重複が残る。その場合に「訂正前の古い日付」を
+    // 拾ってしまわないよう、最も新しいイベントを正とする（＝直近に保存した値が勝つ）。
     if (diagnosisEvents.length) {
-      const oldestDiag = [...diagnosisEvents].sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
-      p.diagnosisDate = oldestDiag.event_date;
+      const latestDiag = [...diagnosisEvents].sort((a,b)=>b.event_date.localeCompare(a.event_date))[0];
+      p.diagnosisDate = latestDiag.event_date;
       p._diagDateUnlocked = false;
+      if (diagnosisEvents.length > 1) {
+        console.warn('[loadPatientRecords] diagnosisイベントが複数あります（古い重複が削除できていない可能性）:',
+          diagnosisEvents.map(e=>e.event_date), '→ 採用:', p.diagnosisDate);
+      }
     }
     if (treatmentEndEvents.length) {
       const latestEnd = [...treatmentEndEvents].sort((a,b)=>b.event_date.localeCompare(a.event_date))[0];
