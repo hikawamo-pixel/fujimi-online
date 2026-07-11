@@ -129,6 +129,34 @@
     .detail-body { border-top: 1px solid var(--border); padding: 0 18px 16px 38px; color: var(--text-soft); font-size: 13px; line-height: 1.9; }
     .detail-body a { color: var(--green-deep); text-decoration: underline; }
 
+    .app-card { padding: 24px 20px; }
+    .app-card h2 { margin-bottom: 10px; }
+    .app-card p { color: var(--text-soft); line-height: 1.95; margin-bottom: 18px; }
+    .app-card strong { color: var(--text); font-weight: 700; }
+    .app-features { list-style: none; display: grid; gap: 8px; margin-bottom: 20px; }
+    .app-features li { position: relative; padding-left: 22px; color: var(--text-soft); font-size: 13px; line-height: 1.8; }
+    .app-features li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--green-accent); font-weight: 700; }
+    .btn-app { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; text-decoration: none; background: linear-gradient(135deg, var(--green) 0%, var(--green-deep) 100%); color: #fff; font-weight: 700; font-size: 15px; padding: 15px 20px; border-radius: 12px; box-shadow: 0 8px 20px rgba(45, 106, 79, 0.22); transition: transform 0.2s ease, opacity 0.2s ease; }
+    .btn-app:hover { transform: translateY(-1px); opacity: 0.97; }
+    .app-note { margin-top: 12px; font-size: 12px; color: var(--text-soft); line-height: 1.8; text-align: center; }
+
+    /* アプリ利用前の注意モーダル */
+    .modal-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(26, 26, 26, 0.55); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0.2s ease; }
+    .modal-overlay.open { opacity: 1; visibility: visible; }
+    .modal { background: var(--white); border-radius: 18px; max-width: 460px; width: 100%; padding: 28px 24px 24px; box-shadow: 0 24px 60px rgba(0,0,0,0.28); transform: translateY(12px); transition: transform 0.22s ease; max-height: 90vh; overflow-y: auto; }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal h3 { font-family: 'Noto Serif JP', serif; font-size: 19px; font-weight: 700; color: var(--text); margin-bottom: 16px; line-height: 1.55; }
+    .modal-note { background: #f2faf5; border: 1px solid #d0eedd; border-left: 4px solid var(--green); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+    .modal-note p { font-size: 13.5px; color: var(--text); line-height: 1.9; margin: 0; }
+    .modal-note p + p { margin-top: 10px; }
+    .modal-note strong { font-weight: 700; color: var(--green-deep); }
+    .modal-sub { font-size: 12.5px; color: var(--text-soft); line-height: 1.85; margin-bottom: 20px; }
+    .modal-actions { display: flex; flex-direction: column; gap: 10px; }
+    .modal-btn { display: block; text-align: center; text-decoration: none; border-radius: 12px; padding: 14px 16px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; font-family: inherit; transition: transform 0.2s ease, opacity 0.2s ease; }
+    .modal-btn:hover { transform: translateY(-1px); opacity: 0.97; }
+    .modal-btn-go { background: linear-gradient(135deg, var(--green) 0%, var(--green-deep) 100%); color: #fff; box-shadow: 0 8px 20px rgba(45, 106, 79, 0.22); }
+    .modal-btn-cancel { background: var(--cream); color: var(--text-soft); border: 1px solid var(--border); font-weight: 500; font-size: 14px; }
+
     .pdf-link-wrap { text-align: center; margin-top: 20px; }
     .pdf-link { font-size: 13px; color: var(--green-deep); text-decoration: underline; }
     .mobile-only { display: block; }
@@ -187,6 +215,7 @@
       </p>
       <div class="hero-actions">
         <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="hero-cta" target="_blank" rel="noopener noreferrer">予約する →</a>
+        <a href="/app/" class="hero-subcta">排便記録アプリを使用する</a>
         <a href="#flow" class="hero-subcta">受診の流れを見る</a>
       </div>
       <div class="hero-note">初診は最長7日分まで処方可能です</div>
@@ -245,6 +274,23 @@
         </div>
       </section>
 
+      <section id="app">
+        <div class="app-card">
+          <div class="section-label">Bowel Diary App</div>
+          <h2>排便記録アプリ</h2>
+          <p>
+            日々の排便やお薬を記録するためのアプリです。<strong>受診や診察をするものではありません。</strong>記録があると、診察のときにお子さんやご自身の状態が伝わりやすくなり、お薬の調整もしやすくなります。
+          </p>
+          <ul class="app-features">
+            <li>排便・お薬・症状をタップで記録</li>
+            <li>おむつのお子さんから大人まで対応</li>
+            <li>記録を診察前に医師へ共有できます</li>
+            <li>アプリのインストールは不要です</li>
+          </ul>
+          <a href="/app/" class="btn-app">排便記録アプリを使用する →</a>
+        </div>
+      </section>
+
       <section id="flow">
         <div class="section-label">Flow</div>
         <h2>受診の流れ</h2>
@@ -290,7 +336,10 @@
               <div class="mini-emphasis">当日</div>
               <div class="step-title">Zoomで診察を受ける</div>
               <div class="step-desc">ご案内したURLからZoomに入り、待機室でお待ちください。順番が来たら診察を始めます。</div>
-              <div class="step-note">排便日誌があれば、写真に撮っておくとスムーズです。Zoomのチャットで送っていただくこともできます。</div>
+              <div class="step-note">
+                排便日誌があれば、写真に撮っておくとスムーズです。Zoomのチャットで送っていただくこともできます。<br>
+                <a href="/app/">排便記録アプリを使用する →</a>（記録を診察前に医師へ共有できます）
+              </div>
             </div>
           </div>
 
@@ -385,7 +434,8 @@
             <h3>まずは予約から</h3>
             <p>オンライン便秘診療のご予約はこちらからどうぞ</p>
             <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary" target="_blank" rel="noopener noreferrer">Web予約はこちら →</a>
-            <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
+            <a href="/app/" class="btn-secondary">排便記録アプリを使用する →</a>
+            <a href="tel:0354935252" class="btn-secondary" style="margin-top:10px;">📞 03-5493-5252</a>
           </div>
           <div class="pdf-link-wrap">
             <a href="https://fujimi-ped.jp/pdf/benpi.pdf" class="pdf-link" target="_blank" rel="noopener noreferrer">便秘についてのQ&amp;A（PDF）→</a>
@@ -401,7 +451,8 @@
           <h3>まずは予約から</h3>
           <p>オンライン便秘診療のご予約はこちらからどうぞ</p>
           <a href="https://www.yoyakuru.net/rs/fujimi-ped/web/KI001.aspx" class="btn-primary" target="_blank" rel="noopener noreferrer">Web予約はこちら →</a>
-          <a href="tel:0354935252" class="btn-secondary">📞 03-5493-5252</a>
+          <a href="/app/" class="btn-secondary">排便記録アプリを使用する →</a>
+          <a href="tel:0354935252" class="btn-secondary" style="margin-top:10px;">📞 03-5493-5252</a>
         </div>
       </section>
       <section>
@@ -441,5 +492,67 @@
     Tel: 03-5493-5252<br /><br />
     © ふじみクリニック
   </footer>
+  <!-- 排便記録アプリを開く前の注意モーダル -->
+  <div class="modal-overlay" id="app-modal" role="dialog" aria-modal="true" aria-labelledby="app-modal-title">
+    <div class="modal">
+      <h3 id="app-modal-title">排便記録アプリをご利用の前に</h3>
+      <div class="modal-note">
+        <p><strong>当院を3か月以内に受診している方は、どなたでも使用できます。</strong></p>
+        <p>受診予約のときと同じログイン画面が表示されますので、<strong>診察券番号とご自身のパスワード</strong>を入力してください。</p>
+      </div>
+      <div class="modal-sub">
+        このアプリは、日々の排便やお薬を記録するためのものです。受診や診察をするものではありません。
+      </div>
+      <div class="modal-actions">
+        <a href="/app/" class="modal-btn modal-btn-go" id="app-modal-go">ログイン画面へ進む →</a>
+        <button type="button" class="modal-btn modal-btn-cancel" id="app-modal-cancel">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var overlay = document.getElementById('app-modal');
+      var cancelBtn = document.getElementById('app-modal-cancel');
+      var goBtn = document.getElementById('app-modal-go');
+      var lastFocused = null;
+
+      function openModal(e) {
+        // モーダル内の「進む」ボタン自体は通常どおり遷移させる
+        if (e.currentTarget === goBtn) return;
+        e.preventDefault();
+        lastFocused = e.currentTarget;
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        goBtn.focus();
+      }
+
+      function closeModal() {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+        if (lastFocused) lastFocused.focus();
+      }
+
+      // /app/ へのリンクをすべて拾ってモーダルを挟む
+      // （モーダル内の「進む」ボタンだけは除外し、そのまま遷移させる）
+      var appLinks = document.querySelectorAll('a[href="/app/"]');
+      for (var i = 0; i < appLinks.length; i++) {
+        if (appLinks[i] === goBtn) continue;
+        appLinks[i].addEventListener('click', openModal);
+      }
+
+      cancelBtn.addEventListener('click', closeModal);
+
+      // 背景クリックで閉じる
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) closeModal();
+      });
+
+      // Escキーで閉じる
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+      });
+    })();
+  </script>
 </body>
 </html>
