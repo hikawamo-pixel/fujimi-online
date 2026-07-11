@@ -485,6 +485,20 @@ function isBeforeTreatmentDisplay(p){
   return p.control==='before_treatment' && !hasTreatmentHistory(p);
 }
 
+// p.control が 'before_treatment' のままでも実際は治療歴がある場合は「未評価」として扱う。
+// （p.control はサーバに永続化されておらず再読み込みで初期値に戻るため、そのまま出すと
+//  カルテに誤って「内服開始前」と記載されてしまう）
+function isStaleBeforeTreatment(p){
+  return p.control==='before_treatment' && hasTreatmentHistory(p);
+}
+
+// コントロール評価の表示テキスト。概要タブ・カルテ記載プレビューの両方がこれを参照する。
+function effectiveControlText(p){
+  if(isBeforeTreatmentDisplay(p)) return '内服開始前';
+  if(isStaleBeforeTreatment(p))   return '未評価';
+  return p.controlText || '未評価';
+}
+
 // アドヒアランスサマリー文（概要タブ・カルテ記載プレビュー共通）
 // 「期間の全暦日中、記録のある日数」「スキップ」「追加内服」を示す。記録なしの日はスキップ判定の対象外。
 function adherenceSummaryText(p){
@@ -822,10 +836,9 @@ function renderSummary(){
 
   // コントロール評価
   const beforeTx = isBeforeTreatmentDisplay(p);
-  // p.control が 'before_treatment' のままでも実際は治療歴がある場合（未再評価）は「未評価」扱いにする
-  const staleBeforeTreatment = !beforeTx && p.control==='before_treatment';
+  const staleBeforeTreatment = isStaleBeforeTreatment(p);
   const effControl = staleBeforeTreatment ? null : p.control;
-  const effControlText = staleBeforeTreatment ? '未評価' : p.controlText;
+  const effControlText = effectiveControlText(p);
   const evalCls=beforeTx?'eval-none':effControl==='good'?'eval-good':effControl==='fair'?'eval-fair':effControl==='moderate'?'eval-fair':effControl==='poor'?'eval-poor':'eval-fair';
   const evalIcon=beforeTx?'—':effControl==='good'?'◎':effControl==='fair'?'○':effControl==='moderate'?'▲':effControl==='poor'?'△':'？';
   if(beforeTx){
@@ -1231,7 +1244,8 @@ function renderPrescription(){
         <div class="form-group">
           <label>コントロール評価</label>
           <select id="rxControl">
-            <option value="before_treatment" ${p.control==='before_treatment'?'selected':''}>内服開始前</option>
+            ${isStaleBeforeTreatment(p)?`<option value="unevaluated" selected>未評価（選択してください）</option>`:''}
+            <option value="before_treatment" ${isBeforeTreatmentDisplay(p)?'selected':''}>内服開始前</option>
             <option value="good" ${p.control==='good'?'selected':''}>良好</option>
             <option value="fair" ${p.control==='fair'?'selected':''}>比較的良好</option>
             <option value="moderate" ${p.control==='moderate'?'selected':''}>Moderate</option>
@@ -1380,7 +1394,7 @@ ${adherenceSummaryText(p)}
 排便量: ${amtPattern}（S:${amtS}回 M:${amtM}回 L:${amtL}回）（自動）
 
 診察所見: ${examText}
-コントロール: ${p.controlText}
+コントロール: ${effectiveControlText(p)}
 
 処方: ${rx?`${rx.drug} ${rx.dose} ${rx.freq} ${rx.days}日`:''}
 ${procText?procText+'\n':''}${p.notes.map(n=>n.text).join('\n')}`;
@@ -1405,9 +1419,63 @@ function unlockDiagDate(){
   },0);
 }
 
+// patient_events に「1患者につき1件だけ」のイベント（diagnosis / treatment_end）を保存する共通関数。
+//
+// 【重要】patient_events には DELETE のRLSポリシーが存在しない。
+// RLSは「ポリシーに合致しない行には触れない」だけなので、DELETEはエラーにならず0件削除で
+// 成功扱い（HTTP 204）になる。したがって DELETE→POST や POST→cleanup DELETE では
+// 古いレコードを消せず、日付を訂正するたびに重複が増えていく。
+// UPDATEポリシーは存在するので、「既存行があればPATCHで更新、なければPOSTで新規作成」とする。
+//
+// 【前提】この方式が「1患者1件」を保証するのは、以下が済んでいる場合に限る：
+//   (1) 既存の日付違い重複（diagnosis / treatment_end）を掃除済み
+//   (2) 部分UNIQUEインデックス
+//       unique (patient_key, event_type) where event_type in ('diagnosis','treatment_end')
+//       を追加済み
+// 掃除前の患者では既に複数行が存在し得る。その場合このPATCHは「複数行をすべて同じ日付に
+// 更新する」挙動になり、表示上の不整合は起きないが行数は減らない。
+// 制約追加後は、そもそも複数行が作れなくなる。
+//
+// 戻り値: { ok:boolean, detail:string }
+async function upsertSingleEvent(patientKey, eventType, eventDate, metadata){
+  const token=requireDoctorToken();
+  const headers={
+    'Content-Type':'application/json',
+    'apikey':SUPABASE_KEY,
+    'Authorization':`Bearer ${token}`,
+  };
+  const filter=`patient_key=eq.${encodeURIComponent(patientKey)}&event_type=eq.${encodeURIComponent(eventType)}`;
+  const body={ event_date:eventDate, source:'doctor', metadata:metadata||{} };
+
+  // ① 既存行をPATCHで更新する。return=representation で「実際に何行更新されたか」を確認する。
+  //    （既存行が無い場合は 200 で空配列が返るので、それを新規作成の判定に使う）
+  const patchRes=await fetch(`${SUPABASE_URL}/rest/v1/patient_events?${filter}`, {
+    method:'PATCH',
+    headers:{...headers,'Prefer':'return=representation'},
+    body:JSON.stringify(body),
+  });
+  if(!patchRes.ok){
+    return { ok:false, detail:`更新に失敗しました（HTTP ${patchRes.status}）: ${await patchRes.text()}` };
+  }
+  const patched=await patchRes.json().catch(()=>[]);
+  if(Array.isArray(patched) && patched.length>0){
+    // 既存行を更新できた（複数行あった場合はすべて同じ日付に揃う。表示上の不整合は起きない）
+    return { ok:true, detail:'' };
+  }
+
+  // ② 既存行が無かったので新規作成する
+  const postRes=await fetch(`${SUPABASE_URL}/rest/v1/patient_events`, {
+    method:'POST',
+    headers:{...headers,'Prefer':'return=minimal'},
+    body:JSON.stringify({ patient_key:patientKey, event_type:eventType, ...body }),
+  });
+  if(!postRes.ok){
+    return { ok:false, detail:`新規作成に失敗しました（HTTP ${postRes.status}）: ${await postRes.text()}` };
+  }
+  return { ok:true, detail:'' };
+}
+
 // 診断日（＝治療開始日）を patient_events に保存する。一度保存すると入力欄はグレーアウトする。
-// 安全のため「新しい値をPOSTしてから、成功を確認した後で古いレコードだけを削除」の順で行う。
-// （先にDELETEしてからPOSTすると、POST失敗時に既存の診断日が消えたままになるため）
 async function saveDiagnosisDate(){
   const val=document.getElementById('rxDiagDate')?.value;
   if(!val){ alert('診断日を入力してください'); return; }
@@ -1422,59 +1490,24 @@ async function saveDiagnosisDate(){
   }
   const prevDiagnosisDate = p.diagnosisDate; // 失敗時に表示を戻すため保持
   try{
-    const headers={
-      'Content-Type':'application/json',
-      'apikey':SUPABASE_KEY,
-      'Authorization':`Bearer ${DOCTOR_TOKEN}`,
-    };
-    // ① 先に新しい診断日を登録（既存レコードにはまだ触れない）。on_conflictにより同一日付での再保存も安全。
-    const res=await fetch(`${SUPABASE_URL}/rest/v1/patient_events?on_conflict=patient_key,event_date,event_type`, {
-      method:'POST',
-      headers:{...headers,'Prefer':'resolution=merge-duplicates,return=minimal'},
-      body:JSON.stringify({ patient_key:patientKey, event_type:'diagnosis', event_date:val, source:'doctor', metadata:{} }),
-    });
-    if(!res.ok) throw new Error(await res.text());
-    // ② 登録成功後、ここで初めて画面上の値を更新する（＝保存失敗時は既存表示のまま）
+    const r=await upsertSingleEvent(patientKey, 'diagnosis', val, {});
+    if(!r.ok) throw new Error(r.detail);
+    // 保存が確認できてから画面の値を更新する（失敗時は既存表示のまま）
     p.diagnosisDate=val;
     p._diagDateUnlocked=false;
-    // ③ 登録成功が確認できたので、日付が異なる古い診断イベントだけを掃除する
-    //    （このステップが失敗しても、新しい診断日は既に保存済みなのでデータは失われない。
-    //     ただし古い重複が残ると次回読み込み時に表示が不整合になり得るため、失敗はきちんと通知する）
-    let cleanupOk = true, cleanupDetail = '';
-    try{
-      const cleanupRes = await fetch(`${SUPABASE_URL}/rest/v1/patient_events?patient_key=eq.${encodeURIComponent(patientKey)}&event_type=eq.diagnosis&event_date=neq.${val}`, {
-        method:'DELETE', headers:{...headers,'Prefer':'return=minimal'},
-      });
-      if(!cleanupRes.ok){
-        cleanupOk = false;
-        cleanupDetail = `HTTP ${cleanupRes.status}: ${await cleanupRes.text()}`;
-        console.warn('saveDiagnosisDate: 古い診断イベントの掃除に失敗:', cleanupDetail);
-      }
-    }catch(cleanupErr){
-      cleanupOk = false;
-      cleanupDetail = String(cleanupErr);
-      console.warn('saveDiagnosisDate: 古い診断イベントの掃除に失敗（通信エラー）:', cleanupErr);
-    }
-    if(cleanupOk){
-      alert('診断日を保存しました。');
-    } else {
-      alert(
-        '新しい診断日は保存されましたが、古い診断イベントの整理に失敗しました。\n' +
-        '次回読み込み時に表示が不整合になる可能性があります。開発担当にご連絡ください。\n\n' +
-        cleanupDetail
-      );
-    }
+    alert('診断日を保存しました。');
     renderContent();
   }catch(e){
     console.error('saveDiagnosisDate error:', e);
-    p.diagnosisDate = prevDiagnosisDate; // 念のため元の表示に戻す
-    alert('診断日の保存に失敗しました。既存の診断日は変更されていません。通信状況を確認して、もう一度お試しください。\n'+e.message);
+    p.diagnosisDate = prevDiagnosisDate;
+    alert('診断日の保存に失敗しました。既存の診断日は変更されていません。\n'+e.message);
   }
 }
 
-// 治療終了日を patient_events に保存する。日付を空にして保存すると解除（治療継続中に戻す）。
-// 「設定」時は診断日と同様、先にPOSTしてから古いレコードを削除する順序にして保存失敗時のデータ消失を防ぐ。
-// 「解除」（未設定に戻す）は元々データを消す操作なので、削除のみで問題ない。
+// 治療終了日を patient_events に保存する。
+// 「解除」（治療継続中に戻す）は本来DELETEしたいが、DELETEポリシーが無いため行を消せない。
+// 代わりに metadata.cleared = true を立てて「解除済み」を表現し、読み込み側でこれを無視する。
+// （次フェーズでEdge Function化する際に、物理削除するか論理削除のまま運用するかを決める）
 async function saveTreatmentEnd(){
   const val=document.getElementById('rxTreatmentEndDate')?.value||'';
   const unknown=!!document.getElementById('rxTreatmentEndUnknown')?.checked;
@@ -1490,67 +1523,36 @@ async function saveTreatmentEnd(){
     location.href = '/doctor_login';
     return;
   }
-  const prevEnd = { date: p.treatmentEndDate, unknown: p.treatmentEndUnknown }; // 失敗時に戻すため保持
-  const headers={
-    'Content-Type':'application/json',
-    'apikey':SUPABASE_KEY,
-    'Authorization':`Bearer ${DOCTOR_TOKEN}`,
-  };
-  let cleanupOk = true, cleanupDetail = '';
+  const prevEnd = { date: p.treatmentEndDate, unknown: p.treatmentEndUnknown };
   try{
     if(val || unknown){
       // 日付未定の「詳細不明の中断」は暫定的に今日の日付(JST)で記録し、metadataで区別する
       const eventDate = val || jstToday();
-      // ① 先に新しい治療終了イベントを登録。on_conflictにより同一日付での再保存も安全。
-      const res=await fetch(`${SUPABASE_URL}/rest/v1/patient_events?on_conflict=patient_key,event_date,event_type`, {
-        method:'POST',
-        headers:{...headers,'Prefer':'resolution=merge-duplicates,return=minimal'},
-        body:JSON.stringify({ patient_key:patientKey, event_type:'treatment_end', event_date:eventDate, source:'doctor', metadata:{ reason: unknown?'unknown_dropout':'completed', date_unknown: !val } }),
+      const r=await upsertSingleEvent(patientKey, 'treatment_end', eventDate, {
+        reason: unknown?'unknown_dropout':'completed',
+        date_unknown: !val,
+        cleared: false,
       });
-      if(!res.ok) throw new Error(await res.text());
-      // ② 登録成功後に画面表示を更新
+      if(!r.ok) throw new Error(r.detail);
       p.treatmentEndDate=eventDate;
       p.treatmentEndUnknown=unknown;
-      // ③ 古い治療終了イベント（日付が異なるもの）を掃除。失敗してもデータは失われないが、
-      //    残ると次回読み込み時に表示が不整合になり得るため、失敗はきちんと通知する。
-      try{
-        const cleanupRes = await fetch(`${SUPABASE_URL}/rest/v1/patient_events?patient_key=eq.${encodeURIComponent(patientKey)}&event_type=eq.treatment_end&event_date=neq.${eventDate}`, {
-          method:'DELETE', headers:{...headers,'Prefer':'return=minimal'},
-        });
-        if(!cleanupRes.ok){
-          cleanupOk = false;
-          cleanupDetail = `HTTP ${cleanupRes.status}: ${await cleanupRes.text()}`;
-          console.warn('saveTreatmentEnd: 古い治療終了イベントの掃除に失敗:', cleanupDetail);
-        }
-      }catch(cleanupErr){
-        cleanupOk = false;
-        cleanupDetail = String(cleanupErr);
-        console.warn('saveTreatmentEnd: 古い治療終了イベントの掃除に失敗（通信エラー）:', cleanupErr);
-      }
+      alert('治療終了を保存しました。');
     } else {
-      // 解除（未設定に戻す）：この場合は削除のみで問題ない
-      const res=await fetch(`${SUPABASE_URL}/rest/v1/patient_events?patient_key=eq.${encodeURIComponent(patientKey)}&event_type=eq.treatment_end`, {
-        method:'DELETE', headers:{...headers,'Prefer':'return=minimal'},
+      // 解除：物理削除ができないため、cleared フラグを立てて論理削除する
+      const r=await upsertSingleEvent(patientKey, 'treatment_end', prevEnd.date || jstToday(), {
+        cleared: true,
       });
-      if(!res.ok) throw new Error(await res.text());
+      if(!r.ok) throw new Error(r.detail);
       p.treatmentEndDate='';
       p.treatmentEndUnknown=false;
-    }
-    if(cleanupOk){
-      alert(val||unknown?'治療終了を保存しました。':'治療終了を解除しました。');
-    } else {
-      alert(
-        '新しい治療終了の登録は保存されましたが、古いイベントの整理に失敗しました。\n' +
-        '次回読み込み時に表示が不整合になる可能性があります。開発担当にご連絡ください。\n\n' +
-        cleanupDetail
-      );
+      alert('治療終了を解除しました。');
     }
     renderContent();
   }catch(e){
     console.error('saveTreatmentEnd error:', e);
     p.treatmentEndDate = prevEnd.date;
     p.treatmentEndUnknown = prevEnd.unknown;
-    alert('治療終了の保存に失敗しました。既存の登録は変更されていません。通信状況を確認して、もう一度お試しください。\n'+e.message);
+    alert('治療終了の保存に失敗しました。既存の登録は変更されていません。\n'+e.message);
   }
 }
 
@@ -1587,6 +1589,13 @@ async function saveRx(mode){
   const controlMap = {before_treatment:'内服開始前', good:'良好', fair:'比較的良好', moderate:'Moderate', poor:'不良'};
 
   if (!drug || !dose) { alert('薬剤名と用量を入力してください'); return; }
+
+  // 「未評価」プレースホルダのままでは保存させない（カルテに未評価のまま残るのを防ぐ）
+  if (control === 'unevaluated') {
+    alert('コントロール評価を選択してください。');
+    document.getElementById('rxControl')?.focus();
+    return;
+  }
 
   // 用量は必ず数値に変換
   const doseNumber = parseDoseNumber(dose);
@@ -1660,7 +1669,7 @@ async function saveRx(mode){
   };
 
   try {
-    const token = DOCTOR_TOKEN || SUPABASE_KEY;
+    const token = requireDoctorToken();
     // Push前に同じ患者の過去 active 処方を false 化（複数activeを防ぐ）
     await deactivatePreviousActivePrescriptions(patientKey, token);
     const res = await fetch(`${SUPABASE_URL}/rest/v1/prescriptions`, {
@@ -1896,9 +1905,24 @@ function ensureValidSession() {
 let CURRENT_PATIENT_ID  = null;  // E2E用：初期患者なし
 let CURRENT_PATIENT_KEY = null;
 
+// 医師トークンを取得する。無効・期限切れならログイン画面へ戻す。
+// 【重要】以前は `DOCTOR_TOKEN || SUPABASE_KEY` というフォールバックがあったが、
+// これは期限切れ時に匿名キーへ静かに降格し、
+//   - authenticated 限定テーブル（prescriptions等）では「空データ」に見える
+//   - public のテーブル（patient_events）では匿名のまま書き込めてしまう
+// という危険があったため除去した。トークンが無ければ必ず失敗させる。
+function requireDoctorToken() {
+  if (!ensureValidSession() || !DOCTOR_TOKEN) {
+    localStorage.removeItem('doctorSession');
+    location.href = '/doctor_login';
+    throw new Error('ログインの有効期限が切れました。再度ログインしてください。');
+  }
+  return DOCTOR_TOKEN;
+}
+
 // Supabase REST API ヘルパー（医師トークンを使用）
 async function supabaseFetch(table, params='') {
-  const token = DOCTOR_TOKEN || SUPABASE_KEY;
+  const token = requireDoctorToken();
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
     headers: {
       'apikey': SUPABASE_KEY,
@@ -1964,8 +1988,11 @@ async function loadPatientRecords(patientId) {
           diagnosisEvents.map(e=>e.event_date), '→ 採用:', p.diagnosisDate);
       }
     }
-    if (treatmentEndEvents.length) {
-      const latestEnd = [...treatmentEndEvents].sort((a,b)=>b.event_date.localeCompare(a.event_date))[0];
+    // 治療終了日：最新のイベントを採用。metadata.cleared=true は「解除済み」なので無視する
+    // （DELETEポリシーが無く物理削除できないため、論理削除として cleared フラグを使っている）
+    const activeEndEvents = treatmentEndEvents.filter(e => !e.metadata?.cleared);
+    if (activeEndEvents.length) {
+      const latestEnd = [...activeEndEvents].sort((a,b)=>b.event_date.localeCompare(a.event_date))[0];
       p.treatmentEndDate = latestEnd.event_date;
       p.treatmentEndUnknown = latestEnd.metadata?.reason === 'unknown_dropout';
     } else {
