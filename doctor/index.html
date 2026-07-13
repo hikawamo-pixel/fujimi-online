@@ -398,35 +398,77 @@ function formatDurationWeeksMonths(days){
 }
 
 // 治療経過（全薬剤・全処方をまとめて時系列に、同一用量が続く区間は1つに統合）
-// 各区間の期間は「処方日数の合計」ではなく「来院日（開始日）ベースの経過日数」で算出する
+// 各区間の期間は「処方日数の合計」ではなく「来院日（開始日）ベースの経過日数」で算出する。
+//
+// 処方が途切れた期間（前の処方の終了予定日から次の処方開始日までの空白）は
+// 「処方なし（◯M）」として挿入する。自己中断日は申告ベースで正確に決められないため
+// フラグとして記録しないが、通常量を内服していて突然処方が途切れていれば、
+// 自己中断があったと医師が読み取れるようにするため。
+const RX_GAP_MIN_DAYS = 14; // これ以上の空白を「処方なしの期間」として表示する
+
 function buildTreatmentCourseLine(p){
   // アプリ導入前の経過（紙カルテからの転記）。これが先頭に来て、以降アプリの処方履歴が続く。
   const prior = (p.priorCourse||'').trim().replace(/\s*→\s*$/, ''); // 末尾の「→」は除去
 
   const allEntries=[];
   (p.rxHistory||[]).forEach(d=>d.entries.forEach(e=>{
-    if(e.start) allEntries.push({drug:d.drug, dose:e.dose, start:e.start});
+    if(e.start) allEntries.push({drug:d.drug, dose:e.dose, start:e.start, days:parseInt(e.days)||0});
   }));
   allEntries.sort((a,b)=>a.start.localeCompare(b.start));
 
   if(!allEntries.length) return prior || '—';
 
-  // 同一薬剤・同一用量が連続する場合は1区間にまとめる（開始日は最初の登場日を保持）
+  const addDays = (dateStr, n) => {
+    const d = new Date(dateStr+'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate()+n);
+    return d.toISOString().slice(0,10);
+  };
+  const diffDays = (a, b) =>
+    Math.round((new Date(b+'T00:00:00Z') - new Date(a+'T00:00:00Z')) / 86400000);
+
+  // 同一薬剤・同一用量が連続する場合は1区間にまとめる。
+  // ただし、長期の処方空白（RX_GAP_MIN_DAYS以上）を挟む場合はまとめない。
+  // 「モビコール1包（1M）→処方なし（4M）→モビコール1包（2W）」のように、
+  // 自己中断を挟んだ同一用量の再開が読み取れるようにするため。
   const merged=[];
   allEntries.forEach(e=>{
+    const coverEnd = e.days > 0 ? addDays(e.start, e.days) : e.start; // 薬が切れる日
     const last=merged[merged.length-1];
-    if(last && last.drug===e.drug && last.dose===e.dose) return; // 継続として統合
-    merged.push({drug:e.drug, dose:e.dose, start:e.start});
+    if(last && last.drug===e.drug && last.dose===e.dose){
+      const gap = diffDays(last.coverEnd, e.start);
+      if(gap < RX_GAP_MIN_DAYS){
+        // 継続として統合。カバー終了日だけ後ろに伸ばす
+        if(coverEnd > last.coverEnd) last.coverEnd = coverEnd;
+        return;
+      }
+      // 長期空白を挟むので、同一用量でも別区間として扱う（下でpushされる）
+    }
+    merged.push({drug:e.drug, dose:e.dose, start:e.start, coverEnd});
   });
 
   const lastAnchor = p.currentVisit || jstToday();
-  const appCourse = merged.map((seg,i)=>{
+  const parts = [];
+  merged.forEach((seg,i)=>{
     const nextStart = merged[i+1]?.start || lastAnchor;
-    const days = Math.max(0, Math.round((new Date(nextStart+'T00:00:00Z') - new Date(seg.start+'T00:00:00Z'))/86400000));
-    const durLabel = formatDurationWeeksMonths(days);
-    return `${seg.drug}${seg.dose}${durLabel?`（${durLabel}）`:''}`;
-  }).join('→');
+    // この処方が切れてから次の処方が始まるまでの空白（＝処方なしの期間）
+    const gapDays = diffDays(seg.coverEnd, nextStart);
+    const hasGap  = gapDays >= RX_GAP_MIN_DAYS;
 
+    // 薬剤区間の期間。
+    // 空白がある場合は「処方開始日〜薬が切れる日」（＝実際に薬があった期間）。
+    // 空白がない場合は「処方開始日〜次の処方開始日」（＝継続して内服していた期間）。
+    // こうしないと、空白期間が薬剤区間と「処方なし」の両方に数えられて二重計上になる。
+    const segEnd = hasGap ? seg.coverEnd : nextStart;
+    const days = Math.max(0, diffDays(seg.start, segEnd));
+    const durLabel = formatDurationWeeksMonths(days);
+    parts.push(`${seg.drug}${seg.dose}${durLabel?`（${durLabel}）`:''}`);
+
+    if(hasGap){
+      parts.push(`処方なし（${formatDurationWeeksMonths(gapDays)}）`);
+    }
+  });
+
+  const appCourse = parts.join('→');
   return prior ? `${prior}→${appCourse}` : appCourse;
 }
 
@@ -858,6 +900,7 @@ async function loadByChartNumber() {
         currPeriodRows: [],
         periodDates: [],
         periodTotalDays: 0, periodNoRecordDays: 0, periodRecordedDays: 0,
+        periodStart: '', periodRestartTruncated: false,
         hasPrevVisitEvent: false,
         hasPrevComparisonPeriod: false,
         skipCount: 0, catchupCount: 0,
@@ -1040,7 +1083,8 @@ function renderSummary(){
       ${p.diagnosisDate&&onboardingTypeLabel(p)?`<div style="margin-top:3px">記録開始区分：${onboardingTypeLabel(p)}</div>`:''}
       <div style="margin-top:3px">治療経過：${courseLine}</div>
       ${courseLine.includes('＊')?`<div style="font-size:10px;color:var(--text3)">＊＝1週間未満</div>`:''}
-      <div style="margin-top:3px">${adherenceSummaryText(p)}</div>
+      ${p.periodRestartTruncated?`<div style="margin-top:3px;color:var(--amber)">集計期間：${p.periodStart}〜（長期の記録なし期間があったため記録再開日から集計）</div>`:''}
+      <div style="margin-top:3px">${hasCurrentPeriodData(p) ? adherenceSummaryText(p) : 'アドヒアランス: この期間のアプリ共有記録なし。'}</div>
     </div>
     ${hiddenCount>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:5px;padding-left:13px">… 他${hiddenCount}件</div>`:''}
     <div class="rx-timeline">`;
@@ -1132,6 +1176,33 @@ function renderRecentTimeline(p){
 }
 
 // ── 記録一覧タブ ──────────────────────────────────────────────
+// 記録一覧の表示範囲。'all' = 共有記録の全期間、'visit' = 前回受診〜今回受診。
+// 画像出力（カルテ貼付用）では 'visit' に切り替える。全期間だと数十日分になり、
+// カルテに貼ると極端に長くなるため。
+let recordsRangeMode = 'all';
+
+// 表示範囲を求める。renderRecords() と exportImage() が同じ関数を使うことで、
+// 「画面に出ている範囲」と「画像出力される範囲」がズレないようにする。
+function getRecordsRange(p, mode){
+  const dataOldest = p.dataOldestDate || p.lastVisit || '';
+  const dataLatest = p.dataLatestDate || p.currentVisit || '';
+  let rangeStart = dataOldest;
+  let rangeEnd   = dataLatest;
+  if(mode === 'visit' && p.lastVisit){
+    rangeStart = p.lastVisit > dataOldest ? p.lastVisit : dataOldest;
+    rangeEnd   = (p.currentVisit && p.currentVisit < dataLatest) ? p.currentVisit : dataLatest;
+  }
+  return { rangeStart, rangeEnd };
+}
+
+// 指定範囲内に実際の共有記録があるか
+function hasSharedRecordsInRange(p, rangeStart, rangeEnd){
+  if(!rangeStart || !rangeEnd) return false;
+  return (p.bowelRecords || []).some(r =>
+    r.hasRecord && r.date >= rangeStart && r.date <= rangeEnd
+  );
+}
+
 function renderRecords(){
   const p=currentPt;
   // 共有記録が1件もない場合はテーブルを出さない（空表は誤読の元）
@@ -1144,17 +1215,36 @@ function renderRecords(){
     </div>`;
     return;
   }
+
+  // 表示範囲を決める（画像出力と同じ getRecordsRange を使い、範囲がズレないようにする）
+  const { rangeStart, rangeEnd } = getRecordsRange(p, recordsRangeMode);
+  const isLimited = recordsRangeMode==='visit';
+
+  // 全期間には記録があるが、この範囲（前回受診〜今回）には記録がない場合
+  if(!hasSharedRecordsInRange(p, rangeStart, rangeEnd)){
+    document.getElementById('mainContent').innerHTML = `${shareBarHTML(p)}
+    <div class="card">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span>前回受診: ${prevVisitLabel(p)}</span>
+        <button class="btn-ghost" onclick="toggleRecordsRange()">${isLimited?'全期間を表示→':'前回受診〜今回のみ表示→'}</button>
+      </div>
+      <div style="font-size:13px;color:var(--text2);padding:16px 4px;line-height:1.9">
+        この期間のアプリ共有記録はありません。<br>全期間表示では過去の共有記録を確認できます。
+      </div>
+    </div>`;
+    return;
+  }
+
   const allDates=[];
-  // 全記録: 実データの最古日〜最新日（受診日で切らない）
-  const last=new Date(p.dataOldestDate||p.lastVisit), cur2=new Date(p.dataLatestDate||p.currentVisit);
-  const d=new Date(last);
-  while(d<=cur2){ allDates.push(d.toISOString().split('T')[0]); d.setDate(d.getDate()+1); }
+  const d=new Date(rangeStart), endD=new Date(rangeEnd);
+  while(d<=endD){ allDates.push(d.toISOString().split('T')[0]); d.setDate(d.getDate()+1); }
 
   let html=`${shareBarHTML(p)}
-  <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
-    前回受診: ${prevVisitLabel(p)}　表示期間: ${p.dataOldestDate || '—'} 〜 ${p.dataLatestDate || '—'}
-    <span style="margin-left:8px;font-size:10px;color:var(--text3)">※丸=ブリストルスケール　オレンジ枠=怒責　坐=坐薬　浣=浣腸　○服用 ✕スキップ 2/3=分量　赤背景=排便なし</span>
+  <div style="font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span>前回受診: ${prevVisitLabel(p)}　表示期間: ${rangeStart || '—'} 〜 ${rangeEnd || '—'}${isLimited?'（前回受診〜今回）':'（全期間）'}</span>
+    <button class="btn-ghost" onclick="toggleRecordsRange()">${isLimited?'全期間を表示→':'前回受診〜今回のみ表示→'}</button>
   </div>
+  <div style="font-size:10px;color:var(--text3);margin-bottom:10px">※丸=ブリストルスケール　オレンジ枠=怒責　坐=坐薬　浣=浣腸　○服用 ✕スキップ 2/3=分量　赤背景=排便なし</div>
   <div class="tl-wrap"><table class="tl-table">
   <thead><tr>
     <th class="tl-th" style="width:52px">日付 <span class="src src-patient" style="font-size:8px">患者</span></th>
@@ -1172,10 +1262,36 @@ function renderRecords(){
     </th>
   </tr></thead><tbody>`;
 
-  allDates.forEach((dateStr,idx)=>{
-    const r=p.bowelRecords.find(r=>r.date===dateStr)||{date:dateStr,src:'patient'};
-    html+=tlRowHTML(r,idx);
-  });
+  // 記録のない日が長く連続する区間（治療の自己中止・記録の中断など）は、
+  // 空行を延々と並べても意味がないので1行にまとめる。
+  // 8日以上連続して記録がない場合のみ折りたたむ（数日の記録漏れはそのまま見せる）。
+  const GAP_COLLAPSE_MIN_DAYS = 8;
+  const recByDate = {};
+  (p.bowelRecords||[]).forEach(r=>{ if(r.hasRecord) recByDate[r.date]=r; });
+
+  let i = 0, rowIdx = 0;
+  while(i < allDates.length){
+    if(recByDate[allDates[i]]){
+      html += tlRowHTML(recByDate[allDates[i]], rowIdx++);
+      i++;
+      continue;
+    }
+    // 記録なしの連続区間を数える
+    let j = i;
+    while(j < allDates.length && !recByDate[allDates[j]]) j++;
+    const gapLen = j - i;
+    if(gapLen >= GAP_COLLAPSE_MIN_DAYS){
+      html += `<tr><td colspan="3" style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text3);background:var(--surface2);border-top:1px dashed var(--border2);border-bottom:1px dashed var(--border2)">
+        … ${allDates[i]} 〜 ${allDates[j-1]}（${gapLen}日間）はアプリ共有記録なし
+      </td></tr>`;
+      rowIdx++;
+    } else {
+      for(let k=i; k<j; k++){
+        html += tlRowHTML({date:allDates[k], src:'patient'}, rowIdx++);
+      }
+    }
+    i = j;
+  }
   html+=`</tbody></table></div>`;
   document.getElementById('mainContent').innerHTML=html;
 }
@@ -1235,7 +1351,7 @@ function renderRxHistory(){
   const c=p.currPeriod,prev=p.prevPeriod;
   html+=`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
     <div class="card-label">前回 vs 今回 比較</div>`;
-  if(p.hasPrevComparisonPeriod){
+  if(p.hasPrevComparisonPeriod && hasCurrentPeriodData(p)){
     html+=`<table class="compare-table">
       <thead><tr><th style="width:40%">指標</th><th>前回（${p.lastVisit}）</th><th>今回（${p.currentVisit}）</th><th>変化</th></tr></thead>
       <tbody>
@@ -1503,8 +1619,9 @@ function buildKarteText(p){
   // currRows と同じ期間: 前回受診イベントがあれば「前回受診日〜今回受診日前日」、なければ全件
   const courseLineForKarte = buildTreatmentCourseLine(p);
 
-  const recs=p.hasPrevVisitEvent
-    ? p.bowelRecords.filter(r => r.date >= p.lastVisit && r.date < p.currentVisit)
+  // 坐薬・浣腸の集計も他の指標と同じ期間（p.periodStart 〜 今回受診日の前日）で数える
+  const recs = p.periodStart
+    ? p.bowelRecords.filter(r => r.date >= p.periodStart && r.date < p.currentVisit)
     : p.bowelRecords;
   const suppCount=recs.filter(r=>r.supp==='坐').length;
   const eneCount =recs.filter(r=>r.supp==='浣').length;
@@ -1560,7 +1677,7 @@ function buildKarteText(p){
   // 診断日・記録開始区分・前回受診・治療経過・処方・診察所見・コントロールはそのまま出す。
   const hasData = hasCurrentPeriodData(p);
   const statsBlock = hasData
-    ? `記録: 記録なしの日 ${p.periodNoRecordDays||0}日`
+    ? `記録: 記録なしの日 ${p.periodNoRecordDays||0}日${p.periodRestartTruncated?`\n集計期間: ${p.periodStart}〜（前回受診後、長期の記録なし期間があったため記録再開日から集計）`:''}`
     : `記録: アプリ共有記録なし（この期間の集計データはありません）`;
   const aggBlock = hasData
     ? `${adherenceSummaryText(p)}
@@ -2075,30 +2192,57 @@ function defaultDoseUnitByDrug(drug) {
   return null;
 }
 
+// 記録一覧の表示範囲を切り替える（画面上のトグル）
+function toggleRecordsRange(){
+  recordsRangeMode = recordsRangeMode==='all' ? 'visit' : 'all';
+  renderRecords();
+}
+
 // ── 画像出力 ─────────────────────────────────────────────────
 function exportImage(mode){
+  // 記録一覧の画像出力は「前回受診〜今回」に限定する（カルテ貼付用のため）。
+  // その期間に共有記録が1件もなければ、空の画像を作らずPopupで止める。
+  if(mode === 'records'){
+    const { rangeStart, rangeEnd } = getRecordsRange(currentPt, 'visit');
+    if(!hasSharedRecordsInRange(currentPt, rangeStart, rangeEnd)){
+      alert('画像出力対象がありません。\n前回受診〜今回受診の期間にアプリ共有記録がありません。');
+      return;
+    }
+  }
+
   const targetTab=mode==='records'?'records':'rxhistory';
   const tabIdx=mode==='records'?1:2;
   const tabEl=document.querySelectorAll('.tab')[tabIdx];
+
+  // 画面上の表示範囲は出力後に元へ戻す
+  const savedRangeMode = recordsRangeMode;
+  if(mode==='records') recordsRangeMode = 'visit';
+
   switchTab(targetTab,tabEl);
   const label=mode==='records'?'記録一覧':'内服履歴';
   const pid=currentPt.id;
   const dateStr=currentPt.currentVisit.replace(/-/g,'');
+  const restore=()=>{
+    if(mode==='records' && recordsRangeMode!==savedRangeMode){
+      recordsRangeMode = savedRangeMode;
+      if(currentTab==='records') renderRecords();
+    }
+  };
   setTimeout(()=>{
     const el=document.getElementById('mainContent');
     if(typeof html2canvas==='undefined'){
       const s=document.createElement('script');
       s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      s.onload=()=>doCapture(el,pid,label,dateStr);
-      s.onerror=()=>{ alert('ライブラリ読み込み失敗。印刷（Cmd+P）をお試しください。'); window.print(); };
+      s.onload=()=>doCapture(el,pid,label,dateStr,restore);
+      s.onerror=()=>{ restore(); alert('ライブラリ読み込み失敗。印刷（Cmd+P）をお試しください。'); window.print(); };
       document.head.appendChild(s);
       return;
     }
-    doCapture(el,pid,label,dateStr);
+    doCapture(el,pid,label,dateStr,restore);
   },350);
 }
 
-function doCapture(el,pid,label,dateStr){
+function doCapture(el,pid,label,dateStr,restore){
   const clone=document.createElement('div');
   clone.style.cssText='position:fixed;top:0;left:0;width:900px;background:#fff;padding:20px 24px;box-sizing:border-box;z-index:99999;font-family:DM Sans,sans-serif;font-size:14px;color:#1A1916';
   const header=document.createElement('div');
@@ -2107,6 +2251,8 @@ function doCapture(el,pid,label,dateStr){
   clone.appendChild(header);
   const inner=el.cloneNode(true);
   inner.style.cssText='overflow:visible;height:auto;width:100%';
+  // 表示範囲切替ボタンは画面操作用なので、出力画像には含めない
+  inner.querySelectorAll('.btn-ghost').forEach(b=>b.remove());
   clone.appendChild(inner);
   document.body.appendChild(clone);
   const fullH=clone.scrollHeight;
@@ -2120,8 +2266,14 @@ function doCapture(el,pid,label,dateStr){
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(()=>URL.revokeObjectURL(url),2000);
       },'image/png');
+      if(typeof restore==='function') restore();
     })
-    .catch(err=>{ if(document.body.contains(clone)) document.body.removeChild(clone); alert('画像出力失敗。印刷をお試しください。\n'+err.message); window.print(); });
+    .catch(err=>{
+      if(document.body.contains(clone)) document.body.removeChild(clone);
+      if(typeof restore==='function') restore();
+      alert('画像出力失敗。印刷をお試しください。\n'+err.message);
+      window.print();
+    });
 }
 
 // ── メイン ───────────────────────────────────────────────────
@@ -2314,6 +2466,8 @@ async function loadPatientRecords(patientId) {
       p.periodTotalDays = 0;
       p.periodNoRecordDays = 0;
       p.periodRecordedDays = 0;
+      p.periodStart = '';
+      p.periodRestartTruncated = false;
       p.currPeriod = { ...emptyPeriod };
       p.prevPeriod = { ...emptyPeriod };
       p.bristolDist = {1:0,2:0,3:0,4:0,5:0,6:0,7:0};
@@ -2482,10 +2636,46 @@ async function loadPatientRecords(patientId) {
     p.dataLatestDate = bowelRows.length > 0 ? bowelRows[0].date : p.currentVisit;
     p.dataOldestDate = bowelRows.length > 0 ? bowelRows[bowelRows.length - 1].date : p.lastVisit;
 
-    // currRows = 前回受診日〜今回受診日の前日まで（前回受診日を含み、今回受診日は含まない）
-    // 前回受診日がある場合はそれ以降に絞る。なければ全件。
-    const currRows = prevVisitDate
-      ? bowelRows.filter(r => r.date >= prevVisitDate && r.date < p.currentVisit)
+    // 集計期間の起点を決める。
+    // 通常は前回受診日。ただし、治療の自己中断などで長期間まったく記録がない期間があると、
+    // そのまま前回受診日を起点にすると「148日中記録0日」のような臨床的に無意味な数字になる。
+    // そこで、前回受診〜今回受診の範囲内で14日以上の未記録ギャップを探し、
+    // 「最後の長期ギャップの後の最初の記録日」を集計の起点にする。
+    // （前回受診直後に空白がある場合だけでなく、途中で長期未記録になり再開した場合も対象）
+    // 自己中断日は申告ベースで正確に決められないためフラグ化せず、データから判定する。
+    const RESTART_GAP_MIN_DAYS = 14;
+    let periodStart = prevVisitDate;
+    p.periodRestartTruncated = false;
+    if (prevVisitDate) {
+      const recDatesInWindow = bowelRows
+        .filter(r => r.date >= prevVisitDate && r.date < p.currentVisit)
+        .map(r => r.date)
+        .sort();
+      if (recDatesInWindow.length > 0) {
+        const dayDiff = (a, b) =>
+          Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
+        // 「前回受診 → 最初の記録」および「記録 → 次の記録」のギャップを順に見て、
+        // 14日以上あいた箇所のうち最後のものを探す。その直後の記録日が集計起点になる。
+        let restartDate = null;
+        if (dayDiff(prevVisitDate, recDatesInWindow[0]) >= RESTART_GAP_MIN_DAYS) {
+          restartDate = recDatesInWindow[0];
+        }
+        for (let i = 1; i < recDatesInWindow.length; i++) {
+          if (dayDiff(recDatesInWindow[i - 1], recDatesInWindow[i]) >= RESTART_GAP_MIN_DAYS) {
+            restartDate = recDatesInWindow[i];  // より後のギャップで上書き
+          }
+        }
+        if (restartDate) {
+          periodStart = restartDate;
+          p.periodRestartTruncated = true;
+        }
+      }
+    }
+    p.periodStart = periodStart;
+
+    // currRows = 集計起点〜今回受診日の前日まで（起点を含み、今回受診日は含まない）
+    const currRows = periodStart
+      ? bowelRows.filter(r => r.date >= periodStart && r.date < p.currentVisit)
       : bowelRows;
     // 概要タブのアドヒアランスカード（「前回受診期間」ラベル）用に、窓期間のrowsを保持しておく
     p.currPeriodRows = currRows;
@@ -2501,10 +2691,10 @@ async function loadPatientRecords(patientId) {
     // （特に紙記録からの切替で、前回受診日が手入力されているだけの患者）。
     p.hasPrevComparisonPeriod = !!(prevVisitDate && prevPrevVisitDate && prevRows.length > 0);
 
-    // 集計期間の全暦日（記録の有無に関わらない。前回受診日〜今回受診日の前日）
+    // 集計期間の全暦日（記録の有無に関わらない。集計起点〜今回受診日の前日）
     // 「記録なしの日」を正しく数えるため、bowelRows（記録のある日のみ）とは別に暦日を作る
-    const periodDates = prevVisitDate
-      ? dateRangeExclusiveEnd(prevVisitDate, p.currentVisit)
+    const periodDates = periodStart
+      ? dateRangeExclusiveEnd(periodStart, p.currentVisit)
       : currRows.map(r => r.date);
     p.periodDates = periodDates;
 
@@ -2555,7 +2745,7 @@ async function loadPatientRecords(patientId) {
     // 追加内服は他項目と同じ期間（前回受診日より後〜今回受診日まで）で「回数」集計
     const currRecordRows = records.filter(r => {
       const d = dateKeyJST(r);
-      return prevVisitDate ? (d >= prevVisitDate && d < p.currentVisit) : true;
+      return periodStart ? (d >= periodStart && d < p.currentVisit) : true;
     });
     p.extraDoseCount = currRecordRows.filter(r => r.metadata?.extra_dose === true).length;
     // prescribedDays: 内服記録が何らかある日（null でない日）
