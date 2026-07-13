@@ -1,32 +1,48 @@
 <!DOCTYPE html>
 <!--
   ================================================================
-  リリース前チェックリスト
+  開発メモ・残課題（このコメントは画面には表示されません）
   ================================================================
-  ✅ 1. Supabase Edge Function "authenticate-patient" の
-        VISIT_VALID_DAYS を 90 に設定済み（旧: 36500 のテスト値）
+  【β版リリース時点で対応済み】
 
-  ✅ 2. patient_events の RLS 強化
-        - INSERT / UPDATE を authenticated + source='doctor' に限定
-        - SELECT は public は event_type='visit' のみ、医師は全件
-        - DELETE ポリシーは意図的に作らない（医師UIは PATCH→POST 方式）
-        - 部分UNIQUEインデックスで diagnosis / treatment_end は
-          1患者1件を強制（日付違いの重複を防ぐ）
+  ✅ Supabase Edge Function "authenticate-patient" の
+     VISIT_VALID_DAYS を 90 に設定済み（旧: 36500 のテスト値）
+     ※LPの「3か月以内に受診している方」という文言と連動している。
+       この値を変えるときは index.html のモーダル文言も直すこと。
 
-  ✅ 3. DOCTOR_TOKEN || SUPABASE_KEY フォールバックの除去
-        （requireDoctorToken() でトークン必須化。匿名降格の経路を廃止）
+  ✅ patient_events の RLS 強化
+     - INSERT / UPDATE を authenticated + source='doctor' に限定
+     - SELECT は public は event_type='visit' のみ、医師は全件
+     - DELETE ポリシーは意図的に作らない（医師UIは PATCH→POST 方式）
+     - 部分UNIQUEインデックス patient_events_singleton_event_uniq により
+       diagnosis / treatment_end は1患者1件（日付違いの重複も不可）
 
-  □ 4. PATIENTS_DEFAULT配列のモックデータ（00001・87654）を削除する
+  ✅ DOCTOR_TOKEN || SUPABASE_KEY フォールバックの除去
+     （requireDoctorToken() でトークン必須化。匿名降格の経路を廃止）
 
-  □ 5. 【次フェーズ】patient_events の REST 直書きを
-        Edge Function（service role）経由に移行し、
-        public の visit SELECT ポリシーも廃止する
+  ================================================================
+  【残課題】
 
-  □ 6. 【次フェーズ】コントロール評価（p.control）の永続化
+  □ 1. PATIENTS_DEFAULT配列のモックデータ（00001・87654）を削除する
+        ※現状は既に空配列だが、再導入しないこと
+
+  □ 2. patient_events の REST 直書きを Edge Function（service role）
+        経由に移行し、public の visit SELECT ポリシーも廃止する
+        （現状 public は event_type='visit' を全件ダンプ可能）
+
+  □ 3. コントロール評価（p.control）の永続化
         現状はサーバ未保存で、再読み込み時に初期値に戻る。
-        表示側は effectiveControlText() で「未評価」にフォールバックしている。
+        表示側は effectiveControlText() で「未評価」にフォールバック中。
+        visit_evaluations テーブルが既に存在するので、そこへ保存する。
 
-  □ 7. 【次フェーズ】bowel_records の記録不変性（locked_at）
+  □ 4. bowel_records の記録不変性（locked_at）
+        共有済み記録は変更不可にする（臨床試験データ integrity 要件）
+
+  □ 5. リファクタリング（develop ブランチ）
+        患者UIを「おむつ使用の小児用」と「自立した小児・成人用」に分割
+
+  □ 6. 治療終了後の再診断・再治療（エピソード管理）
+        現状は診断日・治療終了日を各1件のみ保持する設計
   ================================================================
 -->
 <html lang="ja">
