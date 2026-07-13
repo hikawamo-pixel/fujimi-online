@@ -909,6 +909,10 @@ function renderSummary(){
   }
 
   // サマリー数値
+  // 前回比較は、アプリ内に「前々回受診〜前回受診」の記録期間が実際にある場合のみ意味を持つ。
+  // ない場合に prevPeriod（全て0）を出すと「前回: 0日」「-1 前回比」のような誤った表示になる。
+  const hasPrevComp = !!p.hasPrevComparisonPeriod;
+  const maybeDiff = (h) => hasPrevComp ? h : '';
   const diffTag=(val,goodDir)=>{
     if(val===0) return '<span class="sum-diff diff-same">→ 前回同</span>';
     const better=goodDir==='+'?val>0:val<0;
@@ -919,20 +923,20 @@ function renderSummary(){
     <div class="sum-card">
       <div class="sum-label">排便なし日数</div>
       <div class="sum-main mono">${c.noStoolDays}<span style="font-size:13px;color:var(--text2)"> / ${c.totalDays}日</span></div>
-      <div class="sum-sub">記録なし ${c.noRecordDays}日　前回: ${prev.noStoolDays}日</div>
-      ${diffTag(c.noStoolDays-prev.noStoolDays,'-')}
+      <div class="sum-sub">記録なし ${c.noRecordDays}日　${hasPrevComp?`前回: ${prev.noStoolDays}日`:'アプリ内前回比較なし'}</div>
+      ${maybeDiff(diffTag(c.noStoolDays-prev.noStoolDays,'-'))}
     </div>
     <div class="sum-card">
       <div class="sum-label">怒責日数</div>
       <div class="sum-main mono">${c.strainDays}<span style="font-size:13px;color:var(--text2)"> 日</span></div>
-      <div class="sum-sub">前回: ${prev.strainDays}日</div>
-      ${diffTag(c.strainDays-prev.strainDays,'-')}
+      <div class="sum-sub">${hasPrevComp?`前回: ${prev.strainDays}日`:'アプリ内前回比較なし'}</div>
+      ${maybeDiff(diffTag(c.strainDays-prev.strainDays,'-'))}
     </div>
     <div class="sum-card">
       <div class="sum-label">ブリストル平均</div>
       <div class="sum-main mono">${c.bristolAvg.toFixed(1)}</div>
-      <div class="sum-sub">前回: ${prev.bristolAvg.toFixed(1)}　最頻値: ${c.bristolMode}型</div>
-      ${diffTag(parseFloat((c.bristolAvg-prev.bristolAvg).toFixed(1)),'+')}
+      <div class="sum-sub">${hasPrevComp?`前回: ${prev.bristolAvg.toFixed(1)}　`:'アプリ内前回比較なし　'}最頻値: ${c.bristolMode}型</div>
+      ${maybeDiff(diffTag(parseFloat((c.bristolAvg-prev.bristolAvg).toFixed(1)),'+'))}
     </div>
   </div>`;
 
@@ -2405,9 +2409,11 @@ async function loadPatientRecords(patientId) {
       ? bowelRows.filter(r => r.date >= prevPrevVisitDate && r.date < prevVisitDate)
       : [];
     // アプリ内に「前々回受診〜前回受診」の記録期間があるか。
-    // これが false のとき prevPeriod は全て0なので、比較表を出すと誤解を招く
-    // （特に紙記録からの切替で priorPrevVisitDate だけがある患者）。
-    p.hasPrevComparisonPeriod = !!(prevVisitDate && prevPrevVisitDate);
+    // 受診イベントが2件揃っていても、その期間にアプリ記録が1件もなければ prevPeriod は
+    // 全て 0日 / 0.0 になるため、prevRows.length > 0 まで確認する。
+    // これが false のとき比較表を出すと誤解を招く
+    // （特に紙記録からの切替で、前回受診日が手入力されているだけの患者）。
+    p.hasPrevComparisonPeriod = !!(prevVisitDate && prevPrevVisitDate && prevRows.length > 0);
 
     // 集計期間の全暦日（記録の有無に関わらない。前回受診日〜今回受診日の前日）
     // 「記録なしの日」を正しく数えるため、bowelRows（記録のある日のみ）とは別に暦日を作る
