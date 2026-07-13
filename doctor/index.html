@@ -1229,14 +1229,23 @@ function renderPrescription(){
         </div>
         <span style="font-size:10px;color:var(--text3)">記録開始区分：紙記録からの切替・他院からの転院などの経緯を記録します（診断日と一緒に保存されます）</span>
 
+        <!-- 引き継ぎ情報（記録開始日・これまでの治療経過）
+             診断日と違い監査対象ではなく、カルテからの転記を後から追記・修正することが多いため、
+             診断日のロック状態にかかわらず常に編集できるようにする。専用の保存ボタンを持つ。 -->
         <div id="priorCourseBlock" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
-          <label style="font-size:11px">これまでの記録開始日（紙記録・他院での記録を含む。任意）</label>
-          <input type="date" id="rxRecordStartDate" value="${p.recordStartDate||''}" ${p.diagnosisDate&&!p._diagDateUnlocked?'disabled':''} style="max-width:170px">
-          <label style="font-size:11px;margin-top:8px">これまでの治療経過（カルテから転記。任意）</label>
-          <textarea id="rxPriorCourse" rows="2" ${p.diagnosisDate&&!p._diagDateUnlocked?'disabled':''}
+          <div style="font-size:11px;color:var(--text2);font-weight:500;margin-bottom:6px">アプリ導入前の引き継ぎ情報（任意・いつでも編集できます）</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="display:block;font-size:11px;color:var(--text2);font-weight:500">これまでの記録開始日（紙記録・他院での記録を含む）</label>
+              <input type="date" id="rxRecordStartDate" value="${p.recordStartDate||''}" style="max-width:170px">
+            </div>
+            <button type="button" class="btn" onclick="saveTransitionInfo()">引き継ぎ情報を保存</button>
+          </div>
+          <label style="display:block;font-size:11px;color:var(--text2);font-weight:500;margin-bottom:3px">これまでの治療経過（カルテから転記）</label>
+          <textarea id="rxPriorCourse" rows="2"
             placeholder="例）モビコール1包（2W）→1.5（2W）→1.75（3W）→2（6W）→2.25（2M）"
-            style="width:100%;font-size:12px;font-family:'JetBrains Mono',monospace">${p.priorCourse||''}</textarea>
-          <span style="font-size:10px;color:var(--text3)">アプリ導入前の経過をここに転記すると、以降はアプリの処方履歴が自動で続けて記載されます。</span>
+            style="width:100%;font-size:12px">${p.priorCourse||''}</textarea>
+          <span style="display:block;font-size:10px;color:var(--text3);margin-top:3px">ここに転記すると、以降はアプリの処方履歴が自動で続けて記載されます。${p.diagnosisDate?'':'<br><b style="color:var(--amber)">※先に「当院での診断・治療開始日」を保存してください（引き継ぎ情報はその記録に紐づきます）</b>'}</span>
         </div>
         <label style="margin-top:8px">治療終了日（中断・終了時のみ入力。詳細不明の中断は日付未定でもチェックのみで保存可）</label>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1522,7 +1531,8 @@ function insertNoteTemplate(){
   note.focus();
 }
 
-// 診断日入力欄のロックを解除（誤入力の訂正用）
+// 診断日・記録開始区分のロックを解除（誤入力の訂正用）
+// 引き継ぎ情報（記録開始日・治療経過）はロック対象外なので、ここでは扱わない。
 function unlockDiagDate(){
   const p=currentPt;
   if(p) p._diagDateUnlocked=true;
@@ -1530,12 +1540,8 @@ function unlockDiagDate(){
   setTimeout(()=>{
     const i2=document.getElementById('rxDiagDate');
     const s2=document.getElementById('rxOnboardingType');
-    const r2=document.getElementById('rxRecordStartDate');
-    const t2=document.getElementById('rxPriorCourse');
     if(i2){ i2.disabled=false; i2.focus(); }
     if(s2){ s2.disabled=false; }
-    if(r2){ r2.disabled=false; }
-    if(t2){ t2.disabled=false; }
   },0);
 }
 
@@ -1604,6 +1610,50 @@ async function upsertSingleEvent(patientKey, eventType, eventDate, metadata){
     return { ok:false, detail:`新規作成に失敗しました（HTTP ${postRes.status}）: ${await postRes.text()}` };
   }
   return { ok:true, detail:'' };
+}
+
+// 引き継ぎ情報（記録開始日・これまでの治療経過）だけを保存する。
+// 診断イベントの metadata に相乗りしているため、既存の diagnosis イベントが必要。
+// 診断日・記録開始区分は現在の値をそのまま維持して metadata だけ差し替える。
+async function saveTransitionInfo(){
+  const p=currentPt;
+  const patientKey=p?.patientKey;
+  if(!patientKey){ alert('patient_keyが未設定です。患者データを確認してください。'); return; }
+  if(!p.diagnosisDate){
+    alert('先に「当院での診断・治療開始日」を保存してください。\n引き継ぎ情報はその記録に紐づけて保存されます。');
+    document.getElementById('rxDiagDate')?.focus();
+    return;
+  }
+  if(!ensureValidSession()){
+    alert('ログインの有効期限が切れました。お手数ですが、もう一度ログインしてから再入力してください。');
+    localStorage.removeItem('doctorSession');
+    location.href = '/doctor_login';
+    return;
+  }
+  const recordStartDate=document.getElementById('rxRecordStartDate')?.value||'';
+  const priorCourse=(document.getElementById('rxPriorCourse')?.value||'').trim();
+  const prevRecordStartDate = p.recordStartDate;
+  const prevPriorCourse = p.priorCourse;
+  try{
+    const r=await upsertSingleEvent(patientKey, 'diagnosis', p.diagnosisDate, {
+      // 未設定の記録開始区分を勝手に 'new_diagnosis' で埋めないこと。
+      // 引き継ぎ情報だけを保存したときに、区分が「初回診断からアプリ開始」と
+      // 誤って確定されてしまうため。
+      onboarding_type:   p.onboardingType || '',
+      record_start_date: recordStartDate,
+      prior_course:      priorCourse,
+    });
+    if(!r.ok) throw new Error(r.detail);
+    p.recordStartDate=recordStartDate;
+    p.priorCourse=priorCourse;
+    alert('引き継ぎ情報を保存しました。');
+    renderContent();
+  }catch(e){
+    console.error('saveTransitionInfo error:', e);
+    p.recordStartDate = prevRecordStartDate;
+    p.priorCourse = prevPriorCourse;
+    alert('引き継ぎ情報の保存に失敗しました。既存の登録は変更されていません。\n'+e.message);
+  }
 }
 
 // 診断日（＝治療開始日）を patient_events に保存する。一度保存すると入力欄はグレーアウトする。
