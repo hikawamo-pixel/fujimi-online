@@ -525,10 +525,15 @@ function onboardingTypeLabel(p){
   return ONBOARDING_TYPE_LABELS[p.onboardingType] || '';
 }
 
-// 前回受診日の表示。受診イベントが1件（今回のみ）の患者には前回受診が存在しないため、
-// 集計用フォールバック値（記録の最古日）を「前回受診日」として表示しないようにする。
+// 前回受診日の表示。
+// ① アプリ内に受診イベントが2件以上あれば、その1つ前の受診日を使う（通常ケース）
+// ② アプリ導入直後（受診イベントが今回の1件のみ）でも、紙記録からの切替・転院の患者には
+//    実際には前回受診がある。その場合は引き継ぎ情報として手入力された日付を使う。
+// ③ どちらもなければ、本当に初回受診。
 function prevVisitLabel(p){
-  return p.hasPrevVisitEvent ? (p.lastVisit || '—') : '初回（前回受診なし）';
+  if(p.hasPrevVisitEvent) return p.lastVisit || '—';
+  if(p.priorPrevVisitDate) return `${p.priorPrevVisitDate}（アプリ導入前）`;
+  return '初回（前回受診なし）';
 }
 
 function isBeforeTreatmentDisplay(p){
@@ -812,6 +817,7 @@ async function loadByChartNumber() {
         diagnosisDate: '',
         onboardingType: '',
         recordStartDate: '',
+        priorPrevVisitDate: '',
         priorCourse: '',
         treatmentEndDate: '',
         treatmentEndUnknown: false,
@@ -825,6 +831,8 @@ async function loadByChartNumber() {
         currPeriodRows: [],
         periodDates: [],
         periodTotalDays: 0, periodNoRecordDays: 0, periodRecordedDays: 0,
+        hasPrevVisitEvent: false,
+        hasPrevComparisonPeriod: false,
         skipCount: 0, catchupCount: 0,
         visits: [],
         bowelRecords: [],
@@ -864,7 +872,7 @@ function renderTopbar(){
       <div class="pt-avatar">${p.id.slice(0,5)}</div>
       <div class="pt-info">
         <h2>診察券 ${p.id}</h2>
-        <p>日誌開始: ${p.diaryStart} · 前回: ${p.lastVisit} · 今回: ${p.currentVisit} · 次回予定: ${p.nextVisit}</p>
+        <p>記録開始: ${recordStartLabel(p)} · 前回: ${prevVisitLabel(p)} · 今回: ${p.currentVisit} · 次回予定: ${p.nextVisit||'—'}</p>
       </div>
     </div>
     <div class="top-actions">
@@ -897,7 +905,7 @@ function renderSummary(){
   if(beforeTx){
     html+=`<div class="eval-block eval-none">—&nbsp;<b>内服開始前（コントロール評価なし）</b><span style="margin-left:auto;font-size:11px;opacity:.7">初回処方</span></div>`;
   } else {
-    html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${effControlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">${p.lastVisit} → 今回: ${p.currentVisit}</span></div>`;
+    html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${effControlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">${prevVisitLabel(p)} → 今回: ${p.currentVisit}</span></div>`;
   }
 
   // サマリー数値
@@ -1092,7 +1100,7 @@ function renderRecords(){
 
   let html=`${shareBarHTML(p)}
   <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
-    前回外来 ${p.lastVisit} 〜 今回 ${p.currentVisit}
+    前回受診: ${prevVisitLabel(p)}　表示期間: ${p.dataOldestDate || '—'} 〜 ${p.dataLatestDate || '—'}
     <span style="margin-left:8px;font-size:10px;color:var(--text3)">※丸=ブリストルスケール　オレンジ枠=怒責　坐=坐薬　浣=浣腸　○服用 ✕スキップ 2/3=分量　赤背景=排便なし</span>
   </div>
   <div class="tl-wrap"><table class="tl-table">
@@ -1169,10 +1177,14 @@ function renderRxHistory(){
   }
 
   // 前回 vs 今回比較
+  // prevPeriod が意味を持つのは、アプリ内に「前々回受診〜前回受診」の記録期間がある場合だけ。
+  // ない場合に表を出すと、前回列が全て 0日 / 0.0 になり誤解を招く
+  // （特に紙記録からの切替で、前回受診日が手入力されているだけの患者）。
   const c=p.currPeriod,prev=p.prevPeriod;
   html+=`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-    <div class="card-label">前回 vs 今回 比較</div>
-    <table class="compare-table">
+    <div class="card-label">前回 vs 今回 比較</div>`;
+  if(p.hasPrevComparisonPeriod){
+    html+=`<table class="compare-table">
       <thead><tr><th style="width:40%">指標</th><th>前回（${p.lastVisit}）</th><th>今回（${p.currentVisit}）</th><th>変化</th></tr></thead>
       <tbody>
         <tr><td class="row-label">排便なし日数</td><td>${prev.noStoolDays}日</td><td>${c.noStoolDays}日</td><td style="color:${c.noStoolDays<prev.noStoolDays?'var(--green)':'var(--red)'}">${c.noStoolDays<prev.noStoolDays?'↓改善':'↑悪化'}</td></tr>
@@ -1180,8 +1192,13 @@ function renderRxHistory(){
         <tr><td class="row-label">ブリストル平均</td><td>${prev.bristolAvg.toFixed(1)}</td><td>${c.bristolAvg.toFixed(1)}</td><td style="color:${c.bristolAvg>=prev.bristolAvg?'var(--green)':'var(--red)'}">${c.bristolAvg>=prev.bristolAvg?'↑改善':'↓悪化'}</td></tr>
         <tr><td class="row-label">スキップ</td><td>—</td><td>${p.skipCount}日</td><td>${p.skipCount<=1?'<span style="color:var(--green)">良好</span>':'<span style="color:var(--amber)">要確認</span>'}</td></tr>
       </tbody>
-    </table>
-  </div>`;
+    </table>`;
+  } else {
+    html+=`<div style="font-size:12px;color:var(--text2);padding:10px 0">
+      アプリ内の前回比較データはまだありません。次回以降に比較表示されます。
+    </div>`;
+  }
+  html+=`</div>`;
 
   html+=`</div>`;
   document.getElementById('mainContent').innerHTML=html;
@@ -1238,6 +1255,10 @@ function renderPrescription(){
             <div style="display:flex;flex-direction:column;gap:3px">
               <label style="display:block;font-size:11px;color:var(--text2);font-weight:500">これまでの記録開始日（紙記録・他院での記録を含む）</label>
               <input type="date" id="rxRecordStartDate" value="${p.recordStartDate||''}" style="max-width:170px">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="display:block;font-size:11px;color:var(--text2);font-weight:500">前回受診日（アプリ導入前の受診）</label>
+              <input type="date" id="rxPrevVisitDate" value="${p.priorPrevVisitDate||''}" style="max-width:170px">
             </div>
             <button type="button" class="btn" onclick="saveTransitionInfo()">引き継ぎ情報を保存</button>
           </div>
@@ -1631,8 +1652,10 @@ async function saveTransitionInfo(){
     return;
   }
   const recordStartDate=document.getElementById('rxRecordStartDate')?.value||'';
+  const prevVisitDateManual=document.getElementById('rxPrevVisitDate')?.value||'';
   const priorCourse=(document.getElementById('rxPriorCourse')?.value||'').trim();
   const prevRecordStartDate = p.recordStartDate;
+  const prevPriorPrevVisit = p.priorPrevVisitDate;
   const prevPriorCourse = p.priorCourse;
   try{
     const r=await upsertSingleEvent(patientKey, 'diagnosis', p.diagnosisDate, {
@@ -1641,16 +1664,19 @@ async function saveTransitionInfo(){
       // 誤って確定されてしまうため。
       onboarding_type:   p.onboardingType || '',
       record_start_date: recordStartDate,
+      prev_visit_date:   prevVisitDateManual,
       prior_course:      priorCourse,
     });
     if(!r.ok) throw new Error(r.detail);
     p.recordStartDate=recordStartDate;
+    p.priorPrevVisitDate=prevVisitDateManual;
     p.priorCourse=priorCourse;
     alert('引き継ぎ情報を保存しました。');
     renderContent();
   }catch(e){
     console.error('saveTransitionInfo error:', e);
     p.recordStartDate = prevRecordStartDate;
+    p.priorPrevVisitDate = prevPriorPrevVisit;
     p.priorCourse = prevPriorCourse;
     alert('引き継ぎ情報の保存に失敗しました。既存の登録は変更されていません。\n'+e.message);
   }
@@ -1661,6 +1687,7 @@ async function saveDiagnosisDate(){
   const val=document.getElementById('rxDiagDate')?.value;
   const onboardingType=document.getElementById('rxOnboardingType')?.value||'new_diagnosis';
   const recordStartDate=document.getElementById('rxRecordStartDate')?.value||'';
+  const prevVisitDateManual=document.getElementById('rxPrevVisitDate')?.value||'';
   const priorCourse=(document.getElementById('rxPriorCourse')?.value||'').trim();
   if(!val){ alert('当院での診断・治療開始日を入力してください'); return; }
   const p=currentPt;
@@ -1680,6 +1707,7 @@ async function saveDiagnosisDate(){
     const r=await upsertSingleEvent(patientKey, 'diagnosis', val, {
       onboarding_type:   onboardingType,
       record_start_date: recordStartDate,
+      prev_visit_date:   prevVisitDateManual,
       prior_course:      priorCourse,
     });
     if(!r.ok) throw new Error(r.detail);
@@ -1687,6 +1715,7 @@ async function saveDiagnosisDate(){
     p.diagnosisDate=val;
     p.onboardingType=onboardingType;
     p.recordStartDate=recordStartDate;
+    p.priorPrevVisitDate=prevVisitDateManual;
     p.priorCourse=priorCourse;
     p._diagDateUnlocked=false;
     alert('当院での診断・治療開始日を保存しました。');
@@ -2166,6 +2195,9 @@ async function loadPatientRecords(patientId) {
     const currentVisitDate = visitDatesDesc[0] || null;
     const prevVisitDate    = visitDatesDesc[1] || null;
     p.visits = [...visitDatesDesc].reverse();  // 古い順
+    // 前回受診イベントが存在するか。共有記録が0件でも prevVisitLabel() が正しく判定できるよう、
+    // ここ（イベント取得直後）で設定する。buildKarteText の集計期間判定にも使う。
+    p.hasPrevVisitEvent = !!prevVisitDate;
 
     // 診断日（＝当院での診断・治療開始日）。診断イベントは部分UNIQUEインデックスにより
     // 1患者1件だが、過去の重複が残っている場合に「訂正前の古い日付」を拾わないよう、
@@ -2175,6 +2207,7 @@ async function loadPatientRecords(patientId) {
       p.diagnosisDate = latestDiag.event_date;
       p.onboardingType = latestDiag.metadata?.onboarding_type || '';
       p.recordStartDate = latestDiag.metadata?.record_start_date || '';
+      p.priorPrevVisitDate = latestDiag.metadata?.prev_visit_date || '';
       p.priorCourse = latestDiag.metadata?.prior_course || '';
       p._diagDateUnlocked = false;
       if (diagnosisEvents.length > 1) {
@@ -2371,8 +2404,10 @@ async function loadPatientRecords(patientId) {
     const prevRows = (prevVisitDate && prevPrevVisitDate)
       ? bowelRows.filter(r => r.date >= prevPrevVisitDate && r.date < prevVisitDate)
       : [];
-    // 前回受診イベントが存在するか（buildKarteText の集計期間判定に使う）
-    p.hasPrevVisitEvent = !!prevVisitDate;
+    // アプリ内に「前々回受診〜前回受診」の記録期間があるか。
+    // これが false のとき prevPeriod は全て0なので、比較表を出すと誤解を招く
+    // （特に紙記録からの切替で priorPrevVisitDate だけがある患者）。
+    p.hasPrevComparisonPeriod = !!(prevVisitDate && prevPrevVisitDate);
 
     // 集計期間の全暦日（記録の有無に関わらない。前回受診日〜今回受診日の前日）
     // 「記録なしの日」を正しく数えるため、bowelRows（記録のある日のみ）とは別に暦日を作る
