@@ -411,8 +411,16 @@ function buildTreatmentCourseLine(p){
   const prior = (p.priorCourse||'').trim().replace(/\s*→\s*$/, ''); // 末尾の「→」は除去
 
   const allEntries=[];
+  // 今回受診日に開始した処方（＝今回の処方）は治療経過に含めない。
+  // カルテ下部の「処方:」行、概要タブの処方状況に別途表示されるため、
+  // ここに入れると重複する。治療経過は「これまでの経過」を示す。
+  // 紙記録からの切替患者では、転記した経過の末尾と今回の処方が同じ薬剤・用量になり
+  // 二重に見えてしまうという問題も、これで解消される。
+  const courseCutoff = p.currentVisit || jstToday();
   (p.rxHistory||[]).forEach(d=>d.entries.forEach(e=>{
-    if(e.start) allEntries.push({drug:d.drug, dose:e.dose, start:e.start, days:parseInt(e.days)||0});
+    if(e.start && e.start < courseCutoff){
+      allEntries.push({drug:d.drug, dose:e.dose, start:e.start, days:parseInt(e.days)||0});
+    }
   }));
   allEntries.sort((a,b)=>a.start.localeCompare(b.start));
 
@@ -469,7 +477,11 @@ function buildTreatmentCourseLine(p){
   });
 
   const appCourse = parts.join('→');
-  return prior ? `${prior}→${appCourse}` : appCourse;
+  // 転記部分（アプリ導入前）とアプリ記録部分の境目を明示する。
+  // 転記テキストは自由入力でアプリは中身を解析しないため、転記の末尾とアプリ最初の処方が
+  // 同じ薬剤・同じ用量でも1区間にまとめることはできない（例: …→0.72（1.75M）→酸化Mg0.72g（3W））。
+  // 区切りを入れることで「なぜ同じ用量が2つ並ぶのか」が読み取れるようにする。
+  return prior ? `${prior}　｜アプリ記録→　${appCourse}` : appCourse;
 }
 
 // 記録開始日。紙記録・他院での記録を含む開始日が登録されていればそれを優先し、
@@ -1602,21 +1614,9 @@ function checkRxDays(val,nextDays){
 function buildKarteText(p){
   // 今回診療で確定した処方（workingRx）を優先。なければ現在のactive処方
   const rx=p.workingRx||getCurrentRx(p);
-  // 処方行: 過去の処方履歴のみ（直近数件）。今回分は下の「処方:」行に既に出るため、ここでは重複させない。
-  const rxLine=(()=>{
-    const lines=p.rxHistory.map(d=>{
-      const entries=d.entries;
-      const curIdx=entries.findIndex(e=>e.current);
-      const histStart=Math.max(0, (curIdx<0?entries.length:curIdx)-3);
-      const histEntries=entries.slice(histStart, curIdx<0?entries.length:curIdx);
-      const histStr=histEntries.map(e=>e.dose+'('+e.days+'日)').join('→');
-      return histStr ? d.drug+' '+histStr : null;
-    }).filter(Boolean);
-    return lines.join('\n');
-  })();
 
-  // 坐薬・浣腸集計（前回受診〜今回受診の前日）
-  // currRows と同じ期間: 前回受診イベントがあれば「前回受診日〜今回受診日前日」、なければ全件
+  // 過去の処方履歴は「治療経過」行が担う。今回の処方は下部の「処方:」行に出る。
+  // （以前あった rxLine / 処方期間 の行は、どちらとも重複するため廃止）
   const courseLineForKarte = buildTreatmentCourseLine(p);
 
   // 坐薬・浣腸の集計も他の指標と同じ期間（p.periodStart 〜 今回受診日の前日）で数える
@@ -1690,7 +1690,6 @@ function buildKarteText(p){
   return `記録開始 ${recordStartLabel(p)}〜。当院診療開始 ${p.diagnosisDate||'—'}〜前回受診 ${prevVisitLabel(p)}。${p.diagnosisDate&&onboardingTypeLabel(p)?`\n記録開始区分: ${onboardingTypeLabel(p)}`:''}${p.treatmentEndDate?`\n治療終了 ${p.treatmentEndDate}${p.treatmentEndUnknown?'（中断・詳細不明）':''}`:''}
 ${statsBlock}
 治療経過: ${courseLineForKarte}${courseLineForKarte.includes('＊')?'（＊＝1週間未満）':''}
-${rxLine?rxLine+'\n':''}処方期間${rx?rx.days:'—'}日
 ${aggBlock?aggBlock+'\n':''}
 診察所見: ${examText}
 コントロール: ${effectiveControlText(p)}
