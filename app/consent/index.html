@@ -298,6 +298,20 @@ body{
 const CONSENT_VERSION = 'v1.0';
 const YOYAKURU_LOGIN = 'https://ver2.yoyakuru.net/rs/fujimi-ped/WebLogin/FmService.aspx';
 
+// 同意済みスキップ判定:
+// 一度同意した利用者には、再ログインのたびに同意画面を再表示しない。
+// consentGiven が 'true' かつ 同意した版(consentVersion)が現行版(CONSENT_VERSION)と一致する場合のみスキップ。
+// 同意文を改訂して CONSENT_VERSION を上げた場合は版が不一致になり、再同意を求める。
+// （同意を撤回したい場合はアプリを使わない、という運用前提。）
+(function skipIfAlreadyConsented(){
+  try{
+    if(localStorage.getItem('consentGiven') === 'true'
+       && localStorage.getItem('consentVersion') === CONSENT_VERSION){
+      window.location.replace(YOYAKURU_LOGIN);
+    }
+  }catch(e){ /* localStorage 不可の環境では通常どおり同意画面を表示 */ }
+})();
+
 const consentBox = document.getElementById('consentBox');
 const scrollHint = document.getElementById('scrollHint');
 const checkArea  = document.getElementById('checkArea');
