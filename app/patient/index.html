@@ -627,9 +627,9 @@ textarea{width:100%;padding:9px;border:0.5px solid #b4b2a9;border-radius:8px;fon
           <div id="dur-block">
             <div style="font-size:11px;color:#5f5e5a;margin-bottom:4px;">所要時間</div>
             <div class="dur-grid">
-              <div class="dur-chip" onclick="pickDur(this,'1分未満')">1分未満</div>
-              <div class="dur-chip" onclick="pickDur(this,'1〜10分')">1〜10分</div>
-              <div class="dur-chip" onclick="pickDur(this,'10分以上')">10分以上</div>
+              <div class="dur-chip" onclick="pickDur(this,'すぐ（3分以内）')">すぐ<br>（3分以内）</div>
+              <div class="dur-chip" onclick="pickDur(this,'少し時間がかかった（3〜10分）')">少し時間がかかった<br>（3〜10分）</div>
+              <div class="dur-chip" onclick="pickDur(this,'時間がかかった（10分以上）')">時間がかかった<br>（10分以上）</div>
               <div class="dur-chip" onclick="pickDur(this,'不明')">不明</div>
             </div>
           </div>
@@ -2061,7 +2061,8 @@ function renderCard(){
 /* ============================================================
    タイムライン形式履歴
    ============================================================ */
-function durIdx(d){return {'1分未満':0,'1〜10分':2,'10分以上':4}[d]??1;}
+function durToMin(d){return {'すぐ（3分以内）':1,'少し時間がかかった（3〜10分）':5,'時間がかかった（10分以上）':10,'1分未満':1,'1〜10分':5,'10分以上':10}[d]??null;}
+function durIdx(d){return {'すぐ（3分以内）':0,'少し時間がかかった（3〜10分）':2,'時間がかかった（10分以上）':4,'1分未満':0,'1〜10分':2,'10分以上':4}[d]??1;}
 function amtClass(a){return a==='少ない'||a==='やや少な目'?'m-sz-s':a==='多い'||a==='やや多め'?'m-sz-l':'m-sz-m';}
 function compSym(v){
   if(v==='全量')return{s:'○',c:'full'};
@@ -2256,6 +2257,7 @@ function buildMetadata(r){
                               m.stool_label_full=r.stoolLabel;
   if(r.stoolMode)            m.stool_mode=r.stoolMode;
   if(r.dur)                  m.dur_label=r.dur;  // 所要時間ラベル（「不明」含む。durationMinは数値のみ）
+  if(r.meal)                 m.meal=r.meal;      // 食事タイミング（医師側の所要時間カテゴリ補正に使用）
   return Object.keys(m).length?m:null;
 }
 
@@ -2283,7 +2285,7 @@ function recToBowelRow(r){
 
   const simplifiedType=(r.stoolMode==='simple'&&r.stoolLabel)?r.stoolLabel.split('→')[0]||null:null;
   const amountCode=({'少ない':'XS','やや少な目':'S','ふつう':'M','やや多め':'L','多い':'XL'})[r.amt]||r.amt||null;
-  const durationMin=r.dur?(r.dur.match(/(\d+)/)?.[1]?parseInt(r.dur.match(/(\d+)/)[1]):null):null;
+  const durationMin=durToMin(r.dur);
 
   const recordedAt=(()=>{
     const dateStr=r.date||r.guDate||jstToday();
@@ -2353,7 +2355,7 @@ function recToRow(r,now){
 
   const simplifiedType=(r.stoolMode==='simple'&&r.stoolLabel)?r.stoolLabel.split('→')[0]||null:null;
   const amountCode=({'少ない':'XS','やや少な目':'S','ふつう':'M','やや多め':'L','多い':'XL'})[r.amt]||r.amt||null;
-  const durationMin=r.dur?(r.dur.match(/(\d+)/)?.[1]?parseInt(r.dur.match(/(\d+)/)[1]):null):null;
+  const durationMin=durToMin(r.dur);
   const defecTime=r.timeSlot||(isDisim?r.disimTime:null)||null;
 
   const sharedRecordedAt=(()=>{

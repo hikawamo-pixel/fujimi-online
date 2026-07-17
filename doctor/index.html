@@ -507,6 +507,93 @@ function extractBristolValues(rows){
   return vals;
 }
 
+// ============================================================
+// 所要時間カテゴリ補正（食事・起床タイミングとの関連から4段階に補正し、
+// スムーズ／少し排便困難／排便困難の3段階に要約する）
+// 参照: 2026-07-17 河本先生との確認事項。
+//   すぐ            × 食事関連   = 2   すぐ            × 食事と関係なし = 1（最良）
+//   少し時間がかかった × 食事関連   = 3   少し時間がかかった × 食事と関係なし = 2
+//   時間がかかった    × 食事関連   = 4   時間がかかった    × 食事と関係なし = 3
+//   食事タイミング不明・未記録の場合は補正せず素の値（すぐ=1,少し=2,時間がかかった=3）。
+// 「起床後食前」「食事中・直後」は同一の食事関連グループとして扱う。
+// ============================================================
+
+// 食事タイミングを「食事関連」「食事と関係なし」「不明」の3群に正規化
+function mealGroup(meal){
+  if(meal==='起床後食前' || meal==='食事中・直後') return 'related';
+  if(meal==='食事と関係なし')                    return 'unrelated';
+  return null;  // 不明・未記録（補正の根拠がないため無補正で扱う）
+}
+
+// 所要時間の申告ラベル（新旧両対応）を素の3分類に正規化
+function durRawCategory(dur){
+  if(dur==='すぐ（3分以内）'            || dur==='1分未満') return 'now';
+  if(dur==='少し時間がかかった（3〜10分）' || dur==='1〜10分') return 'little';
+  if(dur==='時間がかかった（10分以上）'   || dur==='10分以上') return 'long';
+  return null;  // 「不明」等、カテゴリ化できないもの
+}
+
+// 申告カテゴリ＋食事タイミング → 補正後カテゴリ（1=最良〜4=最重）。算出不能なら null。
+// 基準値（＝「食事と関係なし」「不明・未記録」共通の値）に、食事関連タイミングのときだけ+1する。
+// 「不明」は"食事関連扱い"ではなく"補正なし（＝食事と関係なしと同じ基準値）"である点に注意。
+function durCorrectedCat(dur, meal){
+  const cat = durRawCategory(dur);
+  if(!cat) return null;
+  const BASE = { now: 1, little: 2, long: 3 };  // すぐ/少し/時間がかかった の基準値
+  const base = BASE[cat];
+  const grp  = mealGroup(meal);  // 'related' | 'unrelated' | null(不明)
+  return grp === 'related' ? base + 1 : base;
+}
+
+// 補正後カテゴリ → 3段階要約ラベル
+function durSummaryLabel(cat){
+  if(cat===1 || cat===2) return 'スムーズ';
+  if(cat===3)             return '少し排便困難';
+  if(cat===4)             return '排便困難';
+  return null;
+}
+
+// 所要時間の申告ラベル（新旧両対応）を表示用の日本語ラベルに正規化。
+// 「不明」も明示的に扱う点が durRawCategory（組み合わせ評価専用の内部キー）と異なる。
+// 質問自体が出ていない（おむつ記録等）場合は null（＝集計の母数に含めない）。
+function durRawLabel(dur){
+  if(dur==='すぐ（3分以内）'            || dur==='1分未満') return 'すぐ';
+  if(dur==='少し時間がかかった（3〜10分）' || dur==='1〜10分') return '少し時間がかかった';
+  if(dur==='時間がかかった（10分以上）'   || dur==='10分以上') return '時間がかかった';
+  if(dur==='不明') return '不明';
+  return null;
+}
+
+// 食事タイミングの表示用ラベル正規化。「不明」を含む4分類。
+// 質問自体が出ていない（おむつ記録等・旧データでmeal未送信）場合は null（＝集計の母数に含めない）。
+function mealRawLabel(meal){
+  if(meal==='起床後食前' || meal==='食事中・直後' || meal==='食事と関係なし' || meal==='不明') return meal;
+  return null;
+}
+
+// rows（p.bowelRecords等、日単位の配列）から全排便イベントを展開し、
+// ①生活リズムとのタイミング（単独）②排便に要する時間（単独）③組み合わせ評価　の
+// 3種の集計に必要な生データを1件ずつ持つ配列を作る。
+// 組み合わせ評価（cat / combinedLabel）は durCorrectedCat / durSummaryLabel を呼ぶだけで、
+// それらの内部ロジックは変更しない。
+function extractDurInfo(rows){
+  const list=[];
+  (rows||[]).forEach(r=>{
+    (r.bowelRecs||[]).forEach(br=>{
+      const meta = br?.metadata || {};
+      const dur  = meta.dur_label;
+      const meal = meta.meal;
+      const durLabel      = durRawLabel(dur);        // 'すぐ'|'少し時間がかかった'|'時間がかかった'|'不明'|null
+      const mealLabel     = mealRawLabel(meal);       // '起床後食前'|'食事中・直後'|'食事と関係なし'|'不明'|null
+      const cat           = durCorrectedCat(dur, meal); // 組み合わせ評価（既存ロジック、変更なし）
+      const combinedLabel = cat!=null ? durSummaryLabel(cat) : null;
+      if(durLabel==null && mealLabel==null) return;  // どちらの質問にも記録がない排便イベントは除外
+      list.push({ durLabel, mealLabel, cat, combinedLabel });
+    });
+  });
+  return list;
+}
+
 // 期間統計の共通ヘルパー。概要タブ（renderSummary）とカルテ記載プレビュー（buildKarteText）の
 // 両方がこれを参照することで、集計ロジックの二重実装・不一致を防ぐ。
 // rows: 記録のある日のみの行配列（currRows等）。periodDates: 期間内の全暦日（記録有無に関わらない）。
@@ -554,8 +641,28 @@ function buildPeriodStats(rows, periodDates){
     if (i > 0 && rows[i-1].skip && (r.medAm==='ok'||r.medPm==='ok')) catchupCount++;
   });
 
+  // 所要時間・生活リズムのタイミング関連の期間集計（① ②単独集計 ③組み合わせ評価）
+  const durInfos = extractDurInfo(rows);
+
+  // ① 生活リズムとのタイミング（単独集計）
+  const mealDist = {'起床後食前':0,'食事中・直後':0,'食事と関係なし':0,'不明':0};
+  durInfos.forEach(d=>{ if(d.mealLabel && mealDist[d.mealLabel]!=null) mealDist[d.mealLabel]++; });
+  const mealDistTotal = Object.values(mealDist).reduce((a,b)=>a+b,0);
+
+  // ② 排便に要する時間（単独集計）
+  const durLabelDist = {'すぐ':0,'少し時間がかかった':0,'時間がかかった':0,'不明':0};
+  durInfos.forEach(d=>{ if(d.durLabel && durLabelDist[d.durLabel]!=null) durLabelDist[d.durLabel]++; });
+  const durLabelDistTotal = Object.values(durLabelDist).reduce((a,b)=>a+b,0);
+
+  // ③ 生活リズム×排便に要する時間（組み合わせ評価。ロジックは durCorrectedCat 側、ここは集計のみ）
+  const durSummaryDist = {'スムーズ':0,'少し排便困難':0,'排便困難':0};
+  durInfos.forEach(d=>{ if(d.combinedLabel && durSummaryDist[d.combinedLabel]!=null) durSummaryDist[d.combinedLabel]++; });
+  const durSummaryDistTotal = Object.values(durSummaryDist).reduce((a,b)=>a+b,0);
+
   return { totalDays, recordedDays, noRecordDays, bowelDays, noStoolDays, strainDays,
-           bristolAvg, bristolMode, bristolDist, suppCount, skipCount, catchupCount };
+           bristolAvg, bristolMode, bristolDist, suppCount, skipCount, catchupCount,
+           mealDist, mealDistTotal, durLabelDist, durLabelDistTotal,
+           durSummaryDist, durSummaryDistTotal };
 }
 
 // p.control（コントロール評価）はサーバに永続化されておらず、ページ再読み込みのたびに
@@ -725,6 +832,41 @@ function effectiveControlText(p){
   return p.controlText || '未評価';
 }
 
+// 生活リズムとのタイミング・排便に要する時間 関連のサマリー文（概要タブ・カルテ記載プレビュー共通）。
+// 以下3種類を分けて生成する（それぞれ回数と割合を示す）。
+//  ① mealTimingSummaryText     : 生活リズムとのタイミング（単独集計。起床後食前／食事中・直後／食事と関係なし／不明）
+//  ② durationRawSummaryText    : 排便に要する時間（単独集計。すぐ／少し時間がかかった／時間がかかった／不明）
+//  ③ durationSummaryText       : ①×②の組み合わせ評価（スムーズ／少し排便困難／排便困難）。ロジックは durCorrectedCat 参照。変更なし。
+// いずれも記録が1件もない期間は null を返し、呼び出し側で行自体を出さない（0回表示による誤読を防ぐ）。
+function pct(n, total){ return total>0 ? Math.round(n/total*100) : 0; }
+
+function mealTimingSummaryText(p){
+  const dist = p.currPeriod?.mealDist;
+  const total = p.currPeriod?.mealDistTotal || 0;
+  if(!dist || total===0) return null;
+  const parts = ['起床後食前','食事中・直後','食事と関係なし','不明']
+    .map(k => `${k}${dist[k]}回（${pct(dist[k],total)}%）`);
+  return `生活リズムとのタイミング（回答${total}件）:\n${parts.join('／')}`;
+}
+
+function durationRawSummaryText(p){
+  const dist = p.currPeriod?.durLabelDist;
+  const total = p.currPeriod?.durLabelDistTotal || 0;
+  if(!dist || total===0) return null;
+  const parts = ['すぐ','少し時間がかかった','時間がかかった','不明']
+    .map(k => `${k}${dist[k]}回（${pct(dist[k],total)}%）`);
+  return `排便に要する時間（回答${total}件）:\n${parts.join('／')}`;
+}
+
+function durationSummaryText(p){
+  const dist = p.currPeriod?.durSummaryDist;
+  const total = p.currPeriod?.durSummaryDistTotal || 0;
+  if(!dist || total===0) return null;
+  const parts = ['スムーズ','少し排便困難','排便困難']
+    .map(k => `${k}${dist[k]}回（${pct(dist[k],total)}%）`);
+  return `生活リズム×排便に要する時間（評価可能${total}件）:\n${parts.join('／')}`;
+}
+
 // アドヒアランスサマリー文（概要タブ・カルテ記載プレビュー共通）
 // 「期間の全暦日中、記録のある日数」「スキップ」「追加内服」を示す。記録なしの日はスキップ判定の対象外。
 function adherenceSummaryText(p){
@@ -850,7 +992,7 @@ function tlRowHTML(r, idx){
       ? `<span style="position:absolute;top:-5px;left:-6px;font-size:8px;line-height:1;">🧷</span>`
       : '';
     markerHTML+=`<div style="position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);z-index:1">
-      <div style="position:relative;width:20px;height:20px;border-radius:50%;background:#E6F1FB;border:1.5px solid ${bord};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${bc}">
+      <div style="position:relative;width:20px;height:20px;border-radius:50%;background:#E6F1FB;border:1.5px solid ${bord};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${bc}" title="${(() => { const d=bi.metadata?.dur_label; if(!d) return ''; const m=bi.metadata?.meal; const cat=durCorrectedCat(d,m); const lbl=cat?durSummaryLabel(cat):''; return `所要時間: ${d}${m?`（${m}）`:''}${lbl?` → ${lbl}`:''}`; })()}">
         ${biLabel}
         ${shoulder?`<span style="position:absolute;top:-5px;right:-5px;font-size:7px;font-weight:700;color:#A32D2D;line-height:1">${shoulder}</span>`:''}
         ${biAmtLabel?`<span style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:500;color:var(--text2);line-height:1;white-space:nowrap">${biAmtLabel}</span>`:''}
@@ -1200,6 +1342,9 @@ function renderSummary(){
       ${p.periodRestartTruncated?`<div style="margin-top:3px;color:var(--amber)">集計期間：${p.periodStart}〜（1週間以上の記録なし期間があったため記録再開日から集計）</div>`:''}
       ${p.hasRecordsBeforePeriod?`<div style="margin-top:3px;color:var(--text3)">※以前に記録あり（記録一覧で確認できます）</div>`:''}
       <div style="margin-top:3px">${hasCurrentPeriodData(p) ? adherenceSummaryText(p) : 'アドヒアランス: この期間のアプリ共有記録なし。'}</div>
+      ${hasCurrentPeriodData(p) && mealTimingSummaryText(p) ? `<div style="margin-top:3px">${mealTimingSummaryText(p).replace(/\n/g,'<br>')}</div>` : ''}
+      ${hasCurrentPeriodData(p) && durationRawSummaryText(p) ? `<div style="margin-top:3px">${durationRawSummaryText(p).replace(/\n/g,'<br>')}</div>` : ''}
+      ${hasCurrentPeriodData(p) && durationSummaryText(p) ? `<div style="margin-top:3px">${durationSummaryText(p).replace(/\n/g,'<br>')}</div>` : ''}
     </div>
     ${hiddenCount>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:5px;padding-left:13px">… 他${hiddenCount}件</div>`:''}
     <div class="rx-timeline">`;
@@ -1780,7 +1925,10 @@ function buildKarteText(p){
 排便頻度: 排便なし${noStoolDays}日。怒責${p.currPeriod.strainDays}日。
 坐薬・浣腸使用回数: 坐薬${suppCount}　浣腸${eneCount}　使用すべきタイミング${shouldUseDays}（自動）
 便性: ブリストル平均${p.currPeriod.bristolAvg.toFixed(1)}（最頻値${p.currPeriod.bristolMode}型）
-排便量: ${amtPattern}（S:${amtS}回 M:${amtM}回 L:${amtL}回）${amtSrc}`
+排便量: ${amtPattern}（S:${amtS}回 M:${amtM}回 L:${amtL}回）${amtSrc}${mealTimingSummaryText(p) ? `
+${mealTimingSummaryText(p)}` : ''}${durationRawSummaryText(p) ? `
+${durationRawSummaryText(p)}` : ''}${durationSummaryText(p) ? `
+${durationSummaryText(p)}` : ''}`
     : '';
 
   return `記録開始 ${recordStartLabel(p)}〜。当院診療開始 ${p.diagnosisDate||'—'}〜前回受診 ${prevVisitLabel(p)}。${p.diagnosisDate&&onboardingTypeLabel(p)?`\n記録開始区分: ${onboardingTypeLabel(p)}`:''}${p.treatmentEndDate?`\n治療終了 ${p.treatmentEndDate}${p.treatmentEndUnknown?'（中断・詳細不明）':''}`:''}
