@@ -30,10 +30,22 @@
         経由に移行し、public の visit SELECT ポリシーも廃止する
         （現状 public は event_type='visit' を全件ダンプ可能）
 
-  □ 3. コントロール評価（p.control）の永続化
-        現状はサーバ未保存で、再読み込み時に初期値に戻る。
-        表示側は effectiveControlText() で「未評価」にフォールバック中。
-        visit_evaluations テーブルが既に存在するので、そこへ保存する。
+  ✅ 3. コントロール評価（p.control）の永続化 → visit_evaluations へ保存（対応済み）
+        通常Push・受診のみ記録の両経路が upsertVisitEvaluation() を共用する。
+        【テーブルの役割分担（重複保存禁止）】
+          patient_events    : 受診があった事実。event_date / prescription_pushed
+                              / visit_only のみ。control は持たせない。
+          visit_evaluations : その受診の評価・診察内容。control / exam /
+                              proc_type / amt_pattern / patient_message /
+                              prescription_changed。(patient_key, visit_date) で一意。
+        ※ patient_message は患者画面に表示する文面の記録。
+          通常Push時のみ送信文面を保存する。
+          受診のみ記録では更新対象に含めないため、初回の受診のみ記録では null、
+          同日に通常Push済みの場合は既存文面を保持する。
+          受診のみ記録による患者への新規配信は行わない。
+        ※ prescription_changed も同様に、受診のみ記録では更新対象に含めない
+          （新規行では既定値 false、同日Push済みなら既存値 true を保持）。
+          将来、医師内部用メモを持つ場合は clinical_note を別列として追加すること。
 
   □ 4. bowel_records の記録不変性（locked_at）
         共有済み記録は変更不可にする（臨床試験データ integrity 要件）
@@ -665,9 +677,9 @@ function buildPeriodStats(rows, periodDates){
            durSummaryDist, durSummaryDistTotal };
 }
 
-// p.control（コントロール評価）はサーバに永続化されておらず、ページ再読み込みのたびに
-// 初期値 'before_treatment' に戻ってしまう既知の制約がある（次フェーズでvisit_evaluations等への
-// 永続化を検討）。そのため「内服開始前」の表示は p.control だけで判定せず、実際に処方履歴・
+// p.control（コントロール評価）は visit_evaluations に永続化され、loadPatientRecords が
+// 最新の受診時評価から復元する。ただし評価が1件も保存されていない患者では初期値
+// 'before_treatment' のままになる。そのため「内服開始前」の表示は p.control だけで判定せず、実際に処方履歴・
 // 診断日・内服記録が存在する場合はそれを優先する（誤って「内服開始前」と表示されるのを防ぐ）。
 function hasTreatmentHistory(p){
   const hasRx = !!(p.rxHistory && p.rxHistory.some(d => d.entries && d.entries.length > 0));
@@ -1828,6 +1840,7 @@ function renderPrescription(){
       <button class="btn" onclick="saveRx('draft')">下書き保存</button>
       <button class="btn" onclick="saveRx('confirm')">診療記録として確定</button>
       <button class="btn btn-primary" onclick="saveRx('push')">確定してPush送信</button>
+      <button class="btn" onclick="saveVisitOnly()" title="処方は変更せず、受診マークと評価・診察内容だけを記録します（前回処方を継続／患者への新規配信なし）">受診のみ記録（処方継続）</button>
     </div>
   </div>
 
@@ -2224,6 +2237,144 @@ async function deactivatePreviousActivePrescriptions(patientKey, token){
   }
 }
 
+// ── 受診時評価（visit_evaluations）の保存 ────────────────────────
+// 通常Push経路と「受診のみ記録」経路の両方がこの1関数を使う（保存処理を二重化しない）。
+// (patient_key, visit_date) の一意インデックスにより同一受診日は upsert される。
+// ※ patient_events には control 等の臨床変数を保存しないこと（重複の正を作らない）。
+async function upsertVisitEvaluation(patientKey, visitDate, f){
+  const token = requireDoctorToken();
+  const norm = v => (v === undefined || v === '' ? null : v);
+  const payload = {
+    patient_key:          patientKey,
+    visit_date:           visitDate,
+    source:               'doctor',
+    // 'unevaluated' はプレースホルダなので保存しない
+    control:              (f.control && f.control !== 'unevaluated') ? f.control : null,
+    exam:                 norm(f.exam),
+    proc_type:            norm(f.procType),
+    amt_pattern:          norm(f.amtPattern),
+    updated_at:           new Date().toISOString(),
+  };
+  // 任意項目：呼び出し側がキーを渡したときだけ payload に含める。
+  // PostgREST の upsert は payload に無い列を更新しないため、省略すれば
+  // 同一受診日に既に保存済みの値を消さずに済む
+  // （例：同日に通常Push済みの patient_message を、後続の「受診のみ記録」が消さない）。
+  if (Object.prototype.hasOwnProperty.call(f, 'patientMessage')) {
+    payload.patient_message = norm(f.patientMessage);
+  }
+  if (Object.prototype.hasOwnProperty.call(f, 'prescriptionChanged')) {
+    payload.prescription_changed = !!f.prescriptionChanged;
+  }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/visit_evaluations?on_conflict=patient_key,visit_date`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Prefer': 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return { ok:false, detail:`HTTP ${res.status}: ${await res.text()}` };
+  return { ok:true, detail:'' };
+}
+
+// ── 途中受診：処方は変更せず、受診マークと評価だけを記録する ──────────
+// 現行のactive処方はそのまま継続する（deactivatePreviousActivePrescriptions も
+// prescriptions への新規insert も行わない）。患者向けメッセージは新規配信しない
+// （前回処方・前回メッセージの患者表示がそのまま継続する）。
+async function saveVisitOnly(){
+  const control = document.getElementById('rxControl').value;
+  if (!control || control === 'unevaluated') {
+    alert('コントロール評価を選択してください。');
+    document.getElementById('rxControl')?.focus();
+    return;
+  }
+  // 所見は通常Pushと同じく必須（触知の有無は次回の増量判断に直結するため）
+  const examSel = document.getElementById('rxExam')?.value || '';
+  if (!examSel) {
+    alert('腹部・直腸所見を選択してください。\n（診察していない場合は「診察なし」を選んでください）');
+    document.getElementById('rxExam')?.focus();
+    return;
+  }
+
+  const currentPtObj = PATIENTS.find(pt => pt.id === CURRENT_PATIENT_ID);
+  const patientKey = currentPtObj?.patientKey;
+  if (!patientKey) { alert('patient_keyが未設定です。患者データを確認してください。'); return; }
+
+  if (!ensureValidSession()) {
+    alert('ログインの有効期限が切れました。\nお手数ですが、もう一度ログインしてから再入力してください。');
+    localStorage.removeItem('doctorSession');
+    location.href = '/doctor_login';
+    return;
+  }
+
+  // 所見・処置などをフォームから患者データに取り込む
+  captureVisitForm();
+
+  const visitDate = document.getElementById('visitDate')?.value
+                 || currentPtObj?.currentVisit || jstToday();
+
+  try {
+    const token = requireDoctorToken();
+
+    // ① 受診の事実だけを patient_events に記録（処方は一切触らない）
+    const evRes = await fetch(`${SUPABASE_URL}/rest/v1/patient_events?on_conflict=patient_key,event_date,event_type`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Prefer': 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({
+        patient_key: patientKey,
+        event_type:  'visit',
+        event_date:  visitDate,
+        source:      'doctor',
+        metadata: {
+          prescription_pushed: false,   // 処方は変更していない（前回処方を継続）
+          visit_only:          true,
+        },
+      }),
+    });
+    if (!evRes.ok) throw new Error('受診マークの記録に失敗しました。\n' + await evRes.text());
+
+    // ② 評価・診察内容を visit_evaluations に記録（Push経路と同じ関数を使う）
+    const vf = currentPtObj?.visitForm || {};
+    let amtKey = vf.amtPattern || '';
+    if (!amtKey) { try { amtKey = computeAmtPattern(currentPtObj)?.key || ''; } catch(_) {} }
+    const evalRes = await upsertVisitEvaluation(patientKey, visitDate, {
+      control:             control,
+      exam:                examSel,
+      procType:            vf.procType || 'none',
+      amtPattern:          amtKey,
+      // patient_message / prescription_changed は「送らない」。
+      //   初回の受診のみ記録 → DB既定値（null / false）が入る
+      //   同日に通常Push済み → その受診で送った文面・処方変更の記録を保持する
+      // ※ 患者への新規配信をしない仕様には影響しない（配信は get-prescription 経由のため）。
+    });
+    if (!evalRes.ok) throw new Error('受診時評価の保存に失敗しました。\n' + evalRes.detail);
+
+    // ローカルへ反映
+    if (currentPtObj) {
+      currentPtObj.control = control;
+      currentPtObj.controlText = CONTROL_LABELS[control] || control;
+    }
+
+    alert(
+      `受診（${visitDate}）と評価「${CONTROL_LABELS[control] || control}」を記録しました。\n` +
+      '処方は前回のまま継続しています（変更・新規配信なし）。'
+    );
+
+    await loadPatientRecords(CURRENT_PATIENT_ID);
+    await loadPrescriptions(CURRENT_PATIENT_ID);
+  } catch(e) {
+    console.error('saveVisitOnly error:', e);
+    alert('記録に失敗しました: ' + (e?.message || e));
+  }
+}
+
 async function saveRx(mode){
   const drug   = document.getElementById('rxDrug').value;
   const dose   = document.getElementById('rxDose').value;
@@ -2417,6 +2568,29 @@ async function saveRx(mode){
           '患者画面に受診マークが付かない可能性があります。\n\n' +
           (evErr?.message || evErr)
         );
+      }
+
+      // ── 受診時評価を visit_evaluations に保存（受診のみ記録と共通の関数）──
+      try {
+        const visitDateForEval = visitDate || currentPtObj?.workingRx?.visitDate || currentPtObj?.currentVisit || jstToday();
+        const vfNow = currentPtObj?.visitForm || {};
+        let amtKey = vfNow.amtPattern || '';
+        if (!amtKey) { try { amtKey = computeAmtPattern(currentPtObj)?.key || ''; } catch(_) {} }
+        const evalRes = await upsertVisitEvaluation(patientKey, visitDateForEval, {
+          control:             control,
+          exam:                examSel,
+          procType:            vfNow.procType || 'none',
+          amtPattern:          amtKey,
+          patientMessage:      (note && note.trim()) ? note : null,  // この受診で患者へ送った文面の記録
+          prescriptionChanged: true,
+        });
+        if (!evalRes.ok) {
+          console.warn('[saveRx] 受診時評価の保存に失敗:', evalRes.detail);
+          alert('処方はPushされましたが、受診時評価の保存に失敗しました。\n\n' + evalRes.detail);
+        }
+      } catch(evalErr) {
+        console.warn('[saveRx] 受診時評価の保存エラー:', evalErr);
+        alert('処方はPushされましたが、受診時評価の保存に失敗しました。\n\n' + (evalErr?.message || evalErr));
       }
     }
 
@@ -2711,6 +2885,33 @@ async function loadPatientRecords(patientId) {
     // 受診日が取得できていれば、記録の有無にかかわらず反映しておく
     if (currentVisitDate) p.currentVisit = currentVisitDate;
     if (prevVisitDate)    p.lastVisit    = prevVisitDate;
+
+    // ── 受診時評価（visit_evaluations）を復元 ────────────────────
+    // これが無いと p.control は再読み込みのたびに初期値へ戻る。
+    try {
+      const evals = await supabaseFetch(
+        'visit_evaluations',
+        `patient_key=eq.${patientKey}&order=visit_date.desc&limit=1`
+      );
+      const latestEval = (evals || [])[0];
+      if (latestEval) {
+        if (latestEval.control) {
+          p.control     = latestEval.control;
+          p.controlText = CONTROL_LABELS[latestEval.control] || latestEval.control;
+        }
+        // 所見・処置・排便量パターンは「その受診で記録した値」なので、今回受診日の
+        // 評価に限って復元する（別日の所見を今回の診察に持ち込まない）。
+        if (p.currentVisit && latestEval.visit_date === p.currentVisit) {
+          const vf = ensureVisitForm(p);      // 先にリセット判定を通す
+          vf.visitDate = p.currentVisit;
+          if (latestEval.exam)        vf.exam       = latestEval.exam;
+          if (latestEval.proc_type)   vf.procType   = latestEval.proc_type;
+          if (latestEval.amt_pattern) vf.amtPattern = latestEval.amt_pattern;
+        }
+      }
+    } catch(ee) {
+      console.warn('[loadPatientRecords] visit_evaluations 取得失敗:', ee);
+    }
 
     // ── ② 共有記録を取得（新スキーマ: patient_key、直カラム参照）──────
     const records = await supabaseFetch(
