@@ -111,6 +111,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
 .btn-primary:hover{background:#0C447C}
 .btn-ghost{background:none;border:none;color:var(--blue);font-size:11px;cursor:pointer;padding:0;font-family:inherit}
+/* 受診終了ダイアログ */
+.vm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;z-index:9999}
+.vm-box{background:var(--surface);border-radius:var(--radius);padding:20px;width:min(440px,92vw);box-shadow:0 12px 40px rgba(0,0,0,.22)}
+.vm-title{font-size:15px;font-weight:500;margin-bottom:4px}
+.vm-sub{font-size:11px;color:var(--text3);margin-bottom:14px}
+.vm-opt{display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:10px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-family:inherit;transition:all .15s}
+.vm-opt:hover:not(:disabled){background:var(--blue-light);border-color:var(--blue)}
+.vm-opt:disabled{opacity:.5;cursor:not-allowed}
+.vm-opt-t{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
+.vm-opt-d{font-size:11px;color:var(--text2);line-height:1.45}
+.vm-cancel{display:block;margin:4px auto 0;background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit;padding:6px 10px}
 
 /* Tabs */
 .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;gap:2px}
@@ -1831,16 +1842,10 @@ function renderPrescription(){
         <textarea id="rxNote">${rx.note||''}</textarea>
       </div>
     </div>
-    <div style="padding:10px 0 8px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer">
-        <input type="checkbox" checked id="doPush"> 患者アプリへPush送信
-      </label>
-    </div>
     <div class="form-actions">
       <button class="btn" onclick="saveRx('draft')">下書き保存</button>
       <button class="btn" onclick="saveRx('confirm')">診療記録として確定</button>
-      <button class="btn btn-primary" onclick="saveRx('push')">確定してPush送信</button>
-      <button class="btn" onclick="saveVisitOnly()" title="処方は変更せず、受診マークと評価・診察内容だけを記録します（前回処方を継続／患者への新規配信なし）">受診のみ記録（処方継続）</button>
+      <button class="btn btn-primary" onclick="openVisitEndDialog()">受診終了</button>
     </div>
   </div>
 
@@ -2235,6 +2240,65 @@ async function deactivatePreviousActivePrescriptions(patientKey, token){
     const err = await res.text();
     throw new Error('過去active処方の無効化に失敗: ' + err);
   }
+}
+
+// ── 受診終了ダイアログ ──────────────────────────────────────
+// 「処方を反映して受診終了」と「処方なしで受診終了」を明示的に選ばせる。
+// 押し間違いで意図せず処方をPushしてしまうのを防ぐのが目的。
+function closeVisitEndDialog(){
+  document.getElementById('visitEndOverlay')?.remove();
+  document.removeEventListener('keydown', visitEndEscHandler);
+}
+function visitEndEscHandler(e){ if(e.key === 'Escape') closeVisitEndDialog(); }
+
+function openVisitEndDialog(){
+  const p = currentPt;
+  if(!p){ alert('患者が選択されていません。'); return; }
+  closeVisitEndDialog();  // 二重表示を防ぐ
+
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  const drug = document.getElementById('rxDrug')?.value.trim() || '';
+  const dose = document.getElementById('rxDose')?.value.trim() || '';
+  const visitDate = document.getElementById('visitDate')?.value || p.currentVisit || jstToday();
+
+  // 「処方なしで受診終了」を選んだときに継続される、現在有効な処方
+  const activeRx = (typeof getCurrentRx === 'function') ? getCurrentRx(p) : null;
+  const activeLabel = activeRx ? `${activeRx.drug} ${activeRx.dose || ''}`.trim() : '';
+
+  const canPush = !!(drug && dose);
+  const pushDesc = canPush
+    ? `「${esc(drug)} ${esc(dose)}」を患者アプリへ送信します。`
+    : '薬剤名と用量が未入力です。入力してから選択してください。';
+  const contDesc = activeLabel
+    ? `現在の処方「${esc(activeLabel)}」がそのまま継続します。患者アプリへの新しい送信はありません。`
+    : '処方は登録されません。患者アプリへの新しい送信はありません。';
+
+  const ov = document.createElement('div');
+  ov.id = 'visitEndOverlay';
+  ov.className = 'vm-overlay';
+  ov.innerHTML = `
+    <div class="vm-box" role="dialog" aria-modal="true">
+      <div class="vm-title">受診終了</div>
+      <div class="vm-sub">受診日 ${esc(visitDate)}｜どちらの形で終了するか選んでください</div>
+      <button class="vm-opt" id="vmPush" ${canPush ? '' : 'disabled'}>
+        <div class="vm-opt-t">処方を反映して受診終了</div>
+        <div class="vm-opt-d">${pushDesc}</div>
+      </button>
+      <button class="vm-opt" id="vmCont">
+        <div class="vm-opt-t">処方なしで受診終了</div>
+        <div class="vm-opt-d">${contDesc}</div>
+      </button>
+      <button class="vm-cancel" id="vmCancel">キャンセル</button>
+    </div>`;
+  document.body.appendChild(ov);
+
+  // 背景クリック・Escで閉じる（誤操作時にすぐ抜けられるように）
+  ov.addEventListener('click', e => { if(e.target === ov) closeVisitEndDialog(); });
+  document.addEventListener('keydown', visitEndEscHandler);
+
+  document.getElementById('vmCancel').onclick = closeVisitEndDialog;
+  document.getElementById('vmPush').onclick = () => { closeVisitEndDialog(); saveRx('push'); };
+  document.getElementById('vmCont').onclick = () => { closeVisitEndDialog(); saveVisitOnly(); };
 }
 
 // ── 受診時評価（visit_evaluations）の保存 ────────────────────────
