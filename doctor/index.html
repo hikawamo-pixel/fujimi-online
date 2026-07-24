@@ -815,7 +815,7 @@ const CONTROL_LABELS = {
 // 排便量パターンの自動判定。カルテ記載とフォームの初期選択の両方で使う。
 function computeAmtPattern(p){
   const recs = p.periodStart
-    ? (p.bowelRecords||[]).filter(r => r.date >= p.periodStart && r.date < p.currentVisit)
+    ? (p.bowelRecords||[]).filter(r => r.date >= p.periodStart && r.date < (p.periodEndExclusive || p.currentVisit))
     : (p.bowelRecords||[]);
   const amtRecs = recs.filter(r => r.amt && r.stool);
   const amtL = amtRecs.filter(r=>r.amt==='L').length;
@@ -1221,7 +1221,7 @@ function renderTopbar(){
       <div class="pt-avatar">${p.id.slice(0,5)}</div>
       <div class="pt-info">
         <h2>診察券 ${p.id}</h2>
-        <p>記録開始: ${recordStartLabel(p)} · 前回: ${prevVisitLabel(p)} · 今回: ${p.currentVisit} · 次回予定: ${p.nextVisit||'—'}</p>
+        <p>記録開始: ${recordStartLabel(p)} · 前回: ${prevVisitLabel(p)} · ${p.periodOpenEnded?'最終受診':'今回'}: ${p.currentVisit} · 次回予定: ${p.nextVisit||'—'}</p>
       </div>
     </div>
     <div class="top-actions">
@@ -1254,7 +1254,7 @@ function renderSummary(){
   if(beforeTx){
     html+=`<div class="eval-block eval-none">—&nbsp;<b>内服開始前（コントロール評価なし）</b><span style="margin-left:auto;font-size:11px;opacity:.7">初回処方</span></div>`;
   } else {
-    html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${effControlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">${prevVisitLabel(p)} → 今回: ${p.currentVisit}</span></div>`;
+    html+=`<div class="eval-block ${evalCls}">${evalIcon}&nbsp;<b>コントロール評価（前回）：${effControlText}</b><span style="margin-left:auto;font-size:11px;opacity:.7">集計期間: ${periodRangeLabel(p)}</span></div>`;
   }
 
   // サマリー数値
@@ -1297,7 +1297,7 @@ function renderSummary(){
   const totalDist=Object.values(p.bristolDist).reduce((a,b)=>a+b,0);
   html+=`<div class="two-col">
   <div class="card">
-    <div class="card-label">アドヒアランス（前回受診期間）</div>`;
+    <div class="card-label">アドヒアランス（${p.periodOpenEnded?'前回受診〜現在':'前回受診期間'}）</div>`;
   if(!hasCurr){
     html+=noPeriodDataHTML;
   } else {
@@ -1466,14 +1466,38 @@ let recordsRangeMode = 'all';
 
 // 表示範囲を求める。renderRecords() と exportImage() が同じ関数を使うことで、
 // 「画面に出ている範囲」と「画像出力される範囲」がズレないようにする。
+// 'YYYY-MM-DD' に n 日加算した文字列を返す（n は負数可）
+function addDaysStr(dateStr, n){
+  if(!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00Z');
+  if(isNaN(d)) return '';
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// 集計期間の表示ラベル。periodEndExclusive は「含まない終端」なので1日戻して表示する。
+function periodRangeLabel(p){
+  const s = p.periodStart || '—';
+  if(p.periodOpenEnded) return `${s} 〜 現在`;
+  const e = p.periodEndExclusive ? addDaysStr(p.periodEndExclusive, -1) : '';
+  return `${s} 〜 ${e || '—'}`;
+}
+
 function getRecordsRange(p, mode){
   const dataOldest = p.dataOldestDate || p.lastVisit || '';
   const dataLatest = p.dataLatestDate || p.currentVisit || '';
   let rangeStart = dataOldest;
   let rangeEnd   = dataLatest;
-  if(mode === 'visit' && p.lastVisit){
-    rangeStart = p.lastVisit > dataOldest ? p.lastVisit : dataOldest;
-    rangeEnd   = (p.currentVisit && p.currentVisit < dataLatest) ? p.currentVisit : dataLatest;
+  if(mode === 'visit'){
+    // 概要カードと同じ集計期間を使う（画像出力だけ別範囲にならないように）
+    const ps = p.periodStart || p.lastVisit || '';
+    const peIncl = p.periodEndExclusive
+      ? addDaysStr(p.periodEndExclusive, -1)
+      : (p.currentVisit || '');
+    if(ps){
+      rangeStart = ps > dataOldest ? ps : dataOldest;
+      rangeEnd   = (peIncl && peIncl < dataLatest) ? peIncl : dataLatest;
+    }
   }
   return { rangeStart, rangeEnd };
 }
@@ -1524,7 +1548,7 @@ function renderRecords(){
 
   let html=`${shareBarHTML(p)}
   <div style="font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span>前回受診: ${prevVisitLabel(p)}　表示期間: ${rangeStart || '—'} 〜 ${rangeEnd || '—'}${isLimited?'（前回受診〜今回）':'（全期間）'}</span>
+    <span>前回受診: ${prevVisitLabel(p)}　表示期間: ${rangeStart || '—'} 〜 ${rangeEnd || '—'}${isLimited?(p.periodOpenEnded?'（前回受診〜現在）':'（前回受診〜今回）'):'（全期間）'}</span>
     <button class="btn-ghost" onclick="toggleRecordsRange()">${isLimited?'全期間を表示→':'前回受診〜今回のみ表示→'}</button>
   </div>
   <div style="font-size:10px;color:var(--text3);margin-bottom:10px">※丸=ブリストルスケール　オレンジ枠=怒責　坐=坐薬　浣=浣腸　○服用 ✕スキップ 2/3=分量　赤背景=排便なし</div>
@@ -1667,7 +1691,13 @@ function renderPrescription(){
   // 治療終了日は保存後にロックする（診断日と同じ挙動）。🔓編集でロック解除。
   const treatmentEndLocked = !!p.treatmentEndDate && !p._treatmentEndUnlocked;
   // 優先順: workingRx（今回の確定/下書き） → 現在のactive処方 → 空デフォルト
-  const rx=p.workingRx||getCurrentRx(p)||{drug:'',dose:'',doseValue:'',freq:'',days:30,start:p.currentVisit,note:''};
+  // 受診日の既定値。p.currentVisit は「最新の受診イベント日」なので、
+  // 受診がまだ記録されていない状態（periodOpenEnded）でそれを既定にすると、
+  // 過去日の受診イベント・評価を上書きしてしまう。その場合は今日を既定にする。
+  const defaultVisitDate = p.workingRx?.visitDate
+    || (p.periodOpenEnded ? jstToday() : p.currentVisit)
+    || jstToday();
+  const rx=p.workingRx||getCurrentRx(p)||{drug:'',dose:'',doseValue:'',freq:'',days:30,start:defaultVisitDate,note:''};
   const nextDays=calcNextVisitDays(p);
   const nextDaysLabel = nextDays !== null ? `次回受診まで ${nextDays}日` : '次回受診日は未設定です';
   // フォーム入力欄には数値のみを使う（「朝1.75包」→「1.75」）
@@ -1686,7 +1716,7 @@ function renderPrescription(){
       <div class="form-section-title">診察所見</div>
       <div class="form-group" style="margin-bottom:10px">
         <label>今回受診日</label>
-        <input type="date" id="visitDate" value="${p.workingRx?.visitDate || p.currentVisit || jstToday()}">
+        <input type="date" id="visitDate" value="${defaultVisitDate}">
         <span style="font-size:10px;color:var(--text3)">※処方Pushで、この日付に患者アプリの受診マークが付きます</span>
       </div>
       <div class="form-group" style="margin-bottom:10px;padding:8px;background:var(--surface2);border-radius:6px">
@@ -1773,7 +1803,7 @@ function renderPrescription(){
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>処方開始日</label><input type="date" id="rxStart" value="${rx.start||p.currentVisit}"></div>
+        <div class="form-group"><label>処方開始日</label><input type="date" id="rxStart" value="${rx.start||defaultVisitDate}"></div>
         <div class="form-group"><label>終了予定日 <span class="src src-auto">自動</span></label><input type="text" id="rxEnd" readonly style="background:var(--surface2)" placeholder="開始日＋処方日数"></div>
       </div>
       <div class="form-group" style="margin-bottom:10px">
@@ -1895,7 +1925,7 @@ function buildKarteText(p){
 
   // 坐薬・浣腸の集計も他の指標と同じ期間（p.periodStart 〜 今回受診日の前日）で数える
   const recs = p.periodStart
-    ? p.bowelRecords.filter(r => r.date >= p.periodStart && r.date < p.currentVisit)
+    ? p.bowelRecords.filter(r => r.date >= p.periodStart && r.date < (p.periodEndExclusive || p.currentVisit))
     : p.bowelRecords;
   const suppCount=recs.filter(r=>r.supp==='坐').length;
   const eneCount =recs.filter(r=>r.supp==='浣').length;
@@ -2279,7 +2309,7 @@ function openVisitEndDialog(){
   ov.innerHTML = `
     <div class="vm-box" role="dialog" aria-modal="true">
       <div class="vm-title">受診終了</div>
-      <div class="vm-sub">受診日 ${esc(visitDate)}｜どちらの形で終了するか選んでください</div>
+      <div class="vm-sub">受診日 ${esc(visitDate)}${visitDate !== jstToday() ? `　※今日（${jstToday()}）ではありません` : ''}｜どちらの形で終了するか選んでください</div>
       <button class="vm-opt" id="vmPush" ${canPush ? '' : 'disabled'}>
         <div class="vm-opt-t">処方を反映して受診終了</div>
         <div class="vm-opt-d">${pushDesc}</div>
@@ -2950,6 +2980,20 @@ async function loadPatientRecords(patientId) {
     if (currentVisitDate) p.currentVisit = currentVisitDate;
     if (prevVisitDate)    p.lastVisit    = prevVisitDate;
 
+    // ── 集計期間の決定 ────────────────────────────────────
+    // 今日の受診がまだ記録されていない間は、期間を「最後の受診 → 今日」とする。
+    // これをしないと、受診後に貯まった記録が次の受診イベントが作られるまで
+    // どのカードにも集計されない（初回受診では区間が幅ゼロになり全て0件になる）。
+    // 今日の受診を記録済み（受診日が今日以降）なら、従来どおり
+    // 「前回受診 → 今回受診」で振り返る。
+    {
+      const todayStr = jstToday();
+      const visitRecordedForNow = !!(currentVisitDate && currentVisitDate >= todayStr);
+      p.periodAnchorStart  = visitRecordedForNow ? (prevVisitDate || '') : (currentVisitDate || '');
+      p.periodEndExclusive = visitRecordedForNow ? currentVisitDate : addDaysStr(todayStr, 1);
+      p.periodOpenEnded    = !visitRecordedForNow;
+    }
+
     // ── 受診時評価（visit_evaluations）を復元 ────────────────────
     // これが無いと p.control は再読み込みのたびに初期値へ戻る。
     try {
@@ -3185,7 +3229,7 @@ async function loadPatientRecords(patientId) {
       Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
 
     // 起点の下限：前回受診日（なければ記録の最古日）。さらに診断日より前には遡らない。
-    let baseStart = prevVisitDate || (bowelRows.length ? bowelRows[bowelRows.length - 1].date : '');
+    let baseStart = p.periodAnchorStart || (bowelRows.length ? bowelRows[bowelRows.length - 1].date : '');
     if (p.diagnosisDate && baseStart && baseStart < p.diagnosisDate) {
       baseStart = p.diagnosisDate;
     }
@@ -3195,7 +3239,7 @@ async function loadPatientRecords(patientId) {
     p.hasRecordsBeforePeriod = false;
     if (baseStart) {
       const recDatesInWindow = bowelRows
-        .filter(r => r.date >= baseStart && r.date < p.currentVisit)
+        .filter(r => r.date >= baseStart && r.date < p.periodEndExclusive)
         .map(r => r.date)
         .sort();
       if (recDatesInWindow.length > 0) {
@@ -3222,7 +3266,7 @@ async function loadPatientRecords(patientId) {
 
     // currRows = 集計起点〜今回受診日の前日まで（起点を含み、今回受診日は含まない）
     const currRows = periodStart
-      ? bowelRows.filter(r => r.date >= periodStart && r.date < p.currentVisit)
+      ? bowelRows.filter(r => r.date >= periodStart && r.date < p.periodEndExclusive)
       : bowelRows;
     // 概要タブのアドヒアランスカード（「前回受診期間」ラベル）用に、窓期間のrowsを保持しておく
     p.currPeriodRows = currRows;
@@ -3241,7 +3285,7 @@ async function loadPatientRecords(patientId) {
     // 集計期間の全暦日（記録の有無に関わらない。集計起点〜今回受診日の前日）
     // 「記録なしの日」を正しく数えるため、bowelRows（記録のある日のみ）とは別に暦日を作る
     const periodDates = periodStart
-      ? dateRangeExclusiveEnd(periodStart, p.currentVisit)
+      ? dateRangeExclusiveEnd(periodStart, p.periodEndExclusive)
       : currRows.map(r => r.date);
     p.periodDates = periodDates;
 
@@ -3292,7 +3336,7 @@ async function loadPatientRecords(patientId) {
     // 追加内服は他項目と同じ期間（前回受診日より後〜今回受診日まで）で「回数」集計
     const currRecordRows = records.filter(r => {
       const d = dateKeyJST(r);
-      return periodStart ? (d >= periodStart && d < p.currentVisit) : true;
+      return periodStart ? (d >= periodStart && d < p.periodEndExclusive) : true;
     });
     p.extraDoseCount = currRecordRows.filter(r => r.metadata?.extra_dose === true).length;
     // prescribedDays: 内服記録が何らかある日（null でない日）
